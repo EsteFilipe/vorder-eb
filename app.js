@@ -34,6 +34,7 @@ if (cluster.isMaster) {
     var http = require('http');
     var ss = require('socket.io-stream');
     var basicAuth = require('express-basic-auth');
+    var util = require('util')
 
     // STT
     var speech = require('@google-cloud/speech');
@@ -153,87 +154,91 @@ if (cluster.isMaster) {
         });
 
         // Listener, once the client connect to the server socket
-            io.on('connect', (client) => {
-                console.log(`Client connected [id=${client.id}]`);
-                client.emit('server_setup', `Server connected [id=${client.id}]`);
+        io.on('connect', (client) => {
+            console.log(`Client connected [id=${client.id}]`);
+            client.emit('server_setup', `Server connected [id=${client.id}]`);
 
-                // when the client sends 'message' events
-                // when using simple audio input
-                client.on('message', async function(data) {
-                    // we get the dataURL which was sent from the client
-                    const dataURL = data.audio.dataURL.split(',').pop();
-                    // we will convert it to a Buffer
-                    let fileBuffer = Buffer.from(dataURL, 'base64');
-                    // run the simple detectIntent() function
-                    const results = await detectIntent(fileBuffer);
-                    client.emit('results', results);
-                });
+            // when the client sends 'debug' events
+            //client.on('debug', function(message) {
+            //    console.log('Debug text %s', message);
+            // });
 
-                // when the client sends 'message' events
-                // when using simple audio input
-                // TODO this is the one I'll use first
-                  client.on('message-transcribe', async function(data) {
-                    // we get the dataURL which was sent from the client
-                    const dataURL = data.audio.dataURL.split(',').pop();
-                    // we will convert it to a Buffer
-                    let fileBuffer = Buffer.from(dataURL, 'base64');
-                    // run the simple transcribeAudio() function
-                    const results = await transcribeAudio(fileBuffer);
-                    client.emit('results', results);
-                });
+            // when the client sends 'message' events
+            // when using simple audio input
+            client.on('message', async function(data) {
+                // we get the dataURL which was sent from the client
+                const dataURL = data.audio.dataURL.split(',').pop();
+                // we will convert it to a Buffer
+                let fileBuffer = Buffer.from(dataURL, 'base64');
+                // run the simple detectIntent() function
+                const results = await detectIntent(fileBuffer);
+                client.emit('results', results);
+            });
 
-                // when the client sends 'stream' events
-                // when using audio streaming
-                ss(client).on('stream', function(stream, data) {
-                  // get the name of the stream
-                  const filename = path.basename(data.name);
-                  // pipe the filename to the stream
-                  stream.pipe(fs.createWriteStream(filename));
-                  // make a detectIntStream call
-                  detectIntentStream(stream, function(results){
-                      console.log(results);
-                      client.emit('results', results);
-                  });
-                });
+            // when the client sends 'message' events
+            // when using simple audio input
+              client.on('message-transcribe', async function(data) {
+                // we get the dataURL which was sent from the client
+                const dataURL = data.audio.dataURL.split(',').pop();
+                // we will convert it to a Buffer
+                let fileBuffer = Buffer.from(dataURL, 'base64');
+                // run the simple transcribeAudio() function
+                const results = await transcribeAudio(fileBuffer);
+                client.emit('results', results);
+            });
 
-                // when the client sends 'stream-transcribe' events
-                // when using audio streaming
-                ss(client).on('stream-transcribe', function(stream, data) {
-                    // get the name of the stream
-                    const filename = path.basename(data.name);
-                    // pipe the filename to the stream
-                    stream.pipe(fs.createWriteStream(filename));
-                    // make a detectIntStream call
-                    transcribeAudioStream(stream, function(results){
-                        console.log(results);
-                        client.emit('results', results);
-                    });
-                });
+            // when the client sends 'stream' events
+            // when using audio streaming
+            ss(client).on('stream', function(stream, data) {
+              // get the name of the stream
+              const filename = path.basename(data.name);
+              // pipe the filename to the stream
+              stream.pipe(fs.createWriteStream(filename));
+              // make a detectIntStream call
+              detectIntentStream(stream, function(results){
+                  console.log(results);
+                  client.emit('results', results);
+              });
+            });
 
-                // when the client sends 'tts' events
-                ss(client).on('tts', function(text) {
-                  textToAudioBuffer(text).then(function(results){
+            // when the client sends 'stream-transcribe' events
+            // when using audio streaming
+            ss(client).on('stream-transcribe', function(stream, data) {
+                // get the name of the stream
+                const filename = path.basename(data.name);
+                // pipe the filename to the stream
+                stream.pipe(fs.createWriteStream(filename));
+                // make a detectIntStream call
+                transcribeAudioStream(stream, function(results){
                     console.log(results);
                     client.emit('results', results);
-                  }).catch(function(e){
-                    console.log(e);
-                  });
-                });
-
-                // when the client sends 'stream-media' events
-                // when using audio streaming
-                ss(client).on('stream-media', function(stream, data) {
-                  // get the name of the stream
-                  const filename = path.basename(data.name);
-                  // pipe the filename to the stream
-                  stream.pipe(fs.createWriteStream(filename));
-                  // make a detectIntStream call
-                  transcribeAudioMediaStream(stream, function(results){
-                      console.log(results);
-                      client.emit('results', results);
-                  });
                 });
             });
+
+            // when the client sends 'tts' events
+            ss(client).on('tts', function(text) {
+              textToAudioBuffer(text).then(function(results){
+                console.log(results);
+                client.emit('results', results);
+              }).catch(function(e){
+                console.log(e);
+              });
+            });
+
+            // when the client sends 'stream-media' events
+            // when using audio streaming
+            ss(client).on('stream-media', function(stream, data) {
+              // get the name of the stream
+              const filename = path.basename(data.name);
+              // pipe the filename to the stream
+              stream.pipe(fs.createWriteStream(filename));
+              // make a detectIntStream call
+              transcribeAudioMediaStream(stream, function(results){
+                  console.log(results);
+                  client.emit('results', results);
+              });
+            });
+        });
 
     }
 
@@ -241,8 +246,14 @@ if (cluster.isMaster) {
      * Setup Cloud STT Integration
      */
     function setupSTT(){
+       //https://github.com/googleapis/gax-nodejs/blob/master/client-libraries.md#creating-the-client-instance
+       // TODO put this in path environment variable
+       const options = {keyFilename: 'credentials/vorder-service-account.json'}
        // Creates a client
-       speechClient = new speech.SpeechClient();
+       speechClient = new speech.SpeechClient(options);
+
+        // todo this doesn't work. see how they do it in examples
+       speechClient.initialize(); // performs auth
 
         // Create the initial request object
         // When streaming, this is the first call you will

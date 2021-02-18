@@ -111,6 +111,17 @@
         const stopRecording = document.getElementById('stop-recording');
         let recordAudio;
 
+        //DEBUG
+        /*
+        startRecording.onclick = function() {
+            var message = 'just checking if this is received';
+            // submit message to server
+            socketio.emit('debug', message);
+
+        };
+        */
+        //DEBUG
+
         // on start button handler
         startRecording.onclick = function() {
             // recording started
@@ -124,7 +135,7 @@
                     recordAudio = RecordRTC(stream, {
                     type: 'audio',
                     mimeType: 'audio/webm',
-                    sampleRate: 44100, // this sampleRate should be the same in your server code
+                    sampleRate: 16000, // this sampleRate should be the same in your server code
 
                     // MediaStreamRecorder, StereoAudioRecorder, WebAssemblyRecorder
                     // CanvasRecorder, GifRecorder, WhammyRecorder
