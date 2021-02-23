@@ -4,12 +4,26 @@
     {
       "Effect": "Allow",
       "Action":   [ "dynamodb:PutItem" ],
-      "Resource": [ "*" ]
+      "Resource": [ "arn:aws:dynamodb:us-east-2:828009597444:table/Vorder-Events" ]
     },
     {
       "Effect": "Allow",
       "Action":   [ "sns:Publish" ],
       "Resource": [ "*" ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::vorder-user-recordings"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": ["arn:aws:s3:::vorder-user-recordings/*"]
     }
   ]
 }

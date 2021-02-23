@@ -127,6 +127,9 @@
             // recording started
             startRecording.disabled = true;
 
+            // let the server know that we started recording
+            socketio.emit('start-recording', Date.now());
+
             // make use of HTML 5/WebRTC, JavaScript getUserMedia()
             // to capture the browser microphone stream
             navigator.getUserMedia({
@@ -163,6 +166,7 @@
             }, function(error) {
                 console.error(JSON.stringify(error));
             });
+
         };
 
         // on stop button handler
@@ -180,8 +184,11 @@
                         audio: {
                             type: recordAudio.getBlob().type || 'audio/wav',
                             dataURL: audioDataURL
-                        }
+                        },
+
+                        timestamp: Date.now()
                     };
+
                     // submit the audio file to the server
                     socketio.emit('message-transcribe', files);
                 });

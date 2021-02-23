@@ -20,8 +20,13 @@
     "through2": "^3.0.1",
     "util": "^0.12.1",
     "uuid": "^3.3.3",
-    "express-basic-auth": "1.2.0",
-    "aws-xray-sdk" : "1.1.2"
+    "express-basic-auth": "^1.2.0",
+    "express-session": "latest",
+    "amazon-cognito-identity-js":  "latest",
+    "request": "latest",
+    "jwk-to-pem": "latest",
+    "jsonwebtoken": "latest",
+    "object-hash": "latest"
   },
   "scripts": {
     "start": "node app.js"

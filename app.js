@@ -26,6 +26,7 @@ if (cluster.isMaster) {
 
     var AWS = require('aws-sdk');
     var express = require('express');
+    var session = require('express-session')
     var bodyParser = require('body-parser');
     var cors = require('cors');
     var socketIo = require('socket.io');
@@ -33,11 +34,38 @@ if (cluster.isMaster) {
     var fs = require('fs');
     var http = require('http');
     var ss = require('socket.io-stream');
-    var basicAuth = require('express-basic-auth');
+    //var basicAuth = require('express-basic-auth');
     var util = require('util')
+    var hash = require('object-hash');
+
+    // Server
+
+    AWS.config.region = process.env.REGION
+
+    //var sns = new AWS.SNS();
+    //var snsTopic =  process.env.NEW_SIGNUP_TOPIC;
+    var ddb = new AWS.DynamoDB();
+    var ddbTable =  process.env.EVENTS_TABLE;
+    var S3 = new AWS.S3();
+
+    const S3_bucket = process.env.EVENTS_BUCKET;
+
+    // AWS Cognito
+    var AmazonCognitoIdentity = require('amazon-cognito-identity-js');
+    var CognitoUserPool = AmazonCognitoIdentity.CognitoUserPool;
+    var request = require('request');
+    var jwkToPem = require('jwk-to-pem');
+    var jwt = require('jsonwebtoken');
+    global.fetch = require('node-fetch');
+    var poolData = {
+    UserPoolId : "us-east-2_XVWGKwmzC",
+    ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
+    };
+    const pool_region = 'us-east-2';
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
     // STT
-    var speech = require('@google-cloud/speech');
+    var speech = require('@google-cloud/speech').v1p1beta1;
 
     // TTS
     var textToSpeech = require('@google-cloud/text-to-speech');
@@ -48,6 +76,8 @@ if (cluster.isMaster) {
     var speechClient, requestSTT, ttsClient, requestTTS, mediaTranslationClient, requestMedia;
     const port = process.env.PORT || 3000;
 
+    // Credentials for the Google Service Account
+    const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
     // STT configuration
     const languageCode = 'en-US';
     const encoding = 'linear16';
@@ -64,81 +94,196 @@ if (cluster.isMaster) {
       }
     ]
 
+    // For several methods on cognito, check:
+    //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
+
+    function registerUser(email, password){
+        var attributeList = [];
+        attributeList.push(new AmazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
+
+        userPool.signUp(email, password, attributeList, null, function(err, result){
+            if (err) {
+                console.log("Error creating user.");
+                console.log(err);
+                return;
+            }
+            cognitoUser = result.user;
+            console.log("Success creating user.");
+            console.log('user name is ' + cognitoUser.getUsername());
+        });
+    }
+
+    // TODO perhaps in the future I'll have to use the token received from cognito for something
+    // Check https://www.npmjs.com/package/amazon-cognito-identity-js
+    // Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
+    function login(email, password) {
+
+        console.log("Trying to log in...")
+        console.log("E-mail: ", email)
+        console.log("Password: ", password)
+
+        var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+            Username : email,
+            Password : password,
+        });
+
+        var userData = {
+            Username : email,
+            Pool : userPool
+        };
+
+        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+        return new Promise((success, error) => {
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: (result) => {
+                    console.log('successfully authenticated', result);
+                    success(result);
+                },
+
+                onFailure: (err) => {
+                    console.log('error authenticating', err);
+                    error(err);
+                }
+            });
+        });
+
+    }
+
+    function validateToken(token) {
+            request({
+                url: `https://cognito-idp.${pool_region}.amazonaws.com/${poolData.UserPoolId}/.well-known/jwks.json`,
+                json: true
+            }, function (error, response, body) {
+                if (!error && response.statusCode === 200) {
+                    pems = {};
+                    var keys = body['keys'];
+                    for(var i = 0; i < keys.length; i++) {
+                        //Convert each key to PEM
+                        var key_id = keys[i].kid;
+                        var modulus = keys[i].n;
+                        var exponent = keys[i].e;
+                        var key_type = keys[i].kty;
+                        var jwk = { kty: key_type, n: modulus, e: exponent};
+                        var pem = jwkToPem(jwk);
+                        pems[key_id] = pem;
+                    }
+                    //validate the token
+                    var decodedJwt = jwt.decode(token, {complete: true});
+                    if (!decodedJwt) {
+                        console.log("Not a valid JWT token");
+                        return;
+                    }
+
+                    var kid = decodedJwt.header.kid;
+                    var pem = pems[kid];
+                    if (!pem) {
+                        console.log('Invalid token');
+                        return;
+                    }
+
+                    jwt.verify(token, pem, function(err, payload) {
+                        if(err) {
+                            console.log("Invalid Token.");
+                        } else {
+                            console.log("Valid Token.");
+                            console.log(payload);
+                        }
+                    });
+                } else {
+                    console.log("Error! Unable to download JWKs");
+                }
+            });
+    }
+
+    function renewToken() {
+        const RefreshToken = new AmazonCognitoIdentity.CognitoRefreshToken({RefreshToken: "your_refresh_token_from_a_previous_login"});
+
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+        const userData = {
+            Username: "sample@gmail.com",
+            Pool: userPool
+        };
+
+        const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+        cognitoUser.refreshSession(RefreshToken, (err, session) => {
+            if (err) {
+                console.log(err);
+            } else {
+                let retObj = {
+                    "access_token": session.accessToken.jwtToken,
+                    "id_token": session.idToken.jwtToken,
+                    "refresh_token": session.refreshToken.token,
+                }
+                console.log(retObj);
+            }
+        })
+    }
+
     function setupServer() {
 
-        AWS.config.region = process.env.REGION
-
-        var sns = new AWS.SNS();
-        // TODO persistent DynamoDB
-        var ddb = new AWS.DynamoDB();
-
-        var ddbTable =  process.env.STARTUP_SIGNUP_TABLE;
-        var snsTopic =  process.env.NEW_SIGNUP_TOPIC;
         var app = express();
 
         // Require authentication to access (from https://stackoverflow.com/questions/23616371/basic-http-authentication-with-node-and-express-4)
-        app.use(basicAuth({
-            users: { dawuon9d39feaAFCEb19bdy332id13: '9f2y4fg274624xn7cn289cADASry9482cvyb' },
-            challenge: true // <--- needed to actually show the login dialog!
-        }));
+        //app.use(basicAuth({
+        //    users: { dawuon9d39feaAFCEb19bdy332id13: '9f2y4fg274624xn7cn289cADASry9482cvyb' },
+        //    challenge: true // <--- needed to actually show the login dialog!
+        //}));
 
         app.use(cors());
         app.set('view engine', 'ejs');
         app.set('views', __dirname + '/views');
-        app.use(bodyParser.urlencoded({extended:false}));
+
+        app.use(bodyParser.urlencoded({extended : true}));
+        app.use(bodyParser.json());
+
+        var sess = session({secret: 'fiADWXCVejn984w7AWDWADuhftfntwfyb8fcnGRIK7wcwu9chw9IO85151',
+                            resave: false,
+                            saveUninitialized: false
+                            })
+
+        app.use(sess);
 
         // X-Ray debug logs
         //var AWSXRay = require('aws-xray-sdk');
         //app.use(AWSXRay.express.openSegment('VorderApp'));
 
         app.get('/', function(req, res) {
-            res.render('index', {
-                static_path: 'static',
-                theme: process.env.THEME || 'flatly',
-                flask_debug: process.env.FLASK_DEBUG || 'false'
-            });
+            res.sendFile(path.join(__dirname + '/views/login.html'));
         });
 
-        app.post('/signup', function(req, res) {
-            var item = {
-                'email': {'S': req.body.email},
-                'name': {'S': req.body.name},
-                'preview': {'S': req.body.previewAccess},
-                'theme': {'S': req.body.theme}
-            };
+        app.post('/auth', function(req, res) {
+        	var email = req.body.email;
+        	var password = req.body.password;
 
-            ddb.putItem({
-                'TableName': ddbTable,
-                'Item': item,
-                'Expected': { email: { Exists: false } }
-            }, function(err, data) {
-                if (err) {
-                    var returnStatus = 500;
-
-                    if (err.code === 'ConditionalCheckFailedException') {
-                        returnStatus = 409;
-                    }
-
-                    res.status(returnStatus).end();
-                    console.log('DDB Error: ' + err);
-                } else {
-                    sns.publish({
-                        'Message': 'Name: ' + req.body.name + "\r\nEmail: " + req.body.email
-                                            + "\r\nPreviewAccess: " + req.body.previewAccess
-                                            + "\r\nTheme: " + req.body.theme,
-                        'Subject': 'New user sign up!!!',
-                        'TopicArn': snsTopic
-                    }, function(err, data) {
-                        if (err) {
-                            res.status(500).end();
-                            console.log('SNS Error: ' + err);
-                        } else {
-                            res.status(201).end();
-                        }
-                    });
-                }
-            });
+        	if (email && password) {
+                login(email, password).then(function(result) {
+                    req.session.loggedin = true;
+                    req.session.email = email;
+                    res.redirect('/home');
+                }, function(err) {
+                    res.send('Incorrect e-mail and/or password.');
+                    console.log(err);
+                })
+        	} else {
+        		res.send('Please enter e-mail and password.');
+        	}
         });
+
+        app.get('/home', function(req, res) {
+        	if (req.session.loggedin) {
+                res.render('index', {
+                    static_path: 'static',
+                    theme: 'flatly',
+                    flask_debug: process.env.FLASK_DEBUG || 'false'
+                });
+        	} else {
+        		res.sendFile(path.join(__dirname + '/views/login.html'));
+        	}
+        });
+
 
         //var server = app.listen(port, function () {
         //    console.log('Server running at http://127.0.0.1:' + port + '/');
@@ -149,6 +294,12 @@ if (cluster.isMaster) {
 
         server = http.createServer(app);
         io = socketIo(server);
+
+        // Share session variables with socket.io
+        io.use(function(socket, next) {
+            sess(socket.request, socket.request.res || {}, next);
+        });
+
         server.listen(port, () => {
             console.log('Running server on port %s', port);
         });
@@ -159,32 +310,61 @@ if (cluster.isMaster) {
             client.emit('server_setup', `Server connected [id=${client.id}]`);
 
             // when the client sends 'debug' events
-            //client.on('debug', function(message) {
-            //    console.log('Debug text %s', message);
-            // });
+            /*
+            client.on('debug', async function(message) {
+                await test_speechtotext();
+                console.log('Debugging');
+            });
+            */
 
-            // when the client sends 'message' events
-            // when using simple audio input
-            client.on('message', async function(data) {
+            // when the client sends 'start-recording' events
+            client.on('start-recording', async function(timestamp) {
                 // we get the dataURL which was sent from the client
-                const dataURL = data.audio.dataURL.split(',').pop();
-                // we will convert it to a Buffer
-                let fileBuffer = Buffer.from(dataURL, 'base64');
-                // run the simple detectIntent() function
-                const results = await detectIntent(fileBuffer);
-                client.emit('results', results);
+                //console.log(timestamp);
+                //console.dir(client.request.session);
+                //console.log(client.request.session.email);
+
+                const db_item = {
+                    'email': {'S': client.request.session.email},
+                    'event_type': {'S': 'start-recording'},
+                    'client_timestamp': {'S': timestamp.toString()}
+                };
+
+                ddb_put(db_item)
             });
 
             // when the client sends 'message' events
             // when using simple audio input
-              client.on('message-transcribe', async function(data) {
+            client.on('message-transcribe', async function(data) {
+                const server_timestamp = Date.now();
+                const client_timestamp = data.timestamp.toString();
+                const fname = client.request.session.email + "-" + client_timestamp;
                 // we get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // we will convert it to a Buffer
                 let fileBuffer = Buffer.from(dataURL, 'base64');
+
+                // put record in database and upload audio file to S3 bucket
+                s3_put(fname, fileBuffer).then(function(result) {
+                    console.log("File " + fname + " uploaded successfully.");
+
+                    const db_item = {
+                        'email': {'S': client.request.session.email},
+                        'event_type': {'S': 'message-transcribe-receive-audio'},
+                        'file_name': {'S': fname},
+                        'client_timestamp': {'S': client_timestamp},
+                        'server_timestamp': {'S': server_timestamp}
+                    };
+                    ddb_put(db_item)
+                }, function(err) {
+                    console.log('Error inserting file ' + fname);
+                    console.log(err);
+                });
+
                 // run the simple transcribeAudio() function
-                const results = await transcribeAudio(fileBuffer);
-                client.emit('results', results);
+                // TODO UNCOMMENT
+                //const results = await transcribeAudio(fileBuffer);
+                //client.emit('results', results);
             });
 
             // when the client sends 'stream' events
@@ -247,41 +427,46 @@ if (cluster.isMaster) {
      */
     function setupSTT(){
        //https://github.com/googleapis/gax-nodejs/blob/master/client-libraries.md#creating-the-client-instance
-       // TODO put this in path environment variable
-       const options = {keyFilename: 'credentials/vorder-service-account.json'}
        // Creates a client
-       speechClient = new speech.SpeechClient(options);
-
-        // todo this doesn't work. see how they do it in examples
-       speechClient.initialize(); // performs auth
-
-        // Create the initial request object
-        // When streaming, this is the first call you will
-        // make, a request without the audio stream
-        // which prepares Dialogflow in receiving audio
-        // with a certain sampleRateHerz, encoding and languageCode
-        // this needs to be in line with the audio settings
-        // that are set in the client
-        requestSTT = {
-          config: {
-            sampleRateHertz: sampleRateHertz,
-            encoding: encoding,
-            languageCode: languageCode
-          },
-          //interimResults: interimResults,
-          //enableSpeakerDiarization: true,
-          //diarizationSpeakerCount: 2,
-          //model: `phone_call`
-        }
-
+       speechClient = new speech.SpeechClient(googleServiceAccount);
     }
+
+    /*
+    // DEBUG
+    async function test_speechtotext() {
+      // The path to the remote LINEAR16 file
+      const gcsUri = 'gs://cloud-samples-data/speech/brooklyn_bridge.raw';
+
+      // The audio file's encoding, sample rate in hertz, and BCP-47 language code
+      const audio = {
+        uri: gcsUri,
+      };
+      const config = {
+        encoding: 'LINEAR16',
+        sampleRateHertz: 16000,
+        languageCode: 'en-US',
+      };
+      const request = {
+        audio: audio,
+        config: config,
+      };
+
+      // Detects speech in the audio file
+      const [response] = await speechClient.recognize(request);
+      const transcription = response.results
+        .map(result => result.alternatives[0].transcript)
+        .join('\n');
+      console.log(`Transcription: ${transcription}`);
+    }
+    //DEBUG
+    */
 
     /**
      * Setup Cloud STT Integration
      */
     function setupTTS(){
       // Creates a client
-      ttsClient = new textToSpeech.TextToSpeechClient();
+      ttsClient = new textToSpeech.TextToSpeechClient(googleServiceAccount);
 
       // Construct the request
       requestTTS = {
@@ -315,7 +500,7 @@ if (cluster.isMaster) {
       * @param audio stream
       * @param cb Callback function to execute with results
       */
-     async function transcribeAudioStream(audio, cb) {
+    async function transcribeAudioStream(audio, cb) {
       const recognizeStream = speechClient.streamingRecognize(requestSTT)
       .on('data', function(data){
         console.log(data);
@@ -346,7 +531,57 @@ if (cluster.isMaster) {
       return response[0].audioContent;
     }
 
+    // Insert new item in DynamoDB table
+    function ddb_put(item) {
+
+        // calculate unique hash for the item id (uses SHA1)
+        item.id = {'S': hash(item)};
+
+        console.log("Inserting item into DB")
+        console.dir(item)
+
+        ddb.putItem({
+            'TableName': ddbTable,
+            'Item': item,
+            'Expected': { id: { Exists: false } }
+        }, function(err, data) {
+            if (err) {
+                console.log('DDB Error: ' + err);
+            } else {
+                console.log('DDB Success!');
+            }
+        });
+
+    }
+
+    function s3_put(file_name, file_content) {
+
+        // Setting up S3 upload parameters
+        const params = {
+            Bucket: S3_bucket,
+            Key: file_name, // File name you want to save as in S3
+            Body: file_content
+        };
+
+        // Uploading files to the bucket
+        return new Promise(function(resolve, reject) {
+            S3.upload(params, function(err, data) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+
+    }
+
     setupSTT();
     setupTTS();
     setupServer();
+    //registerUser("rodrigues.gon@gmail.com", "Famalicao6!")
+    //registerUser("filipe.b.aleixo@gmail.com", "Famalicao10!")
+    //login()
+
+    console.log("Finished running.")
 }
