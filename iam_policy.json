@@ -13,17 +13,14 @@
     },
     {
       "Effect": "Allow",
-      "Action": ["s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::vorder-user-recordings"]
-    },
-    {
-      "Effect": "Allow",
       "Action": [
-        "s3:PutObject",
         "s3:GetObject",
-        "s3:DeleteObject"
+        "s3:PutObject"
       ],
-      "Resource": ["arn:aws:s3:::vorder-user-recordings/*"]
+      "Resource": [
+        "arn:aws:s3:::vorder-user-recordings",
+        "arn:aws:s3:::vorder-user-recordings/*"
+      ]
     }
   ]
 }

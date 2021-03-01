@@ -40,6 +40,8 @@ if (cluster.isMaster) {
 
     // Server
 
+    express.static.mime.define({'application/wasm': ['wasm']})
+
     AWS.config.region = process.env.REGION
 
     //var sns = new AWS.SNS();
@@ -317,28 +319,40 @@ if (cluster.isMaster) {
             });
             */
 
-            // when the client sends 'start-recording' events
-            client.on('start-recording', async function(timestamp) {
-                // we get the dataURL which was sent from the client
-                //console.log(timestamp);
-                //console.dir(client.request.session);
-                //console.log(client.request.session.email);
+            // When the user clicks "Start"
+            client.on('start-monitoring', async function(data) {
+                const db_item =
 
-                const db_item = {
-                    'email': {'S': client.request.session.email},
-                    'event_type': {'S': 'start-recording'},
-                    'client_timestamp': {'S': timestamp.toString()}
-                };
+                ddb_put({'email': {'S': client.request.session.email},
+                         'event_type': {'S': 'start-monitoring'},
+                         'client_timestamp': {'S': data.timestamp.toString()}});
+            });
 
-                ddb_put(db_item)
+            // When the user clicks "Stop"
+            client.on('stop-monitoring', async function(data) {
+                const db_item =
+
+                ddb_put({'email': {'S': client.request.session.email},
+                         'event_type': {'S': 'stop-monitoring'},
+                         'client_timestamp': {'S': data.timestamp.toString()}});
+            });
+
+            // TODO still not implemented on client side
+            client.on('wake-word-detected', async function(data) {
+
+                const db_item =
+
+                ddb_put({'email': {'S': client.request.session.email},
+                         'event_type': {'S': 'wake-word-detected'},
+                         'client_timestamp': {'S': data.timestamp.toString()}});
             });
 
             // when the client sends 'message' events
             // when using simple audio input
-            client.on('message-transcribe', async function(data) {
-                const server_timestamp = Date.now();
+            client.on('audio-transcribe', async function(data) {
+                const server_timestamp = Date.now().toString();
                 const client_timestamp = data.timestamp.toString();
-                const fname = client.request.session.email + "-" + client_timestamp;
+                const fname = client.request.session.email + "-" + client_timestamp + ".wav";
                 // we get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // we will convert it to a Buffer
@@ -348,23 +362,27 @@ if (cluster.isMaster) {
                 s3_put(fname, fileBuffer).then(function(result) {
                     console.log("File " + fname + " uploaded successfully.");
 
-                    const db_item = {
-                        'email': {'S': client.request.session.email},
-                        'event_type': {'S': 'message-transcribe-receive-audio'},
-                        'file_name': {'S': fname},
-                        'client_timestamp': {'S': client_timestamp},
-                        'server_timestamp': {'S': server_timestamp}
-                    };
-                    ddb_put(db_item)
+                    ddb_put({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'message-transcribe-receive-audio'},
+                             'order_stage': {'S': data.order_stage},
+                             'file_name': {'S': fname},
+                             'client_timestamp': {'S': client_timestamp},
+                             'server_timestamp': {'S': server_timestamp}});
+
                 }, function(err) {
                     console.log('Error inserting file ' + fname);
                     console.log(err);
+                    ddb_put({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'message-transcribe-receive-audio'},
+                             'order_stage': {'S': data.order_stage},
+                             'file_name': {'S': "UPLOAD_ERROR"},
+                             'client_timestamp': {'S': client_timestamp},
+                             'server_timestamp': {'S': server_timestamp}});
                 });
 
                 // run the simple transcribeAudio() function
-                // TODO UNCOMMENT
-                //const results = await transcribeAudio(fileBuffer);
-                //client.emit('results', results);
+                const results = await transcribeAudio(fileBuffer);
+                client.emit('results', results);
             });
 
             // when the client sends 'stream' events
@@ -486,13 +504,13 @@ if (cluster.isMaster) {
       * STT - Transcribe Speech
       * @param audio file buffer
       */
-     async function transcribeAudio(audio){
-      requestSTT.audio = {
-        content: audio
-      };
-      console.log(requestSTT);
-      const responses = await speechClient.recognize(requestSTT);
-      return responses;
+    async function transcribeAudio(audio){
+        requestSTT.audio = {
+            content: audio
+        };
+        console.log(requestSTT);
+        const responses = await speechClient.recognize(requestSTT);
+        return responses;
     }
 
      /*
@@ -501,22 +519,22 @@ if (cluster.isMaster) {
       * @param cb Callback function to execute with results
       */
     async function transcribeAudioStream(audio, cb) {
-      const recognizeStream = speechClient.streamingRecognize(requestSTT)
-      .on('data', function(data){
-        console.log(data);
-        cb(data);
-      })
-      .on('error', (e) => {
-        console.log(e);
-      })
-      .on('end', () => {
-        console.log('on end');
-      });
+        const recognizeStream = speechClient.streamingRecognize(requestSTT)
+        .on('data', function(data){
+            console.log(data);
+            cb(data);
+        })
+        .on('error', (e) => {
+            console.log(e);
+        })
+        .on('end', () => {
+            console.log('on end');
+        });
 
-      audio.pipe(recognizeStream);
-      audio.on('end', function() {
+        audio.pipe(recognizeStream);
+        audio.on('end', function() {
           //fileWriter.end();
-      });
+        });
     };
 
      /*
@@ -524,11 +542,11 @@ if (cluster.isMaster) {
       * @param text - string written text
       */
     async function textToAudioBuffer(text) {
-      console.log(text);
-      requestTTS.input = { text: text }; // text or SSML
-      // Performs the Text-to-Speech request
-      const response = await ttsClient.synthesizeSpeech(requestTTS);
-      return response[0].audioContent;
+        console.log(text);
+        requestTTS.input = { text: text }; // text or SSML
+        // Performs the Text-to-Speech request
+        const response = await ttsClient.synthesizeSpeech(requestTTS);
+        return response[0].audioContent;
     }
 
     // Insert new item in DynamoDB table
