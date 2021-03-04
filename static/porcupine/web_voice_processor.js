@@ -3,9 +3,9 @@ WebVoiceProcessor = (function () {
 
     let isRecording = false;
 
-    let start = function (engines, downsamplerScript, errorCallback) {
+    let start = function (engines, downsamplerScript, errorCallback, deviceId) {
         if (!downsampler) {
-            navigator.mediaDevices.getUserMedia({audio: true})
+            navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId } })
                 .then(stream => {
                     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     let audioSource = audioContext.createMediaStreamSource(stream);

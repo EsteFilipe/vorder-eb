@@ -19,7 +19,8 @@ PorcupineManager = (function () {
     errorCallback,
     initCallback,
     porcupineWorkerScript,
-    downsamplingScript
+    downsamplingScript,
+    deviceId
   ) {
     porcupineWorker = new Worker(porcupineWorkerScript);
 
@@ -34,7 +35,7 @@ PorcupineManager = (function () {
           sensitivities: sensitivities,
         });
 
-        WebVoiceProcessor.start([engine], downsamplingScript, errorCallback);
+        WebVoiceProcessor.start([engine], downsamplingScript, errorCallback, deviceId);
         initCallback();
       } else {
         detectionCallback(messageEvent.data.keyword);

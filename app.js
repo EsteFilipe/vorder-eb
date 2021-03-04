@@ -84,17 +84,27 @@ if (cluster.isMaster) {
     const languageCode = 'en-US';
     const encoding = 'linear16';
     const sampleRateHertz = 16000;
-    // TODO obtain this from the python script (dump from there into a file and load here)
-    // TODO this context will depend on whether we're listening to order or yes/no.
-    const speechContexts = [
-      {
-        phrases: [
-          'mail',
-          'email'
-        ],
-        boost: 20.0
-      }
-    ]
+    const interimResults = false;
+
+    // Speech Contexts for Google Speech API
+    var orderSpeechContexts, confirmationSpeechContexts;
+
+    fs.readFile('speech_order_expected_sentences.json', (err, data) => {
+	    if (err) throw err;
+	    let phrases = JSON.parse(data);
+	    orderSpeechContexts = [{
+						        phrases: phrases,
+						        boost: 20.0
+						       }];
+		console.log("HEREeeeeeeeeeeeee");
+		console.log(orderSpeechContexts);
+	});
+
+    confirmationSpeechContexts = [{
+							       phrases: ['yes','no'],
+							       boost: 20.0
+							      }];
+	
 
     // For several methods on cognito, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
@@ -350,9 +360,9 @@ if (cluster.isMaster) {
             // when the client sends 'message' events
             // when using simple audio input
             client.on('audio-transcribe', async function(data) {
-                const server_timestamp = Date.now().toString();
                 const client_timestamp = data.timestamp.toString();
                 const fname = client.request.session.email + "-" + client_timestamp + ".wav";
+                const order_stage = data.order_stage;
                 // we get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // we will convert it to a Buffer
@@ -363,54 +373,34 @@ if (cluster.isMaster) {
                     console.log("File " + fname + " uploaded successfully.");
 
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'message-transcribe-receive-audio'},
+                             'event_type': {'S': 'audio-transcribe-receive-audio'},
                              'order_stage': {'S': data.order_stage},
                              'file_name': {'S': fname},
                              'client_timestamp': {'S': client_timestamp},
-                             'server_timestamp': {'S': server_timestamp}});
+                             'server_timestamp': {'S': Date.now().toString()}});
 
                 }, function(err) {
                     console.log('Error inserting file ' + fname);
                     console.log(err);
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'message-transcribe-receive-audio'},
-                             'order_stage': {'S': data.order_stage},
+                             'event_type': {'S': 'audio-transcribe-receive-audio'},
+                             'order_stage': {'S': order_stage},
                              'file_name': {'S': "UPLOAD_ERROR"},
                              'client_timestamp': {'S': client_timestamp},
-                             'server_timestamp': {'S': server_timestamp}});
+                             'server_timestamp': {'S': Date.now().toString()}});
                 });
 
-                // run the simple transcribeAudio() function
-                const results = await transcribeAudio(fileBuffer);
-                client.emit('results', results);
-            });
+                // Send audio to transcribe and wait for the response
+                const transcription = await transcribeAudio(fileBuffer, order_stage);
 
-            // when the client sends 'stream' events
-            // when using audio streaming
-            ss(client).on('stream', function(stream, data) {
-              // get the name of the stream
-              const filename = path.basename(data.name);
-              // pipe the filename to the stream
-              stream.pipe(fs.createWriteStream(filename));
-              // make a detectIntStream call
-              detectIntentStream(stream, function(results){
-                  console.log(results);
-                  client.emit('results', results);
-              });
-            });
+                // Store the transcription
+                ddb_put({'email': {'S': client.request.session.email},
+			             'event_type': {'S': 'audio-transcribe-send-transcription'},
+			             'order_stage': {'S': order_stage},
+			             'transcription': {'S': transcription},
+			             'server_timestamp': {'S': Date.now().toString()}});
 
-            // when the client sends 'stream-transcribe' events
-            // when using audio streaming
-            ss(client).on('stream-transcribe', function(stream, data) {
-                // get the name of the stream
-                const filename = path.basename(data.name);
-                // pipe the filename to the stream
-                stream.pipe(fs.createWriteStream(filename));
-                // make a detectIntStream call
-                transcribeAudioStream(stream, function(results){
-                    console.log(results);
-                    client.emit('results', results);
-                });
+                client.emit('transcription', transcription);
             });
 
             // when the client sends 'tts' events
@@ -447,6 +437,25 @@ if (cluster.isMaster) {
        //https://github.com/googleapis/gax-nodejs/blob/master/client-libraries.md#creating-the-client-instance
        // Creates a client
        speechClient = new speech.SpeechClient(googleServiceAccount);
+
+        // Create the initial request object
+	    // When streaming, this is the first call you will
+	    // make, a request without the audio stream
+	    // which prepares Dialogflow in receiving audio
+	    // with a certain sampleRateHerz, encoding and languageCode
+	    // this needs to be in line with the audio settings
+	    // that are set in the client
+	    requestSTT = {
+	      config: {
+	        sampleRateHertz: sampleRateHertz,
+	        encoding: encoding,
+	        languageCode: languageCode
+	      },
+	      interimResults: interimResults,
+	      //enableSpeakerDiarization: true,
+	      //diarizationSpeakerCount: 2,
+	      //model: `phone_call`
+	    }
     }
 
     /*
@@ -504,38 +513,29 @@ if (cluster.isMaster) {
       * STT - Transcribe Speech
       * @param audio file buffer
       */
-    async function transcribeAudio(audio){
+    async function transcribeAudio(audio, order_stage){
         requestSTT.audio = {
             content: audio
         };
-        console.log(requestSTT);
+
+        if (order_stage === "order") {
+        	requestSTT.config.speechContext = orderSpeechContexts;
+        }
+        else if (order_stage === "confirmation") {
+        	requestSTT.config.speechContext = confirmationSpeechContexts;
+        }
+
         const responses = await speechClient.recognize(requestSTT);
-        return responses;
+
+        var transcription = "TRANSCRIPTION_ERROR";
+
+       	// TODO when `confidence` < threshold, also return N/A
+        if(responses[0] && responses[0].results[0] && responses[0].results[0].alternatives[0]) {
+        	transcription = responses[0].results[0].alternatives[0].transcript;
+        }
+
+        return transcription;
     }
-
-     /*
-      * STT - Transcribe Speech on Audio Stream
-      * @param audio stream
-      * @param cb Callback function to execute with results
-      */
-    async function transcribeAudioStream(audio, cb) {
-        const recognizeStream = speechClient.streamingRecognize(requestSTT)
-        .on('data', function(data){
-            console.log(data);
-            cb(data);
-        })
-        .on('error', (e) => {
-            console.log(e);
-        })
-        .on('end', () => {
-            console.log('on end');
-        });
-
-        audio.pipe(recognizeStream);
-        audio.on('end', function() {
-          //fileWriter.end();
-        });
-    };
 
      /*
       * TTS text to an audio buffer

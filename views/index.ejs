@@ -8,6 +8,17 @@
 
     <title>Vorder: Trading Crypto with Voice</title>
 
+    <style>
+      label {
+        font-size: 15px;
+        font-weight: 500;
+      }
+      select {
+        width: 20%;
+        font-size: 15px;
+      }
+    </style>
+
     <!-- Bootstrap core CSS -->
     <link href="<%= static_path + "/bootstrap/css/theme/" + theme + "/bootstrap.css" %>" rel="stylesheet">
 
@@ -32,7 +43,9 @@
       </div>
       <div class="jumbotron">
         <h1>Trading Crypto with Voice</h1>
-        <p class="lead">Click the "Start" button below to try.</p>
+        <div class="select">
+            <label for="audioSource">Audio input source: </label><select id="audioSource"></select>
+        </div>
         <p style="text-align:center">
           <button id="start_stop_button">
             Start
@@ -41,7 +54,7 @@
           <button id="recording-indicator" style="width: 50px; height: 30px; background-color: white; border: 1px solid #dddddd;" disabled>REC</button>
         </p>
 
-        <h2 id="status" style="font-size: 14px;">Status</h2>
+        <h2 id="status" style="font-size: 14px;"></h2>
       </div>
 
 
@@ -55,6 +68,7 @@
     <script src="<%= static_path + "/bootstrap/js/bootstrap.min.js" %>"></script>
 
     <script src="<%= static_path + "/js/vorder.js" %>"></script>
+    <script src="<%= static_path + "/js/audio_devices.js" %>"></script>
     <script src="<%= static_path + "/porcupine/web_voice_processor.js" %>"></script>
     <script src="<%= static_path + "/porcupine/porcupine_manager.js" %>"></script>
 
