@@ -82,9 +82,8 @@ if (cluster.isMaster) {
     const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
     // STT configuration
     const languageCode = 'en-US';
-    const encoding = 'linear16';
+    const encoding = 'LINEAR16';
     const sampleRateHertz = 16000;
-    const interimResults = false;
 
     // Speech Contexts for Google Speech API
     var orderSpeechContexts, confirmationSpeechContexts;
@@ -96,7 +95,7 @@ if (cluster.isMaster) {
 						        phrases: phrases,
 						        boost: 20.0
 						       }];
-		console.log("HEREeeeeeeeeeeeee");
+
 		console.log(orderSpeechContexts);
 	});
 
@@ -106,7 +105,7 @@ if (cluster.isMaster) {
 							      }];
 	
 
-    // For several methods on cognito, check:
+    // For several Cognito examples, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
 
     function registerUser(email, password){
@@ -450,11 +449,7 @@ if (cluster.isMaster) {
 	        sampleRateHertz: sampleRateHertz,
 	        encoding: encoding,
 	        languageCode: languageCode
-	      },
-	      interimResults: interimResults,
-	      //enableSpeakerDiarization: true,
-	      //diarizationSpeakerCount: 2,
-	      //model: `phone_call`
+	      }
 	    }
     }
 
@@ -514,16 +509,20 @@ if (cluster.isMaster) {
       * @param audio file buffer
       */
     async function transcribeAudio(audio, order_stage){
+
+        if (order_stage === "order") {
+        	requestSTT.config.speechContexts = orderSpeechContexts;
+
+        }
+        else if (order_stage === "confirmation") {
+        	requestSTT.config.speechContexts = confirmationSpeechContexts;
+        }
+
+		//console.log(JSON.stringify(requestSTT, null, 4));
+
         requestSTT.audio = {
             content: audio
         };
-
-        if (order_stage === "order") {
-        	requestSTT.config.speechContext = orderSpeechContexts;
-        }
-        else if (order_stage === "confirmation") {
-        	requestSTT.config.speechContext = confirmationSpeechContexts;
-        }
 
         const responses = await speechClient.recognize(requestSTT);
 

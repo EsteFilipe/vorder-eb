@@ -53,6 +53,7 @@ document.getElementById('start_stop_button').onclick = function() {
 };
 
 // ------- Audio ------- 
+var speechEvents;
 var audioSourceDeviceId = 'default';
 var sounds;
 
@@ -938,13 +939,24 @@ stop_all = function () {
     }
 
     try {
-        recorder.stopRecording();
-        console.log("Stopped recording.")
+        if (recorder.getState() != "stopped") {
+            recorder.stopRecording();
+            console.log("Stopped recording.")
+        }
     }
     catch (e) {
        console.log("Unable to stop recording.")
        console.log(e);
     }
+
+    try {
+        speechEvents.stop();
+    }
+    catch (e) {
+       console.log("Unable to stop hark.")
+       console.log(e);
+    }
+
 
     document
       .querySelector("#start_stop_button")
@@ -990,9 +1002,11 @@ let microphoneRecordCallback = function(microphone) {
     // will stop recording after the user stops speaking
     var max_seconds = 1;
     var stopped_speaking_timeout;
-    var speechEvents = hark(microphone, {});
+    speechEvents = hark(microphone, {});
 
     speechEvents.on('speaking', function() {
+        status.innerText = "Speech detected.";
+
         if(recorder.getBlob()) return;
 
         clearTimeout(stopped_speaking_timeout);
@@ -1005,6 +1019,10 @@ let microphoneRecordCallback = function(microphone) {
         stopped_speaking_timeout = setTimeout(function() {
             recorder.stopRecording(sendRecordingCallback);
         }, max_seconds * 1000);
+        
+        // Stop monitoring speech events, otherwise hark will keep listening
+        // to the microphone indefinitely.
+        speechEvents.stop();
 
 
         // just for logging purpose (you can remove below code)
