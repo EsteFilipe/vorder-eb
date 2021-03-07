@@ -96,7 +96,7 @@ if (cluster.isMaster) {
 						        boost: 20.0
 						       }];
 
-		console.log(orderSpeechContexts);
+		//console.log(orderSpeechContexts);
 	});
 
     confirmationSpeechContexts = [{

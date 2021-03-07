@@ -2,6 +2,7 @@ from word2number import w2n
 from num2words import num2words as n2w
 import more_itertools as mit
 import sys
+import json
 
 COINS = {"Bitcoin": "BTC",
          "Ether": "ETH"}
@@ -41,35 +42,30 @@ def number_word_indexes_in_sequence(seq, consider_and_word):
             ix_after = i + 1
 
             if any((ix_before < 0, ix_after > len(seq)-1)):
-                print("Unexpected: word 'and' was either the first or the last word in the sequence.")
-                return False
+                return False, "Unexpected: word 'and' was either the first or the last word in the sequence."
             else:
                 # If the word "and" is between two numbers, successfully consider it as a number
                 if all((represents_float(seq[ix_before]), represents_float(seq[ix_after]))):
                     number_indexes.append(i)
                 # Else we have an unexpected case where the word "and" isn't connecting two numbers
                 else:
-                    print("Unexpected: word 'and' was not found between two numbers.")
-                    return False
+                    return False, "Unexpected: word 'and' was not found between two numbers."
         else:
             continue
 
-    return number_indexes
+    return True, number_indexes
 
 
-def order_sanity_check(words):
+def order_basic_criteria_check(words):
 
     if all(("buy" in words, "sell" in words)):
-        print("Both 'buy' and 'sell' words were found in the order. Order is incorrect.".format(len(words)))
-        return False
+        return False, "Both 'buy' and 'sell' words were found in the order. Order is incorrect.".format(len(words))
     elif all(("market" in words, "limit" in words)):
-        print("Both 'market' and 'limit' words were found in the order. Order is incorrect.".format(len(words)))
-        return False
+        return False, "Both 'market' and 'limit' words were found in the order. Order is incorrect.".format(len(words))
     elif all(("market" not in words, "limit" not in words)):
-        print("Order type was not found.")
-        return False
+        return False, "Order type ('market' or 'limit') not found."
     else:
-        return True
+        return True, ""
 
 
 def bypass_sanitize_numbers(words):
@@ -77,26 +73,32 @@ def bypass_sanitize_numbers(words):
 
     # Get all the number words in the sequence.
     # Not considering the words "+", "and", and "million" yet. Those will be addressed further below
-    number_word_indexes = number_word_indexes_in_sequence(words, consider_and_word=False)
+    nw_indexes_status, nw_indexes_output = number_word_indexes_in_sequence(words, consider_and_word=False)
 
-    # If the order already has the expected structure, we can skip sanitation
-    # Case 1 to bypass sanitation:
-    # - Word in index 3 is "market"
-    # - There are 4 words in total in the sequence
-    # - There is exactly 1 'number word',
-    # - That 'number word' is in index 1
-    if all((words[3] == "market", len(words) == 4, len(number_word_indexes) == 1, number_word_indexes == [1])):
-        return True
-    # Case 2 to bypass sanitation:
-    # - Word in index 3 is "limit"
-    # - There are 5 words in the sequence
-    # - There are 2 'number words'
-    # - Those 2 'number words' are in indexes 1 and 4.
-    elif all((words[3] == "limit", len(words) == 5, len(number_word_indexes) == 2, number_word_indexes == [1, 4])):
-        return True
-    else:
-        # ---- For all other cases, sanitize, because there's something wrong atypical with the numbers ----
+    # If there was an error getting the number word indexes, the order will fail down the line. But pass it
+    # to the sanitation function anyways
+    if not nw_indexes_status:
         return False
+    # Else, check if we can bypass sanitation or not
+    else:
+        # If the order already has the expected structure, we can skip sanitation
+        # Case 1 to bypass sanitation:
+        # - Word in index 3 is "market"
+        # - There are 4 words in total in the sequence
+        # - There is exactly 1 'number word',
+        # - That 'number word' is in index 1
+        if all((words[3] == "market", len(words) == 4, len(nw_indexes_output) == 1, nw_indexes_output == [1])):
+            return True
+        # Case 2 to bypass sanitation:
+        # - Word in index 3 is "limit"
+        # - There are 5 words in the sequence
+        # - There are 2 'number words'
+        # - Those 2 'number words' are in indexes 1 and 4.
+        elif all((words[3] == "limit", len(words) == 5, len(nw_indexes_output) == 2, nw_indexes_output == [1, 4])):
+            return True
+        else:
+            # ---- For all other cases, sanitize, because there's something wrong atypical with the numbers ----
+            return False
 
 
 def sanitize_numbers_from_google_speech(words):
@@ -158,8 +160,7 @@ def sanitize_numbers_from_google_speech(words):
         # screws up somewhere.
         for index in sorted(million_word_indexes, reverse=True):
             if not represents_int(words[index-1]):
-                print("Found non-integer before the word 'million' aborting")
-                return False
+                return False, "Found non-integer before the word 'million' aborting"
             else:
                 words[index-1] = str(int(words[index-1]) * 10 ** 6)
                 # Delete the word 'million' from the list
@@ -168,16 +169,16 @@ def sanitize_numbers_from_google_speech(words):
     # Replace '+' signs and convert them to 'and'
     words = ["and" if w == "+" else w for w in words]
 
+    # TODO the call to `number_word_indexes_in_sequence` is unnecessarily repeated. It's both here and in
+    #   bypass_sanitize_numbers
     # Get the indexes of the number words. The word "and" also counts as a number word.
-    number_word_indexes = number_word_indexes_in_sequence(words, consider_and_word=True)
+    nw_indexes_status, nw_indexes_output = number_word_indexes_in_sequence(words, consider_and_word=True)
 
-    if not number_word_indexes:
-        # Something went wrong processing the "and" word part of the number indexes, check
-        # `number_word_indexes_in_sequence` for more details
-        return False
+    if not nw_indexes_status:
+        return False, "Something went wrong processing the the number indexes: {}".format(nw_indexes_output)
 
     # Group the consecutive number word indexes.
-    number_word_indexes = [list(group) for group in mit.consecutive_groups(number_word_indexes)]
+    number_word_indexes = [list(group) for group in mit.consecutive_groups(nw_indexes_output)]
 
     # Check whether we have a 'market' or 'limit' order
     # Already made sure in `order_sanity_check` that one, and only one, of those types is present in the order.
@@ -190,12 +191,10 @@ def sanitize_numbers_from_google_speech(words):
     # Check if the number of groups in `number_word_indexes` makes sense according to the order type
     if order_type == "market":
         if len(number_word_indexes) != 1:
-            print("Found more than 1 group of number words for 'market' order, which means order is wrong. Aborting.")
-            return False
+            return False, "Found more than 1 group of number words for 'market' order, which means order is wrong. Aborting."
     elif order_type == "limit":
         if len(number_word_indexes) != 2:
-            print("Didn't find 2 group of number words for 'limit' order, which means order is wrong. Aborting.")
-            return False
+            return False, "Didn't find 2 group of number words for 'limit' order, which means order is wrong. Aborting."
 
     # If all the tests above passed, let's proceed to sanitize the numbers
     # Again reverse the order of the indexes, because we'll have to delete elements in the original list
@@ -255,8 +254,7 @@ def sanitize_numbers_from_google_speech(words):
                             try:
                                 number_word = n2w(number_word).replace(",", "")
                             except Exception as e:
-                                print("There was a problem converting numbers to words: {}".format(e))
-                                return False
+                                return False, "There was a problem converting numbers to words: {}".format(e)
                         # Note that we will do nothing with the word "and". Will just append it as is
                         number_words.append(number_word)
 
@@ -265,8 +263,7 @@ def sanitize_numbers_from_google_speech(words):
                     try:
                         number = str(w2n.word_to_num(number_words))
                     except ValueError as e:
-                        print("There was a problem converting words to numbers: {}".format(e))
-                        return False
+                        return False, "There was a problem converting words to numbers: {}".format(e)
 
                     # Replace that number in the word sequence
                     words[index_group[0]] = number
@@ -277,52 +274,53 @@ def sanitize_numbers_from_google_speech(words):
 
                 # All other cases, are unexpected. Don't process order.
                 else:
-                    print("Unexpected number group structure.")
-                    return False
+                    return False, "Unexpected number group structure."
 
-    return words
+    # If all succeeded, return the sanitized order
+    return True, words
 
 
 def parse_order(order):
 
     words = order.lower().split()
 
-    print("Tokenized words: {}".format(words))
+    #print("Tokenized words: {}".format(words))
+
+    basic_criteria_status, basic_criteria_output = order_basic_criteria_check(words)
 
     # First make sure that the order fulfills the basic criteria for being valid
-    if not order_sanity_check(words):
-        return False
+    if not basic_criteria_status:
+        return basic_criteria_status, basic_criteria_output
 
     # If basic criteria test was passed, check if it's necessary to sanitize the numbers in the order:
     bypass_sanitize = bypass_sanitize_numbers(words)
     if not bypass_sanitize:
-        words = sanitize_numbers_from_google_speech(words)
+        sanitation_status, sanitation_output = sanitize_numbers_from_google_speech(words)
         # If something went wrong with the sanitation, don't go further
-        if not words:
-            return False
+        if not sanitation_status:
+            return sanitation_status, sanitation_output
+        # Else, the order words to process come from the output of the sanitation method
+        else:
+            words = sanitation_output
 
-    # If after the sanitation the order doesn't have either 4 or 5 words, something went wrong. Don't go further
+    # If after the order doesn't have either 4 or 5 words, something went wrong. Don't go further
     if len(words) not in (4, 5):
-        print("Order must have either 4 or 5 command words. {} words were received instead.".format(len(words)))
-        return False
+        return False, "Order must have either 4 or 5 command words. {} words were received instead.".format(len(words))
 
     # If all the previous succeeded the order is now structured as expected. Let's parse it
     parsed_order = {}
 
     # -- Parse buy/sell
     if any(words[0] == x for x in BUY_SELL_WORDS):
-        parsed_order["order_buy_sell"] = words[0]
+        parsed_order["buy_sell"] = words[0]
     else:
-        print("First word was not either buy or sell")
-        return False
+        return False, "First word was not either buy or sell"
 
     # -- Parse size
     try:
-        parsed_order["order_size"] = float(words[1])
+        parsed_order["size"] = float(words[1])
     except ValueError as e:
-        print("Second word was not a number convertible to float (order size)")
-        print(e)
-        return False
+        return False, "Second word was not a number convertible to float (order size). Error message: {}".format(e)
 
     # -- Parse ticker
     if any(words[2] == x.lower() for x in COINS):
@@ -330,44 +328,85 @@ def parse_order(order):
         # Google Speech. So let's change the first letter here to upper case as well
         # to look in the dictionary
         coin_name = words[2].title()
-        parsed_order["order_ticker"] = COINS[coin_name]
+        parsed_order["ticker"] = COINS[coin_name]
     else:
-        print("Third word was not a valid ticker")
-        return False
+        return False, "Third word was not a valid ticker"
 
     # -- Parse type
     if any(words[3] == x for x in TYPE_WORDS):
-        parsed_order["order_type"] = words[3]
+        parsed_order["type"] = words[3]
     else:
-        print("Fourth word was not a valid type")
-        return False
+        return False, "Fourth word was not a valid type"
 
     # Only check price if type is limit
     if words[3] == "limit":
         # -- Parse price
         try:
-            parsed_order["order_price"] = float(words[4])
+            parsed_order["price"] = float(words[4])
         except Exception as e:
-            print("Fifth word was not a number convertible to float (order price)")
-            print(e)
-            return False
+            return False, "Fifth word was not a number convertible to float (order price). Error message: {}".format(e)
 
     # Check that the number of words is correct for the corresponding order type:
-    if parsed_order["order_type"] == "limit":
+    if parsed_order["type"] == "limit":
         if len(words) != 5:
-            print("Order type 'limit' must have exactly 5 command words. {} words were received instead.".format(len(words)))
-            return False
-    elif parsed_order["order_type"] == "market":
+            return False, "Order type 'limit' must have exactly 5 command words. {} words were received instead.".format(len(words))
+    elif parsed_order["type"] == "market":
         if len(words) != 4:
-            print("Order type 'market' must have exactly 4 command words. {} words were received instead.".format(len(words)))
-            return False
+            return False, "Order type 'market' must have exactly 4 command words. {} words were received instead.".format(len(words))
 
-    print("----- Parsed Order -----")
-    print(parsed_order)
+    return True, parsed_order
 
-    return parsed_order
+
+def test_sanitize_numbers_from_google_speech():
+    orders = [{"in": "buy 1.1 bitcoin limit 30 1301", "out_expected": "buy 1.1 bitcoin limit 31301"},
+              {"in": "buy 1.1 bitcoin limit 40 1523", "out_expected": "buy 1.1 bitcoin limit 41523"},
+              {"in": "buy 1.1 bitcoin limit 11241", "out_expected": "buy 1.1 bitcoin limit 11241"},
+              {"in": "buy 1.1 bitcoin limit 20 1051", "out_expected": "buy 1.1 bitcoin limit 21051"},
+              {"in": "buy 1.1 bitcoin limit 100 + 1051", "out_expected": "buy 1.1 bitcoin limit 101051"},
+              {"in": "buy 1.1 bitcoin limit 112000", "out_expected": "buy 1.1 bitcoin limit 112000"},
+              {"in": "buy 1.1 bitcoin limit 1 million 1341", "out_expected": "buy 1.1 bitcoin limit 1001341"},
+              {"in": "buy 1.1 bitcoin limit 1031341", "out_expected": "buy 1.1 bitcoin limit 1031341"},
+              {"in": "buy 1.1 bitcoin limit 1112000 + 51", "out_expected": "buy 1.1 bitcoin limit 1112051"},
+              {"in": "buy 3 million 415 bitcoin limit 2 million 1341", "out_expected": "buy 3000415 bitcoin limit 2001341"},
+              {"in": "buy 0.23 314 bitcoin limit 1", "out_expected": "buy 0.23314 bitcoin limit 1"},
+              {"in": "buy 0.23 314 bitcoin limit 30 1301", "out_expected": "buy 0.23314 bitcoin limit 31301"},
+              {"in": "buy 0.23 314 bitcoin limit 30 million 1301", "out_expected": "buy 0.23314 bitcoin limit 30001301"},
+              {"in": "buy 0.23 314 987 bitcoin limit 30 1301", "out_expected": "buy 0.23314987 bitcoin limit 31301"},
+              {"in": "buy 0.23 314 987 bitcoin limit 100 + 1301", "out_expected": "buy 0.23314987 bitcoin limit 101301"},
+              {"in": "sell 0.21 654 bitcoin market", "out_expected": "sell 0.21654 bitcoin market"},
+              {"in": "buy 0.1 ether limit 1000", "out_expected": "buy 0.1 ether limit 1000"},
+              {"in": "buy 7 ether limit 1500", "out_expected": "buy 7 ether limit 1500"},
+              {"in": "sell 3 ether limit 1904", "out_expected": "sell 3 ether limit 1904"},
+              {"in": "sell 3 ether limit 1000 41.4", "out_expected": "sell 3 ether limit 1041.4"},
+              # unexpected cases
+              {"in": "sell 3.0 31.1 ether limit 1904", "out_expected": ""},
+              # TODO these two will pass through. didn't remove examples like these. will do so when I have a clearer
+              #  idea of all the possible cases returned by Google Speech
+              {"in": "sell 3 31.1 ether limit 1904", "out_expected": ""},
+              {"in": "sell 3 5 ether limit 1904", "out_expected": ""}]
+
+    for o in orders:
+        print("Testing: {}".format(o))
+        status_, output_ = sanitize_numbers_from_google_speech(o['in'].split(" "))
+
+        if status_:
+            expected_words = o["out_expected"].split(" ")
+
+            if output_ == expected_words:
+                print("Passed")
+            else:
+                print("Failed. Obtained words: {}".format(output_))
+        else:
+            print("Obtained False. Error: {}".format(output_))
 
 
 if __name__ == "__main__":
+    #test_sanitize_numbers_from_google_speech()
+
     order_text = sys.argv[1]
-    parse_order(order_text)
+    status, output = parse_order(order_text)
+
+    out = json.dumps({"status": status,
+                      "output": output})
+
+    sys.stdout.write(out)
