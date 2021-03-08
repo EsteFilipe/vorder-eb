@@ -31,16 +31,6 @@ const socket = socketio.on('connect', function() {
     console.log("Socket.io connection established.")
 });
 
-socketio.on('transcription', function (transcription) {
-    indicator.style.backgroundColor = "green";
-    if(transcription != "TRANSCRIPTION_ERROR"){
-        status.innerHTML = transcription;
-    }
-    else {
-        status.innerHTML = "Transcription error.";
-    }
-});
-
 // Start / stop monitoring
 
 document.getElementById('start_stop_button').onclick = function() {
@@ -59,18 +49,35 @@ var sounds;
 
 function initialize_sounds() {
 
-    sounds = {
-        order_ask: new Howl({src: ['static/sounds/whats_your_order.wav']}),
-        order_placed: new Howl({src: ['static/sounds/order_placed.wav']}),
-        didnt_understand_order: new Howl({src: ['static/sounds/sorry_i_didnt_understand_can_you_repeat.wav']}),
-        cancel: new Howl({src: ['static/sounds/alright_cancelling.wav']}),
-        }
+  sounds = {
+      order_ask: new Howl({src: ['static/sounds/waiting_for_order.wav']}),
+      order_invalid: new Howl({src: ['static/sounds/invalid_order.wav']}),
+      repeat: new Howl({src: ['static/sounds/repeat.wav']}),
+      cancel: new Howl({src: ['static/sounds/cancelling.wav']}),
+      success: new Howl({src: ['static/sounds/success.wav']})
+      }
 
-    // Ask for order and start listening order
-    sounds.order_ask.on('end', listen_order);
-    // When order placed, start listening again for wake word
-    sounds.didnt_understand_order.on('end', start);
+}
 
+function order_ask(callback) {
+  sounds.order_ask.play();
+  sounds.order_ask.on('end', function() {
+    return callback();
+  });
+}
+
+function order_invalid (callback) {
+  sounds.order_invalid.play();
+  sounds.order_invalid.on('end', function() {
+    return callback();
+  });
+}
+
+function order_repeat (callback) {
+  sounds.repeat.play();
+  sounds.repeat.on('end', function() {
+    return callback();
+  });
 }
 
 
@@ -1024,7 +1031,6 @@ let microphoneRecordCallback = function(microphone) {
         // to the microphone indefinitely.
         speechEvents.stop();
 
-
         // just for logging purpose (you can remove below code)
         /*
         var seconds = max_seconds;
@@ -1062,11 +1068,33 @@ function sendRecordingCallback() {
         };
 
         // submit the audio file to the server
-        socketio.emit('audio-transcribe', data);
+        socketio.emit('process-order', data);
     });
 }
 
 // Order flow management
+
+socketio.on('order-confirmation', function (orderConfirmation) {
+    indicator.style.backgroundColor = "green";
+    const o = JSON.parse(orderConfirmation);
+
+    if (o.status == "VALID") {
+      status.innerHTML = "Success: \n\n" + JSON.stringify(o.output);
+      sounds.success.play();
+      // TODO
+      // 1. Stream order audio
+      // 2. Ask for confirmation
+    }
+    else if (o.status == "PROCESSING_ERROR") {
+      order_invalid(listen_order);
+    }
+    // o.status == "TRANSCRIPTION_ERROR" or anything else (unexpected)
+    else {
+      status.innerHTML = "Failed: " + o.output;
+      order_repeat(listen_order);
+    }
+    
+});
 
 var order_stage;
 
@@ -1092,9 +1120,8 @@ function listen_confirmation() {
 }
 
 function order_flow() {
-    
-    // Synchronous
-    sounds.order_ask.play();
+
+    order_ask(listen_order);
     // todo stream read out loud transcribed order
     //listen_confirmation();
     

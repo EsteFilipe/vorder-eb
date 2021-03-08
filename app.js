@@ -30,13 +30,14 @@ if (cluster.isMaster) {
     var bodyParser = require('body-parser');
     var cors = require('cors');
     var socketIo = require('socket.io');
+    var ss = require('socket.io-stream');
     var path = require('path');
     var fs = require('fs');
     var http = require('http');
-    var ss = require('socket.io-stream');
     //var basicAuth = require('express-basic-auth');
     var util = require('util')
     var hash = require('object-hash');
+    var spawn = require("child_process").spawn;
 
     // Server
 
@@ -85,6 +86,8 @@ if (cluster.isMaster) {
     const encoding = 'LINEAR16';
     const sampleRateHertz = 16000;
 
+    const coins = {BTC: "Bitcoin", ETH: "Ether"};
+
     // Speech Contexts for Google Speech API
     var orderSpeechContexts, confirmationSpeechContexts;
 
@@ -103,7 +106,9 @@ if (cluster.isMaster) {
 							       phrases: ['yes','no'],
 							       boost: 20.0
 							      }];
-	
+
+	// This will hold the order and the stage we are in the order flow
+	var order, orderStage;
 
     // For several Cognito examples, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
@@ -358,10 +363,10 @@ if (cluster.isMaster) {
 
             // when the client sends 'message' events
             // when using simple audio input
-            client.on('audio-transcribe', async function(data) {
+            client.on('process-order', async function(data) {
                 const client_timestamp = data.timestamp.toString();
                 const fname = client.request.session.email + "-" + client_timestamp + ".wav";
-                const order_stage = data.order_stage;
+                orderStage = data.order_stage;
                 // we get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // we will convert it to a Buffer
@@ -372,8 +377,8 @@ if (cluster.isMaster) {
                     console.log("File " + fname + " uploaded successfully.");
 
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'audio-transcribe-receive-audio'},
-                             'order_stage': {'S': data.order_stage},
+                             'event_type': {'S': 'process-order'},
+                             'order_stage': {'S': orderStage},
                              'file_name': {'S': fname},
                              'client_timestamp': {'S': client_timestamp},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -382,51 +387,115 @@ if (cluster.isMaster) {
                     console.log('Error inserting file ' + fname);
                     console.log(err);
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'audio-transcribe-receive-audio'},
-                             'order_stage': {'S': order_stage},
+                             'event_type': {'S': 'process-order'},
+                             'order_stage': {'S': orderStage},
                              'file_name': {'S': "UPLOAD_ERROR"},
                              'client_timestamp': {'S': client_timestamp},
                              'server_timestamp': {'S': Date.now().toString()}});
                 });
 
                 // Send audio to transcribe and wait for the response
-                const transcription = await transcribeAudio(fileBuffer, order_stage);
+                const orderTranscription = await transcribeOrder(fileBuffer);
 
-                // Store the transcription
-                ddb_put({'email': {'S': client.request.session.email},
-			             'event_type': {'S': 'audio-transcribe-send-transcription'},
-			             'order_stage': {'S': order_stage},
-			             'transcription': {'S': transcription},
-			             'server_timestamp': {'S': Date.now().toString()}});
+                var status, output;
 
-                client.emit('transcription', transcription);
+                if (orderTranscription != "TRANSCRIPTION_ERROR") {
+
+	                // Process the order using python script
+	                orderProcessed = await runPython38Script ("order_processing.py", orderTranscription, (output) => {
+
+	    				orderInfo = JSON.parse(output.toString());
+
+	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
+	    				output = orderInfo.output.toString();
+
+	    				if (status == "VALID") {
+
+	    					order = orderInfo.output;
+	    					coinName = coins[order.ticker];
+
+	    					const orderInfo = '';
+	    					if (order.type == "limit") {
+	    						orderText = `${order.polarity} ${order.size} ${coinName} at ${order.size} US Dollars. Do you want to confirm?`;
+	    					}
+
+	    					else if (order.type == "market") {
+	    						orderText = `${order.polarity} ${order.size} ${coinName} at market price. Do you want to confirm?`;
+	    					}
+
+	    					// TODO DEBUG
+	    					console.log(orderText);
+
+			                textToAudioBuffer(orderText).then(function(audioBuffer){
+				                client.emit('order-processed-stream-audio', audioBuffer);
+				            }).catch(function(e){
+				                console.log(e);
+				            });
+
+	    				}
+
+		    			// Store the processed order
+		                ddb_put({'email': {'S': client.request.session.email},
+					             'event_type': {'S': 'process-order'},
+					             'stage': {'S': orderStage},
+					             'status': {'S': status},
+					             'output': {'S': output},
+					             'server_timestamp': {'S': Date.now().toString()}});
+
+		                client.emit('order-processed', JSON.stringify({status: status, output: output}));
+	    	
+					});
+	            }
+
+	            else {
+	            	status = "TRANSCRIPTION_ERROR";
+	            	output = "There has been a problem transcribing the audio";
+
+	            	// Store the error
+	                ddb_put({'email': {'S': client.request.session.email},
+				             'event_type': {'S': 'process-order'},
+				             'stage': {'S': orderStage},
+				             'status': {'S': status},
+				             'processed': {'S': output},
+				             'server_timestamp': {'S': Date.now().toString()}});
+
+	            	client.emit('order-processed', JSON.stringify({status: status, output: output}));
+	            }
+
             });
 
-            // when the client sends 'tts' events
-            ss(client).on('tts', function(text) {
-              textToAudioBuffer(text).then(function(results){
-                console.log(results);
-                client.emit('results', results);
-              }).catch(function(e){
-                console.log(e);
-              });
-            });
+			client.on('confirm-order', async function(data) {
+				const fname = client.request.session.email + "-" + client_timestamp + ".wav";
+                orderStage = data.order_stage;
+                // we get the dataURL which was sent from the client
+                const dataURL = data.audio.dataURL.split(',').pop();
+                // we will convert it to a Buffer
+                let fileBuffer = Buffer.from(dataURL, 'base64');
+				// Send audio to transcribe and wait for the response
+                const confirmationTranscription = await transcribeOrder(fileBuffer);
 
-            // when the client sends 'stream-media' events
-            // when using audio streaming
-            ss(client).on('stream-media', function(stream, data) {
-              // get the name of the stream
-              const filename = path.basename(data.name);
-              // pipe the filename to the stream
-              stream.pipe(fs.createWriteStream(filename));
-              // make a detectIntStream call
-              transcribeAudioMediaStream(stream, function(results){
-                  console.log(results);
-                  client.emit('results', results);
-              });
-            });
+				// Send confirmation (or not) to the binance API to put the order
+
+				// Store file in S3 and in DB
+
+				// Clean up the order data afterwards
+				orderStage = "";
+				order = "";
+			}
+
         });
 
+    }
+
+    function runPython38Script (scriptPath, arg, callback) {
+    	const pythonProcess = spawn('python3.8',[scriptPath, arg]);
+	    var output = '';
+	    pythonProcess.stdout.on('data', function(data) {
+	         output += data.toString();
+	    });
+	    pythonProcess.on('close', function(code) {
+	        return callback(output);
+	    });
     }
 
     /**
@@ -492,14 +561,15 @@ if (cluster.isMaster) {
 
       // Construct the request
       requestTTS = {
-        // Select the language and SSML Voice Gender (optional)
         voice: {
-          languageCode: 'en-US', //https://www.rfc-editor.org/rfc/bcp/bcp47.txt
-          ssmlGender: 'NEUTRAL'  //  'MALE|FEMALE|NEUTRAL'
+          languageCode: 'en-US',
+          name: 'en-US-Wavenet-G',
         },
         // Select the type of audio encoding
         audioConfig: {
           audioEncoding: encoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
+          pitch: 3.2,
+          speakingRate: 1
         }
       };
     }
@@ -508,13 +578,13 @@ if (cluster.isMaster) {
       * STT - Transcribe Speech
       * @param audio file buffer
       */
-    async function transcribeAudio(audio, order_stage){
+    async function transcribeOrder(audio){
 
-        if (order_stage === "order") {
+        if (orderStage === "ORDER") {
         	requestSTT.config.speechContexts = orderSpeechContexts;
 
         }
-        else if (order_stage === "confirmation") {
+        else if (orderStage === "CONFIRMATION") {
         	requestSTT.config.speechContexts = confirmationSpeechContexts;
         }
 
@@ -541,7 +611,6 @@ if (cluster.isMaster) {
       * @param text - string written text
       */
     async function textToAudioBuffer(text) {
-        console.log(text);
         requestTTS.input = { text: text }; // text or SSML
         // Performs the Text-to-Speech request
         const response = await ttsClient.synthesizeSpeech(requestTTS);

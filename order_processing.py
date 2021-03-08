@@ -312,7 +312,7 @@ def parse_order(order):
 
     # -- Parse buy/sell
     if any(words[0] == x for x in BUY_SELL_WORDS):
-        parsed_order["buy_sell"] = words[0]
+        parsed_order["polarity"] = words[0]
     else:
         return False, "First word was not either buy or sell"
 
@@ -409,4 +409,6 @@ if __name__ == "__main__":
     out = json.dumps({"status": status,
                       "output": output})
 
-    sys.stdout.write(out)
+    #sys.stdout.write(out)
+    print(out)
+    sys.stdout.flush()
