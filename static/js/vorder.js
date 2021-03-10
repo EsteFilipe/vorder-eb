@@ -3,22 +3,22 @@
 const status = document.getElementById('status');
 const indicator = document.getElementById('recording-indicator');
 
-function status_wait_wake() {
+function statusWaitWake() {
     status.innerText = "Ready. Waiting for wake word."; 
     indicator.style.backgroundColor = "blue";
 }
 
-function status_recording() {
+function statusRecording() {
     status.innerText = "Recording..."; 
     indicator.style.backgroundColor = "red";
 }
 
-function status_wait_server() {
+function statusWaitServer() {
     status.innerText = "Sent audio to server. Waiting for response..."; 
     indicator.style.backgroundColor = "yellow";
 }
 
-function status_hold(){
+function statusHold(){
     status.innerText = ""; 
     indicator.style.backgroundColor = "white";
 }
@@ -36,7 +36,7 @@ const socket = socketio.on('connect', function() {
 document.getElementById('start_stop_button').onclick = function() {
         
         // audio loading can only be initialized after the user interacts with the page
-        initialize_sounds();
+        initializeSounds();
         // start monitoring
         start();
 
@@ -47,68 +47,72 @@ var speechEvents;
 var audioSourceDeviceId = 'default';
 var sounds;
 
-function initialize_sounds() {
+function initializeSounds() {
 
   sounds = {
-            order_ask: new Howl({src: ['static/sounds/waiting_for_order.wav']}),
-            order_invalid: new Howl({src: ['static/sounds/invalid_order.wav']}),
-            repeat: new Howl({src: ['static/sounds/repeat.wav']}),
-            cancel: new Howl({src: ['static/sounds/cancelling.wav']}),
-            success: new Howl({src: ['static/sounds/success.wav']})
-           }
+    cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
+    confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
+    order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
+    order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
+    order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
+    order_success: new Howl({src: ['static/sounds/order_rejected.mp3']}),
+    repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
+    }
 
 }
 
-function order_ask(callback) {
+function orderCancel(callback) {
+  sounds.cancel.play();
+  sounds.cancel.on('end', function() {
+    return callback();
+  });
+}
+
+function orderConfirm (callback) {
+  sounds.confirm.play();
+  sounds.confirm.on('end', function() {
+    return callback();
+  });
+}
+
+function orderAsk(callback) {
   sounds.order_ask.play();
   sounds.order_ask.on('end', function() {
     return callback();
   });
 }
 
-function order_invalid (callback) {
+function orderInvalid (callback) {
   sounds.order_invalid.play();
   sounds.order_invalid.on('end', function() {
     return callback();
   });
 }
 
-function order_repeat (callback) {
+function orderRejected (callback) {
+  sounds.order_rejected.play();
+  sounds.order_rejected.on('end', function() {
+    return callback();
+  });
+}
+
+function orderSuccess (callback) {
+  sounds.order_success.play();
+  sounds.order_success.on('end', function() {
+    return callback();
+  });
+}
+
+function repeat (callback) {
   sounds.repeat.play();
   sounds.repeat.on('end', function() {
     return callback();
   });
 }
 
-// Streaming sound from the server
-socketio.on('order-processed-stream-audio', function (audioBuffer) {
-    playOutput(audioBuffer);
-});
-
-function playStreamAudio(arrayBuffer){
-  let audioContext = new AudioContext();
-  let outputSource;
-  try {
-      if(arrayBuffer.byteLength > 0){
-          console.log(arrayBuffer.byteLength);
-          audioContext.decodeAudioData(arrayBuffer,
-          function(buffer){
-              audioContext.resume();
-              outputSource = audioContext.createBufferSource();
-              outputSource.connect(audioContext.destination);
-              outputSource.buffer = buffer;
-              outputSource.start(0);
-          },
-          function(){
-              console.log(arguments);
-          });
-      }
-  } catch(e) {
-      console.log(e);
-  }
-}
 
 
+// TODO Put this stuff in a different file
 //  ------- Porcupine -------    
 const KEYWORDS_ID = {
         "Terminator": new Uint8Array([
@@ -914,7 +918,7 @@ let porcupineProcessCallback = function (keyword) {
       // Stop listening to wake word and release microphone.
       PorcupineManager.stop();
       // Try to access microphone immediately after to see if it works
-      order_flow();
+      orderAsk(listenOrder);
     }
 };
 
@@ -923,7 +927,7 @@ let porcupineReadyCallback = function () {
     let startstopButton = document.querySelector("#start_stop_button");
     startstopButton.innerText = "Stop";
     startstopButton.disabled = false;
-    status_wait_wake();
+    statusWaitWake();
 
     // let the server know that we started recording
     socketio.emit('start-monitoring', {timestamp: Date.now()});
@@ -955,13 +959,13 @@ start = function () {
     );
 
     let startstopButton = document.querySelector("#start_stop_button");
-    startstopButton.setAttribute("onclick", "stop_all()");
+    startstopButton.setAttribute("onclick", "stopAll()");
     startstopButton.innerText = "Initializing...";
     startstopButton.disabled = true;
 };
 
 // Stop everything
-stop_all = function () {
+stopAll = function () {
 
     // TODO find mode elegant way to do this than with try catch. Perhaps setting a flag that has current active mode.
     try {
@@ -1001,7 +1005,7 @@ stop_all = function () {
     // let the server know that we started recording
     socketio.emit('stop-monitoring', {timestamp: Date.now()});
 
-    status_hold();
+    statusHold();
 };
 
 //  ------- RecordRTC -------
@@ -1019,7 +1023,7 @@ function captureMicrophone(callback) {
     });
 }
 
-let microphoneRecordCallback = function(microphone) {
+let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech) {
     //audio.srcObject = microphone;
 
     recorder = RecordRTC(microphone, {
@@ -1031,11 +1035,8 @@ let microphoneRecordCallback = function(microphone) {
     });
 
     recorder.startRecording();
-    status_recording();
+    statusRecording();
 
-    // max_seconds is the number of seconds that we
-    // will stop recording after the user stops speaking
-    var max_seconds = 1;
     var stopped_speaking_timeout;
     speechEvents = hark(microphone, {});
 
@@ -1053,7 +1054,7 @@ let microphoneRecordCallback = function(microphone) {
         // recorder.pauseRecording();
         stopped_speaking_timeout = setTimeout(function() {
             recorder.stopRecording(sendRecordingCallback);
-        }, max_seconds * 1000);
+        }, maxSilenceSecondsAfterSpeech * 1000);
         
         // Stop monitoring speech events, otherwise hark will keep listening
         // to the microphone indefinitely.
@@ -1082,7 +1083,7 @@ let microphoneRecordCallback = function(microphone) {
 function sendRecordingCallback() {
     console.log("Sending data to server")
     // waiting for server response
-    status_wait_server();
+    statusWaitServer();
     // after stopping the audio, get the audio data
     recorder.getDataURL(function(audioDataURL) {
         var data = {
@@ -1090,68 +1091,180 @@ function sendRecordingCallback() {
                 type: recorder.getBlob().type || 'audio/wav',
                 dataURL: audioDataURL
             },
-            order_stage: order_stage,
             // timestamp at which audio was sent
             timestamp: Date.now()
         };
-
-        // submit the audio file to the server
-        socketio.emit('process-order', data);
+        if (orderStage == 'PROCESS'){
+          socketio.emit('process-order', data);
+        }
+        else if (orderStage == 'CONFIRMATION'){
+          socketio.emit('confirm-order', data);
+        }
     });
 }
 
 // Order flow management
 
-socketio.on('order-processed', function (orderConfirmation) {
+socketio.on('order-processed', function (orderDescription) {
     indicator.style.backgroundColor = "green";
-    const o = JSON.parse(orderConfirmation);
+    const od = JSON.parse(orderDescription);
 
-    if (o.status == "VALID") {
-      status.innerHTML = "Success: \n\n" + JSON.stringify(o.output);
-      // Ask for order to be spoken
-      ss(socket).emit('order-confirmation-request-stream-audio', '', {});
-      // TODO
-      // 1. Stream order audio
-      // 2. Ask for confirmation
+    if (od.status == "VALID") {
+      const order = od.output;
+      var orderText;
+
+      if (order.type == "limit") {
+        orderText = `${order.polarity} ${order.size} ${order.ticker} at ${order.price} US Dollars. Do you want to confirm?`;
+      }
+
+      else if (order.type == "market") {
+        orderText = `${order.polarity} ${order.size} ${order.ticker} at market price. Do you want to confirm?`;
+      }
+
+      // TODO only show text when playStreamAudio(audioBuffer) starts playing
+
+      status.innerHTML = orderText;
+      
     }
-    else if (o.status == "PROCESSING_ERROR") {
-      order_invalid(listen_order);
+    else if (od.status == "PROCESSING_ERROR") {
+      status.innerHTML = "Invalid order: " + od.output;
+      orderInvalid(listenOrder);
     }
-    // o.status == "TRANSCRIPTION_ERROR" or anything else (unexpected)
-    else {
-      status.innerHTML = "Failed: " + o.output;
-      order_repeat(listen_order);
+    else if (od.status == "TRANSCRIPTION_ERROR"){
+      status.innerHTML = "Transcription error: " + od.output;
+      repeat(listenOrder);
     }
     
 });
 
-var order_stage;
+socketio.on('order-confirmation', function (orderConfirmation) {
+    const oc = JSON.parse(orderConfirmation);
 
-function listen_order() {
-    order_stage = 'ORDER';
-    captureMicrophone(microphoneRecordCallback);
-
-    // Understood?
-    // -> Yes, go to listen_confirmation()
-    // -> No, play sounds.didnt_understand_order and call this function again
-
-}
-
-function listen_confirmation() {
-    order_stage = 'CONFIRMATION';
-    captureMicrophone(microphoneRecordCallback);
-
-    // Understood?
-    // -> Yes:
-    //   - If answer is yes, tell the server to place the order. Receive confirmation that order placed was successful
-    //   - If answer is no, cancel and call start()
-    // -> No, play sounds.didnt_understand_order and call this function again
-}
-
-function order_flow() {
-
-    order_ask(listen_order);
-    // todo stream read out loud transcribed order
-    //listen_confirmation();
+    // User said "yes" and Binance accepted the order
+    if (oc.status == "PLACED") {
+      sounds.order_success.play();
+      // re-start immediately, without waiting for sound to finish
+      start();
+    }
+    // User said no
+    if (oc.status == "NO") {
+      sounds.cancel.play();
+      // re-start immediately, without waiting for sound to finish
+      start();
+    }
+    // Something unexpected appeared in the transcription, 
+    // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
+    else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
+      status.innerHTML = "Confirmation failed: " + oc.output;
+      repeat(listenConfirmation);
+    }
+    // The order was rejected by Binance
+    else if (oc.status == "BINANCE_REJECTED") {
+      status.innerHTML = "Binance rejected order: " + oc.output;
+      sounds.order_rejected.play();
+      // re-start immediately, without waiting for sound to finish
+      start();
+    }
     
+
+
+// Response given from the server for the confirmation
+// Possibilities:
+// No - 
+// Not understood - ask to repeat, return to orderRepeat(listenOrder)
+
+
+});
+
+// Play order confirmation audio (transferred from the server)
+socketio.on('stream-audio-confirm-order', function (arrayBuffer) {
+    playOrderConfirmationAudio(arrayBuffer);
+});
+
+// TODO pass callback
+function playOrderConfirmationAudio(arrayBuffer){
+  console.log("Size of arrayBuffer:");
+  console.log(arrayBuffer.byteLength);
+  // Note: Assuming mp3 format
+  const orderAudio = new Howl({
+        src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
+  });
+
+  sounds.confirm.on('end', function() {
+    // As soon as the confirmation is asked, run listenConfirmation()
+    return listenConfirmation();
+  });
+
+  orderAudio.on('end', function() {
+    // As soon as the order description is said, ask for confirmation
+    sounds.confirm.play();
+  });
+
+  orderAudio.play();
+
+}
+
+var orderStage;
+
+function listenOrder() {
+    orderStage = 'PROCESS';
+    captureMicrophone(microphoneRecordCallback, maxSilenceSecondsAfterSpeech=1);
+}
+
+function listenConfirmation() {
+    orderStage = 'CONFIRMATION';
+    captureMicrophone(microphoneRecordCallback, maxSilenceSecondsAfterSpeech=0.5);
+}
+
+// https://gist.github.com/jonleighton/958841
+function base64ArrayBuffer(arrayBuffer) {
+    var base64    = ''
+    var encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+    var bytes         = new Uint8Array(arrayBuffer)
+    var byteLength    = bytes.byteLength
+    var byteRemainder = byteLength % 3
+    var mainLength    = byteLength - byteRemainder
+
+    var a, b, c, d
+    var chunk
+
+    // Main loop deals with bytes in chunks of 3
+    for (var i = 0; i < mainLength; i = i + 3) {
+      // Combine the three bytes into a single integer
+      chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2]
+
+      // Use bitmasks to extract 6-bit segments from the triplet
+      a = (chunk & 16515072) >> 18 // 16515072 = (2^6 - 1) << 18
+      b = (chunk & 258048)   >> 12 // 258048   = (2^6 - 1) << 12
+      c = (chunk & 4032)     >>  6 // 4032     = (2^6 - 1) << 6
+      d = chunk & 63               // 63       = 2^6 - 1
+
+      // Convert the raw binary segments to the appropriate ASCII encoding
+      base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d]
+    }
+
+    // Deal with the remaining bytes and padding
+    if (byteRemainder == 1) {
+      chunk = bytes[mainLength]
+
+      a = (chunk & 252) >> 2 // 252 = (2^6 - 1) << 2
+
+      // Set the 4 least significant bits to zero
+      b = (chunk & 3)   << 4 // 3   = 2^2 - 1
+
+      base64 += encodings[a] + encodings[b] + '=='
+    } else if (byteRemainder == 2) {
+      chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1]
+
+      a = (chunk & 64512) >> 10 // 64512 = (2^6 - 1) << 10
+      b = (chunk & 1008)  >>  4 // 1008  = (2^6 - 1) << 4
+
+      // Set the 2 least significant bits to zero
+      c = (chunk & 15)    <<  2 // 15    = 2^4 - 1
+
+      base64 += encodings[a] + encodings[b] + encodings[c] + '='
+    }
+
+    return base64
 }

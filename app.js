@@ -80,7 +80,10 @@ if (cluster.isMaster) {
     const port = process.env.PORT || 3000;
 
     // Credentials for the Google Service Account
+    // Using two service accounts because if I only used one, I got an error. Apparently two
+    // services can't access the same service account in simultaneous.
     const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
+    const googleServiceAccount2 = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT2_FILE_PATH};
     // STT configuration
     const languageCode = 'en-US';
     const encoding = 'LINEAR16';
@@ -107,8 +110,6 @@ if (cluster.isMaster) {
 							       boost: 20.0
 							      }];
 
-	// This will hold the order and the stage we are in the order flow
-	var order, orderStage;
 
     // For several Cognito examples, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
@@ -278,6 +279,7 @@ if (cluster.isMaster) {
                 login(email, password).then(function(result) {
                     req.session.loggedin = true;
                     req.session.email = email;
+                    req.session.order = -1;
                     res.redirect('/home');
                 }, function(err) {
                     res.send('Incorrect e-mail and/or password.');
@@ -338,7 +340,7 @@ if (cluster.isMaster) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'start-monitoring'},
+                         'event_type': {'S': 'START_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()}});
             });
 
@@ -347,7 +349,7 @@ if (cluster.isMaster) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'stop-monitoring'},
+                         'event_type': {'S': 'STOP_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()}});
             });
 
@@ -357,19 +359,18 @@ if (cluster.isMaster) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'wake-word-detected'},
+                         'event_type': {'S': 'WAKE_WORD_DETECTED'},
                          'client_timestamp': {'S': data.timestamp.toString()}});
             });
 
-            // when the client sends 'message' events
-            // when using simple audio input
+            // Transcribe, process and validate order
             client.on('process-order', async function(data) {
+            	const eventType = 'PROCESS_ORDER';
                 const client_timestamp = data.timestamp.toString();
                 const fname = client.request.session.email + "-" + client_timestamp + ".wav";
-                orderStage = data.order_stage;
-                // we get the dataURL which was sent from the client
+                // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
-                // we will convert it to a Buffer
+                // Convert it to a Buffer
                 let fileBuffer = Buffer.from(dataURL, 'base64');
 
                 // put record in database and upload audio file to S3 bucket
@@ -377,8 +378,8 @@ if (cluster.isMaster) {
                     console.log("File " + fname + " uploaded successfully.");
 
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'process-order'},
-                             'order_stage': {'S': orderStage},
+                             'event_type': {'S': eventType},
+                             'stage': {'S': 'SAVE_AUDIO'},
                              'file_name': {'S': fname},
                              'client_timestamp': {'S': client_timestamp},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -387,63 +388,68 @@ if (cluster.isMaster) {
                     console.log('Error inserting file ' + fname);
                     console.log(err);
                     ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': 'process-order'},
-                             'order_stage': {'S': orderStage},
+                             'event_type': {'S': eventType},
+                             'stage': {'S': 'SAVE_AUDIO'},
                              'file_name': {'S': "UPLOAD_ERROR"},
                              'client_timestamp': {'S': client_timestamp},
                              'server_timestamp': {'S': Date.now().toString()}});
                 });
 
                 // Send audio to transcribe and wait for the response
-                const orderTranscription = await transcribeOrder(fileBuffer);
+                const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
 
-                var status, output;
+                var status = '';
+                var output = '';
 
                 if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
 	                // Process the order using python script
-	                orderProcessed = await runPython38Script ("order_processing.py", orderTranscription, (output) => {
+	                await runPython38Script ("order_processing.py", orderTranscription, (output) => {
+	                	// `output` is a string
 
-	    				orderInfo = JSON.parse(output.toString());
+	    				const orderInfo = JSON.parse(output);
 
 	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
-	    				output = orderInfo.output.toString();
+	    				output = orderInfo.output;
 
-	    				if (status == "VALID") {
+	    				// Send result of order processing to client
+						client.emit('order-processing', JSON.stringify({status: status, output: output}));
 
-	    					order = orderInfo.output;
-	    					coinName = coins[order.ticker];
+				    	if (status == "VALID") {
+							// Save order in session variable
+							client.request.session.order = orderInfo.output;
+							
+							const order = orderInfo.output;
+							const coinName = coins[order.ticker];
+							
+							if (order.type == "limit") {
+								orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
+							}
 
-	    					const orderInfo = '';
-	    					if (order.type == "limit") {
-	    						orderText = `${order.polarity} ${order.size} ${coinName} at ${order.size} US Dollars. Do you want to confirm?`;
-	    					}
+							else if (order.type == "market") {
+								orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
+							}
 
-	    					else if (order.type == "market") {
-	    						orderText = `${order.polarity} ${order.size} ${coinName} at market price. Do you want to confirm?`;
-	    					}
-
-	    					// TODO DEBUG
-	    					console.log(orderText);
-
-			                textToAudioBuffer(orderText).then(function(audioBuffer){
-				                client.emit('order-processed-stream-audio', audioBuffer);
+			                textToAudioBuffer(orderText).then(function(arrayBuffer){
+				                client.emit('stream-audio-confirm-order', arrayBuffer);
 				            }).catch(function(e){
 				                console.log(e);
 				            });
 
-	    				}
+
+						}
+						else {
+							// -1 means no order to confirm
+							client.request.session.order = -1;
+						}
 
 		    			// Store the processed order
 		                ddb_put({'email': {'S': client.request.session.email},
-					             'event_type': {'S': 'process-order'},
-					             'stage': {'S': orderStage},
+					             'event_type': {'S': eventType},
+					             'stage': {'S': 'ORDER_PROCESSING'},
 					             'status': {'S': status},
-					             'output': {'S': output},
+					             'output': {'S': JSON.stringify(output)},
 					             'server_timestamp': {'S': Date.now().toString()}});
-
-		                client.emit('order-processed', JSON.stringify({status: status, output: output}));
-	    	
 					});
 	            }
 
@@ -451,40 +457,109 @@ if (cluster.isMaster) {
 	            	status = "TRANSCRIPTION_ERROR";
 	            	output = "There has been a problem transcribing the audio";
 
+	            	client.emit('order-processing', JSON.stringify({status: status, output: output}));
+
 	            	// Store the error
 	                ddb_put({'email': {'S': client.request.session.email},
-				             'event_type': {'S': 'process-order'},
-				             'stage': {'S': orderStage},
+				             'event_type': {'S': eventType},
+				             'stage': {'S': 'ORDER_PROCESSING'},
 				             'status': {'S': status},
 				             'processed': {'S': output},
 				             'server_timestamp': {'S': Date.now().toString()}});
-
-	            	client.emit('order-processed', JSON.stringify({status: status, output: output}));
 	            }
 
             });
 
+			// Confirm order
 			client.on('confirm-order', async function(data) {
+				const order = client.request.session.order
+				const eventType = 'CONFIRM_ORDER';
+                const client_timestamp = data.timestamp.toString();
 				const fname = client.request.session.email + "-" + client_timestamp + ".wav";
-                orderStage = data.order_stage;
-                // we get the dataURL which was sent from the client
+                // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
-                // we will convert it to a Buffer
+                // Convert it to a Buffer
                 let fileBuffer = Buffer.from(dataURL, 'base64');
 				// Send audio to transcribe and wait for the response
-                const confirmationTranscription = await transcribeOrder(fileBuffer);
+                const confirmationTranscription = await transcribeOrder(fileBuffer, "CONFIRMATION");
 
-				// Send confirmation (or not) to the binance API to put the order
+                var status = '';
+                var output = '';
 
-				// Store file in S3 and in DB
+                // TODO
+                // - Store audio file
+                // - Do the if (confirmationTranscription != "PROCESSING_ERROR") part - connection to binance and error handling
+
+
+                if (confirmationTranscription != "TRANSCRIPTION_ERROR") {
+
+                	const confirmationProcessing = await processOrderConfirmation(confirmationTranscription);
+
+                	if (confirmationTranscription != "PROCESSING_ERROR") {
+
+                	}
+
+                	else {
+
+                		status = "PROCESSING_ERROR";
+	            		output = "There has been a problem processing the confirmation. One of the two happened:" +
+	            		 "1) Both words 'yes' and 'no' were found;" +
+	            		 "2) None of the words 'yes' or 'no' were found";
+
+                		client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
+                		// Store the error
+		                ddb_put({'email': {'S': client.request.session.email},
+					             'event_type': {'S': eventType},
+					             'stage': {'S': 'ORDER_CONFIRMATION'},
+					             'status': {'S': status},
+					             'processed': {'S': output},
+					             'server_timestamp': {'S': Date.now().toString()}});
+                	}
+
+
+                }
+
+                else {
+                	status = "TRANSCRIPTION_ERROR";
+	            	output = "There has been a problem transcribing the audio";
+
+	            	client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
+
+	            	// Store the error
+	                ddb_put({'email': {'S': client.request.session.email},
+				             'event_type': {'S': eventType},
+				             'stage': {'S': 'ORDER_CONFIRMATION'},
+				             'status': {'S': status},
+				             'processed': {'S': output},
+				             'server_timestamp': {'S': Date.now().toString()}});
+                }
 
 				// Clean up the order data afterwards
-				orderStage = "";
-				order = "";
-			}
+				//client.request.session.order = -1;
+			});
 
         });
 
+    }
+
+    function processOrderConfirmation(transcription) {
+    	const t = transcription.toLowerCase();
+		// If both "yes" and "no" were said
+	    if (t.includes("yes") && t.includes("no")) {
+	    	return "PROCESSING_ERROR";
+	    }
+	    else {
+	    	// If only one of "yes" and "no" was said, check which one.
+	        if (t.includes("yes")){
+	        	return "YES";
+	        }
+	        else (t.includes("no")){
+	        	return "NO";
+	        }
+	        // If nothing from "yes", "no", or "cancel" was said, ask again.
+	    	else:
+	        	return "PROCESSING_ERROR";
+	    }
     }
 
     function runPython38Script (scriptPath, arg, callback) {
@@ -557,7 +632,7 @@ if (cluster.isMaster) {
      */
     function setupTTS(){
       // Creates a client
-      ttsClient = new textToSpeech.TextToSpeechClient(googleServiceAccount);
+      ttsClient = new textToSpeech.TextToSpeechClient(googleServiceAccount2);
 
       // Construct the request
       requestTTS = {
@@ -565,9 +640,10 @@ if (cluster.isMaster) {
           languageCode: 'en-US',
           name: 'en-US-Wavenet-G',
         },
-        // Select the type of audio encoding
+        // TODO It's possible to decrease the sampling rate to make the audio file as small as possible
+        // Also possible to increase the speakingRate
         audioConfig: {
-          audioEncoding: encoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
+          audioEncoding: 'MP3', //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
           pitch: 3.2,
           speakingRate: 1
         }
@@ -578,9 +654,9 @@ if (cluster.isMaster) {
       * STT - Transcribe Speech
       * @param audio file buffer
       */
-    async function transcribeOrder(audio){
+    async function speechTranscription(audio, orderStage){
 
-        if (orderStage === "ORDER") {
+        if (orderStage === "PROCESS") {
         	requestSTT.config.speechContexts = orderSpeechContexts;
 
         }
