@@ -327,21 +327,14 @@ if (cluster.isMaster) {
             console.log(`Client connected [id=${client.id}]`);
             client.emit('server_setup', `Server connected [id=${client.id}]`);
 
-            // when the client sends 'debug' events
-            /*
-            client.on('debug', async function(message) {
-                await test_speechtotext();
-                console.log('Debugging');
-            });
-            */
-
             // When the user clicks "Start"
             client.on('start-monitoring', async function(data) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
                          'event_type': {'S': 'START_MONITORING'},
-                         'client_timestamp': {'S': data.timestamp.toString()}});
+                         'client_timestamp': {'S': data.timestamp.toString()},
+                     	 'server_timestamp': {'S': Date.now().toString()}});
             });
 
             // When the user clicks "Stop"
@@ -350,7 +343,8 @@ if (cluster.isMaster) {
 
                 ddb_put({'email': {'S': client.request.session.email},
                          'event_type': {'S': 'STOP_MONITORING'},
-                         'client_timestamp': {'S': data.timestamp.toString()}});
+                         'client_timestamp': {'S': data.timestamp.toString()},
+                     	 'server_timestamp': {'S': Date.now().toString()}});
             });
 
             // TODO still not implemented on client side
@@ -360,51 +354,29 @@ if (cluster.isMaster) {
 
                 ddb_put({'email': {'S': client.request.session.email},
                          'event_type': {'S': 'WAKE_WORD_DETECTED'},
-                         'client_timestamp': {'S': data.timestamp.toString()}});
+                         'client_timestamp': {'S': data.timestamp.toString()},
+                     	 'server_timestamp': {'S': Date.now().toString()}});
             });
 
             // Transcribe, process and validate order
             client.on('process-order', async function(data) {
             	const eventType = 'PROCESS_ORDER';
-                const client_timestamp = data.timestamp.toString();
-                const fname = client.request.session.email + "-" + client_timestamp + ".wav";
+                const clientTimestamp = data.timestamp.toString();
+                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
                 let fileBuffer = Buffer.from(dataURL, 'base64');
 
-                // put record in database and upload audio file to S3 bucket
-                s3_put(fname, fileBuffer).then(function(result) {
-                    console.log("File " + fname + " uploaded successfully.");
-
-                    ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': eventType},
-                             'stage': {'S': 'SAVE_AUDIO'},
-                             'file_name': {'S': fname},
-                             'client_timestamp': {'S': client_timestamp},
-                             'server_timestamp': {'S': Date.now().toString()}});
-
-                }, function(err) {
-                    console.log('Error inserting file ' + fname);
-                    console.log(err);
-                    ddb_put({'email': {'S': client.request.session.email},
-                             'event_type': {'S': eventType},
-                             'stage': {'S': 'SAVE_AUDIO'},
-                             'file_name': {'S': "UPLOAD_ERROR"},
-                             'client_timestamp': {'S': client_timestamp},
-                             'server_timestamp': {'S': Date.now().toString()}});
-                });
-
                 // Send audio to transcribe and wait for the response
                 const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
 
-                var status = '';
-                var output = '';
+                var status, output;
 
                 if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
 	                // Process the order using python script
-	                await runPython38Script ("order_processing.py", orderTranscription, (output) => {
+	                runPython38Script ("order_processing.py", orderTranscription, (output) => {
 	                	// `output` is a string
 
 	    				const orderInfo = JSON.parse(output);
@@ -412,9 +384,10 @@ if (cluster.isMaster) {
 	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
 	    				output = orderInfo.output;
 
-	    				// Send result of order processing to client
-						client.emit('order-processing', JSON.stringify({status: status, output: output}));
+	    				// Send text result of order processing to client
+						client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
 
+						// Get the order description audio data
 				    	if (status == "VALID") {
 							// Save order in session variable
 							client.request.session.order = orderInfo.output;
@@ -435,111 +408,143 @@ if (cluster.isMaster) {
 				            }).catch(function(e){
 				                console.log(e);
 				            });
-
-
 						}
 						else {
 							// -1 means no order to confirm
 							client.request.session.order = -1;
 						}
 
-		    			// Store the processed order
-		                ddb_put({'email': {'S': client.request.session.email},
-					             'event_type': {'S': eventType},
-					             'stage': {'S': 'ORDER_PROCESSING'},
-					             'status': {'S': status},
-					             'output': {'S': JSON.stringify(output)},
-					             'server_timestamp': {'S': Date.now().toString()}});
+		                storeProcessingData({
+		                	email: client.request.session.email,
+		                	eventType: eventType,
+		                	status: status,
+		                	output: JSON.stringify({
+	    						transcription: orderTranscription,
+	    						processing: orderInfo.output})});
 					});
 	            }
 
 	            else {
 	            	status = "TRANSCRIPTION_ERROR";
-	            	output = "There has been a problem transcribing the audio";
+	            	output = "There has been a problem transcribing the audio.";
 
 	            	client.emit('order-processing', JSON.stringify({status: status, output: output}));
 
-	            	// Store the error
-	                ddb_put({'email': {'S': client.request.session.email},
-				             'event_type': {'S': eventType},
-				             'stage': {'S': 'ORDER_PROCESSING'},
-				             'status': {'S': status},
-				             'processed': {'S': output},
-				             'server_timestamp': {'S': Date.now().toString()}});
+	                storeProcessingData({
+	                	email: client.request.session.email,
+	                	eventType: eventType,
+	                	status: status,
+	                	output: output});
+
 	            }
+
+            	storeAudioData({
+                	email: client.request.session.email,
+                	eventType: eventType,
+                	fileName: fileName,
+                	fileBuffer: fileBuffer,
+                	clientTimestamp: clientTimestamp});
 
             });
 
-			// Confirm order
+			// Transcribe, process and validate order confirmation
 			client.on('confirm-order', async function(data) {
 				const order = client.request.session.order
 				const eventType = 'CONFIRM_ORDER';
-                const client_timestamp = data.timestamp.toString();
-				const fname = client.request.session.email + "-" + client_timestamp + ".wav";
+                const clientTimestamp = data.timestamp.toString();
+				const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
                 let fileBuffer = Buffer.from(dataURL, 'base64');
 				// Send audio to transcribe and wait for the response
-                const confirmationTranscription = await transcribeOrder(fileBuffer, "CONFIRMATION");
+                const confirmationTranscription = await speechTranscription(fileBuffer, "CONFIRMATION");
 
-                var status = '';
-                var output = '';
-
-                // TODO
-                // - Store audio file
-                // - Do the if (confirmationTranscription != "PROCESSING_ERROR") part - connection to binance and error handling
-
+                var status, output;
 
                 if (confirmationTranscription != "TRANSCRIPTION_ERROR") {
 
-                	const confirmationProcessing = await processOrderConfirmation(confirmationTranscription);
+                	const confirmationProcessing = processOrderConfirmation(confirmationTranscription);
 
-                	if (confirmationTranscription != "PROCESSING_ERROR") {
+                	if (confirmationProcessing != "PROCESSING_ERROR") {
 
-                	}
-
+	                	if (confirmationProcessing == "YES") {
+	                		// TODO Pass order to the Binance API. For now I'm always returning success,
+	                		// but the two following statuses are possible: 
+	                		// - "ORDER_PLACED"
+	                		// - "ORDER_REJECTED"
+	                		status = "ORDER_PLACED";
+	                	}
+	                	else if (confirmationProcessing == "NO") {
+	                		status = "ORDER_CANCEL";
+	                	}
+                		output = JSON.stringify({
+	            			transcription: confirmationTranscription,
+	            			processing: confirmationProcessing});
+	                	// Order resolved. Clean it up
+	                	client.request.session.order = -1;
+	                }
                 	else {
-
                 		status = "PROCESSING_ERROR";
 	            		output = "There has been a problem processing the confirmation. One of the two happened:" +
 	            		 "1) Both words 'yes' and 'no' were found;" +
 	            		 "2) None of the words 'yes' or 'no' were found";
-
-                		client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
-                		// Store the error
-		                ddb_put({'email': {'S': client.request.session.email},
-					             'event_type': {'S': eventType},
-					             'stage': {'S': 'ORDER_CONFIRMATION'},
-					             'status': {'S': status},
-					             'processed': {'S': output},
-					             'server_timestamp': {'S': Date.now().toString()}});
                 	}
-
-
                 }
 
                 else {
                 	status = "TRANSCRIPTION_ERROR";
 	            	output = "There has been a problem transcribing the audio";
-
-	            	client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
-
-	            	// Store the error
-	                ddb_put({'email': {'S': client.request.session.email},
-				             'event_type': {'S': eventType},
-				             'stage': {'S': 'ORDER_CONFIRMATION'},
-				             'status': {'S': status},
-				             'processed': {'S': output},
-				             'server_timestamp': {'S': Date.now().toString()}});
                 }
 
-				// Clean up the order data afterwards
-				//client.request.session.order = -1;
+                client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
+
+                storeProcessingData({
+                	email: client.request.session.email,
+                	eventType: eventType,
+                	status: status,
+                	output: output});
+
+                storeAudioData({
+                	email: client.request.session.email,
+                	eventType: eventType,
+                	fileName: fileName,
+                	fileBuffer: fileBuffer,
+                	clientTimestamp: clientTimestamp});
+
 			});
 
         });
 
+    }
+
+    function storeAudioData(data){
+	    // Put audio file record into database and upload audio file to S3 bucket
+	    // (Just putting this in the end to return the response ASAP to the client)
+	    s3_put(data.fileName, data.fileBuffer).then(function(result) {
+	        ddb_put({'email': {'S': data.email},
+	                 'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
+	                 'file_name': {'S': data.fileName},
+	                 'client_timestamp': {'S': data.clientTimestamp},
+	                 'server_timestamp': {'S': Date.now().toString()}});
+
+	    }, function(err) {
+	        ddb_put({'email': {'S': data.email},
+	                 'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
+	                 'file_name': {'S': "UPLOAD_ERROR"},
+	                 'client_timestamp': {'S': data.clientTimestamp},
+	                 'server_timestamp': {'S': Date.now().toString()}});
+	    });
+
+    }
+
+    function storeProcessingData(data) {
+    	// Put processing result into database
+	    ddb_put({'email': {'S': data.email},
+	             'event_type': {'S': data.eventType + '-PROCESS'},
+	             'status': {'S': data.status},
+	             'output': {'S': data.output},
+	             'server_timestamp': {'S': Date.now().toString()}});
     }
 
     function processOrderConfirmation(transcription) {
@@ -553,12 +558,13 @@ if (cluster.isMaster) {
 	        if (t.includes("yes")){
 	        	return "YES";
 	        }
-	        else (t.includes("no")){
+	        else if (t.includes("no")){
 	        	return "NO";
 	        }
 	        // If nothing from "yes", "no", or "cancel" was said, ask again.
-	    	else:
+	    	else {
 	        	return "PROCESSING_ERROR";
+	    	}
 	    }
     }
 
@@ -744,6 +750,4 @@ if (cluster.isMaster) {
     //registerUser("rodrigues.gon@gmail.com", "Famalicao6!")
     //registerUser("filipe.b.aleixo@gmail.com", "Famalicao10!")
     //login()
-
-    console.log("Finished running.")
 }
