@@ -302,14 +302,6 @@ if (cluster.isMaster) {
         	}
         });
 
-
-        //var server = app.listen(port, function () {
-        //    console.log('Server running at http://127.0.0.1:' + port + '/');
-        //});
-
-        // X-Ray debug logs
-        //app.use(AWSXRay.express.closeSegment());
-
         server = http.createServer(app);
         io = socketIo(server);
 
@@ -335,6 +327,8 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'START_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
+
+                //client.request.session.running = true;
             });
 
             // When the user clicks "Stop"
@@ -345,6 +339,9 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'STOP_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
+
+                //client.request.session.running = false;
+                client.request.session.order = -1;
             });
 
             // TODO still not implemented on client side
@@ -383,6 +380,12 @@ if (cluster.isMaster) {
 
 	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
 	    				output = orderInfo.output;
+
+	    				/*
+	    				if (!client.request.session.running) {
+	    					return;
+	    				}
+	    				*/
 
 	    				// Send text result of order processing to client
 						client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
@@ -496,6 +499,12 @@ if (cluster.isMaster) {
                 	status = "TRANSCRIPTION_ERROR";
 	            	output = "There has been a problem transcribing the audio";
                 }
+
+                /*
+				if (!client.request.session.running) {
+					return;
+				}
+				*/
 
                 client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
