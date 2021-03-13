@@ -1,3 +1,16 @@
+var state;
+var startStopButton = document.getElementById('start_stop_button')
+
+startStopButton.onclick = function() {
+        // audio loading can only be initialized after the user interacts with the page
+        if (!sounds) initializeSounds();
+        
+        socketio.emit('start-monitoring', {timestamp: Date.now()});
+        // start monitoring
+        start();
+
+};
+
 //  ------- Porcupine -------    
 const KEYWORDS_ID = {
         "Terminator": new Uint8Array([
@@ -792,22 +805,26 @@ const SENSITIVITIES = new Float32Array([
 
 // Triggered when Porcupine is ready to listen
 let porcupineReadyCallback = function () {
-    let startstopButton = document.querySelector("#start_stop_button");
-    startstopButton.innerText = "Stop";
-    startstopButton.disabled = false;
+    startStopButton.onclick = function() {
+        socketio.emit('stop-monitoring', {timestamp: Date.now()});
+        stopAll();
+    }
+    startStopButton.innerText = "Stop";
+    startStopButton.disabled = false;
     statusWaitWake();
-
-    // let the server know that we started recording
-    socketio.emit('start-monitoring', {timestamp: Date.now()});
 };
 
 // Triggered when it's not possible to get recording audio
 let porcupineAudioManagerErrorCallback = function (ex) {
     alert(ex.toString());
-    document
-      .querySelector("#start_stop_button")
-      .setAttribute("onclick", "start()");
-    document.querySelector("#start_stop_button").innerText = "Start";
+
+    startStopButton.onclick = function() {
+        socketio.emit('start-monitoring', {timestamp: Date.now()});
+        // start monitoring
+        start();
+    };
+    startStopButton.innerText = "Start";
+    startStopButton.disabled = false;
 };
 
 // Start the monitoring with Porcupine.
@@ -829,11 +846,36 @@ function start () {
       audioSourceDeviceId
     );
 
-    let startstopButton = document.querySelector("#start_stop_button");
-    startstopButton.setAttribute("onclick", "stopAll()");
-    startstopButton.innerText = "Initializing...";
-    startstopButton.disabled = true;
+    startStopButton.innerText = "Initializing...";
+    startStopButton.disabled = true;
 };
+
+
+// DEBUG
+/*
+function initSounds() {
+        sounds = {
+        cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
+        confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
+        order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
+        order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
+        order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
+        order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
+        repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
+    }
+    console.log("Initialized Sounds.")
+}
+
+function cb () {
+
+    console.log("xx");
+}
+
+function start () {
+    tell("order_ask", cb);
+}
+*/
+// DEBUG
 
 // Triggered every time Porcupine finishes processing something
 let porcupineProcessCallback = function (keyword) {
@@ -844,6 +886,8 @@ let porcupineProcessCallback = function (keyword) {
       PorcupineManager.stop();
 
       state.stage = "order-flow";
+
+      console.log("------------------------>Porcupine called listenOrder: " + currentDate());
 
       // Ask for order
       tell("order_ask", listenOrder)
@@ -860,32 +904,33 @@ const socket = socketio.on('connect', function() {
 
 // Feedback indicators
 
-const status = document.getElementById('status');
-const indicator = document.getElementById('recording-indicator');
+var currStatus = document.getElementById('status');
+var indicator = document.getElementById('recording-indicator');
 
 function statusWaitWake() {
-    status.innerText = "Ready. Waiting for wake word."; 
+    currStatus.innerText = "Ready. Waiting for wake word."; 
     indicator.style.backgroundColor = "blue";
 }
 
 function statusRecording() {
-    status.innerText = "Recording..."; 
+    currStatus.innerText = "Recording..."; 
     indicator.style.backgroundColor = "red";
 }
 
 function statusWaitServer() {
-    status.innerText = "Sent audio to server. Waiting for response..."; 
+    currStatus.innerText = "Sent audio to server. Waiting for response..."; 
     indicator.style.backgroundColor = "yellow";
 }
 
 function statusHold(){
-    status.innerText = ""; 
+    currStatus.innerText = ""; 
     indicator.style.backgroundColor = "white";
 }
 
 // ------- Audio ------- 
 var audioSourceDeviceId = 'default';
-var sounds;
+var orderAudio = null;
+var sounds = null;
 
 function initializeSounds() {
 
@@ -903,28 +948,20 @@ function initializeSounds() {
 
 // Play audio to inform the user, then call a callback function
 function tell(soundName, callback) {
+  console.log("------------------------>tell: " + currentDate());
+  // VERY IMPORTANT: using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
+  sounds[soundName].once('end', callback);
   sounds[soundName].play();
-  sounds[soundName].on('end', function() {
-    callback();
-  });
 }
-
-// Start / stop monitoring
-
-var state;
-
-document.getElementById('start_stop_button').onclick = function() {
-        
-        // audio loading can only be initialized after the user interacts with the page
-        initializeSounds();
-        // start monitoring
-        start();
-
-};
 
 //  ------- RecordRTC -------
 
+function currentDate() {
+    return new Date().toISOString();
+}
+
 function captureMicrophone(maxSilenceSecondsAfterSpeech) {
+    console.log("------------------------>captureMicrophone: " + currentDate());
     // When the microphone is ready to capture, the callback is called.
     // Use the chosen deviceId to record
     navigator.mediaDevices.getUserMedia({ audio: { deviceId: audioSourceDeviceId } }).then(function(microphone) {
@@ -938,10 +975,11 @@ function captureMicrophone(maxSilenceSecondsAfterSpeech) {
 var recorder, speechEvents;
 
 let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech) {
-    
+    console.log("------------------------>microphoneRecordCallback: " + currentDate());
     if (!state.running) {
         return;
     }
+    statusRecording();
 
     recorder = RecordRTC(microphone, {
         type: 'audio',
@@ -952,31 +990,26 @@ let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech
     });
 
     recorder.startRecording();
-    statusRecording();
 
     var stopped_speaking_timeout;
+    
 
     speechEvents = hark(microphone, {});
 
     speechEvents.on('speaking', function() {
-        status.innerText = "Speech detected.";
-
-        // TODO turn on sound wave thing here
-        
-        if(recorder.getBlob()) return;
-
-        clearTimeout(stopped_speaking_timeout);
-        
         if (!state.running) {
           speechEvents.stop();
           stopResetPage();
         }
+        currStatus.innerText = "Speech detected.";
+
+        clearTimeout(stopped_speaking_timeout);
     });
 
     speechEvents.on('stopped_speaking', function() {
-        if(recorder.getBlob()) return;
+        console.log("------------------------>Called stop looper: " + currentDate());
         speechEvents.stop();
-
+        
         stopped_speaking_timeout = setTimeout(function() {
             recorder.stopRecording(sendRecordingCallback);
         }, maxSilenceSecondsAfterSpeech * 1000);
@@ -986,6 +1019,7 @@ let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech
 }
 
 function sendRecordingCallback() {
+    console.log("------------------------>sendRecordingCallback: " + currentDate());
     if (!state.running) {
       stopResetPage();
       return;
@@ -1015,11 +1049,14 @@ function sendRecordingCallback() {
 var orderStage;
 
 function listenOrder() {
+    console.log("------------------------>listenOrder: " + currentDate());
+    console.log("------------------------>listenOrder Caller: " + listenOrder.caller)
     orderStage = 'PROCESS';
     captureMicrophone(maxSilenceSecondsAfterSpeech=1);
 }
 
 function listenConfirmation() {
+    console.log("------------------------>listenConfirmation: " + currentDate());
     orderStage = 'CONFIRMATION';
     captureMicrophone(maxSilenceSecondsAfterSpeech=0.5);
 }
@@ -1048,38 +1085,39 @@ socketio.on('order-processing', function (orderDescription) {
 
       // TODO only show text when playStreamAudio(audioBuffer) starts playing
 
-      status.innerHTML = orderText;
+      currStatus.innerHTML = orderText;
       
     }
     else if (od.status == "PROCESSING_ERROR") {
-      status.innerHTML = "Invalid order: " + od.output;
+      currStatus.innerHTML = "Invalid order: " + od.output;
       tell("order_invalid", listenOrder);
     }
     else if (od.status == "TRANSCRIPTION_ERROR"){
-      status.innerHTML = "Transcription error: " + od.output;
+      currStatus.innerHTML = "Transcription error: " + od.output;
       tell("repeat", listenOrder);
     }
     
 });
 
 socketio.on('stream-audio-confirm-order', function (arrayBuffer) {
-    playOrderConfirmationAudio(arrayBuffer);
-});
-
-function playOrderConfirmationAudio(arrayBuffer){
+    if (!state.running) {
+      stopResetPage();
+      return;
+    }
     console.log("Size of arrayBuffer:");
     console.log(arrayBuffer.byteLength);
     // Note: Assuming mp3 format
-    const orderAudio = new Howl({
+    orderAudio = new Howl({
           src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
     });
 
-    sounds.confirm.on('end', function() {
+    sounds.confirm.once('end', function() {
+      console.log("------------------------>sounds.confirm.on('end'): " + currentDate())
       // As soon as the confirmation is asked, run listenConfirmation()
       listenConfirmation();
     });
 
-    orderAudio.on('end', function() {
+    orderAudio.once('end', function() {
       if (!state.running) {
           stopResetPage();
           return;
@@ -1089,8 +1127,7 @@ function playOrderConfirmationAudio(arrayBuffer){
     });
 
     orderAudio.play();
-
-}
+});
 
 socketio.on('order-confirmation', function (orderConfirmation) {
     if (!state.running) {
@@ -1114,12 +1151,12 @@ socketio.on('order-confirmation', function (orderConfirmation) {
     // Something unexpected appeared in the transcription, 
     // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
     else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
-      status.innerHTML = "Confirmation failed: " + oc.output;
+      currStatus.innerHTML = "Confirmation failed: " + oc.output;
       tell("repeat", listenConfirmation);
     }
     // The order was rejected by Binance
     else if (oc.status == "ORDER_REJECTED") {
-      status.innerHTML = "Binance rejected order: " + oc.output;
+      currStatus.innerHTML = "Binance rejected order: " + oc.output;
       sounds.order_rejected.play();
       // re-start immediately, without waiting for sound to finish
       start();
@@ -1128,11 +1165,6 @@ socketio.on('order-confirmation', function (orderConfirmation) {
 
 // Stop everything
 function stopAll () {
-
-    // Let the server know that we're stopping
-    // This way we won't receive any more stuff through socketio.on
-    socketio.emit('stop-monitoring', {timestamp: Date.now()});
-
     state.running = false;
 
     if (state.stage == "porcupine") { 
@@ -1149,22 +1181,26 @@ function stopAll () {
     // Stop any sound that's currently playing
     try {
       Object.keys(sounds).forEach(function(key) {
-        sounds[key].stop();
+        sounds[key].stop(); // stop all playing sounds, if any
+        sounds[key].off(); // remove all callbacks if there are any
       });
+      if (orderAudio) {
+        orderAudio.stop();
+        orderAudio.off();
+        orderAudio = null;
+      }
     }
     catch (e) {
         console.log(e);
     }
 
     // Stop voice detection if it's currently running
-    /*
     try {
         speechEvents.stop();
     }
     catch (e) {
         console.log(e);
     }
-    */
 
     // Stop everything that's using the microphone
     try {
@@ -1180,10 +1216,13 @@ function stopAll () {
 
 function stopResetPage () {
     statusHold();
-    document
-      .querySelector("#start_stop_button")
-      .setAttribute("onclick", "start()");
-    document.querySelector("#start_stop_button").innerText = "Start";
+
+    startStopButton.onclick = function() {
+        socketio.emit('start-monitoring', {timestamp: Date.now()});
+        start();
+    }
+    startStopButton.innerText = "Start";
+    startStopButton.disabled = false;
 }
 
 // Utils

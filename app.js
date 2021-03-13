@@ -320,7 +320,7 @@ if (cluster.isMaster) {
             client.emit('server_setup', `Server connected [id=${client.id}]`);
 
             // When the user clicks "Start"
-            client.on('start-monitoring', async function(data) {
+            client.on('start-monitoring', function(data) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
@@ -332,7 +332,7 @@ if (cluster.isMaster) {
             });
 
             // When the user clicks "Stop"
-            client.on('stop-monitoring', async function(data) {
+            client.on('stop-monitoring', function(data) {
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
@@ -344,13 +344,22 @@ if (cluster.isMaster) {
                 client.request.session.order = -1;
             });
 
-            // TODO still not implemented on client side
-            client.on('wake-word-detected', async function(data) {
+            client.on('wake-word-detected', function(data) {
 
                 const db_item =
 
                 ddb_put({'email': {'S': client.request.session.email},
                          'event_type': {'S': 'WAKE_WORD_DETECTED'},
+                         'client_timestamp': {'S': data.timestamp.toString()},
+                     	 'server_timestamp': {'S': Date.now().toString()}});
+            });
+
+            client.on('microphone-error', function(data) {
+
+                const db_item =
+
+                ddb_put({'email': {'S': client.request.session.email},
+                         'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
             });
