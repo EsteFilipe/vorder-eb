@@ -825,6 +825,7 @@ let porcupineAudioManagerErrorCallback = function (ex) {
     };
     startStopButton.innerText = "Start";
     startStopButton.disabled = false;
+    socketio.emit('microphone-error', {stage: "porcupine", timestamp:Date.now()});
 };
 
 // Start the monitoring with Porcupine.
@@ -849,33 +850,6 @@ function start () {
     startStopButton.innerText = "Initializing...";
     startStopButton.disabled = true;
 };
-
-
-// DEBUG
-/*
-function initSounds() {
-        sounds = {
-        cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
-        confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
-        order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
-        order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
-        order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
-        order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
-        repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
-    }
-    console.log("Initialized Sounds.")
-}
-
-function cb () {
-
-    console.log("xx");
-}
-
-function start () {
-    tell("order_ask", cb);
-}
-*/
-// DEBUG
 
 // Triggered every time Porcupine finishes processing something
 let porcupineProcessCallback = function (keyword) {
@@ -969,6 +943,7 @@ function captureMicrophone(maxSilenceSecondsAfterSpeech) {
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
+        socketio.emit('microphone-error', {stage: "recording", timestamp:Date.now()});
     });
 }
 
