@@ -1,3 +1,131 @@
+// Cache references to DOM elements.
+var elms = ['headerLeft', 'headerCenter', 'headerRight', 'startBtn', 'pauseBtn', 'settingsBtn', 'volumeBtn', 'wave', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
+elms.forEach(function(elm) {
+  window[elm] = document.getElementById(elm);
+});
+
+/**
+ * Vorder class containing the state of our orderflow and where we are in it.
+ * Includes all the methods necessary to manage the order flow
+ * @param {Array} options Array of objects with option details.
+ */
+var Vorder = function(options) {
+  this.options = options;
+  this.sounds = null;
+  this.state = {running: false, stage: ""};
+
+  // Display the initial status
+  headerCenter.innerHTML = '';
+};
+
+Vorder.prototype = {
+
+  /**
+   * Start monitoring
+   */
+  start: function() {
+    var self = this;
+    
+    // If the sound library has not yet been initialized, then initialize it.
+    if(this.sounds == null) {
+        self.sounds = initializeSounds();
+    }
+    
+    // Let the server know that monitoring has started
+    socketio.emit('start-monitoring', {timestamp: Date.now()});
+
+    headerCenter.innerHTML = 'Initializing...';
+    startBtn.disabled = true;
+    
+  },
+
+  // TODO Change to stop instead of pause
+    /**
+   * Pause the monitoring
+   */
+  pause: function() {
+    var self = this;
+
+  },
+
+  changeSettings: function() {
+    var self = this;
+
+  },
+    /**
+   * Set the volume and update the volume slider display.
+   * @param  {Number} val Volume between 0 and 1.
+   */
+  volume: function(val) {
+    var self = this;
+
+    // Update the global volume (affecting all Howls).
+    Howler.volume(val);
+
+    // Update the display on the slider.
+    var barWidth = (val * 90) / 100;
+    barFull.style.width = (barWidth * 100) + '%';
+    sliderBtn.style.left = (window.innerWidth * barWidth + window.innerWidth * 0.05 - 25) + 'px';
+  },
+
+};
+
+// Setup our new vorder class and pass it the initial options
+var vorder = new Vorder();
+
+// Bind our player controls.
+startBtn.addEventListener('click', function() {
+  vorder.start();
+});
+pauseBtn.addEventListener('click', function() {
+  vorder.pause();
+});
+waveform.addEventListener('click', function(event) {
+  vorder.seek(event.clientX / window.innerWidth);
+});
+settingsBtn.addEventListener('click', function() {
+  vorder.togglePlaylist();
+});
+volumeBtn.addEventListener('click', function() {
+  vorder.toggleVolume();
+});
+volume.addEventListener('click', function() {
+  vorder.toggleVolume();
+});
+
+// Setup the event listeners to enable dragging of volume slider.
+barEmpty.addEventListener('click', function(event) {
+  var per = event.layerX / parseFloat(barEmpty.scrollWidth);
+  player.volume(per);
+});
+sliderBtn.addEventListener('mousedown', function() {
+  window.sliderDown = true;
+});
+sliderBtn.addEventListener('touchstart', function() {
+  window.sliderDown = true;
+});
+volume.addEventListener('mouseup', function() {
+  window.sliderDown = false;
+});
+volume.addEventListener('touchend', function() {
+  window.sliderDown = false;
+});
+
+var move = function(event) {
+  if (window.sliderDown) {
+    var x = event.clientX || event.touches[0].clientX;
+    var startX = window.innerWidth * 0.05;
+    var layerX = x - startX;
+    var per = Math.min(1, Math.max(0, layerX / parseFloat(barEmpty.scrollWidth)));
+    player.volume(per);
+  }
+};
+
+volume.addEventListener('mousemove', move);
+volume.addEventListener('touchmove', move);
+
+
+
 var state;
 var startStopButton = document.getElementById('start_stop_button')
 
@@ -825,6 +953,7 @@ let porcupineAudioManagerErrorCallback = function (ex) {
     };
     startStopButton.innerText = "Start";
     startStopButton.disabled = false;
+    socketio.emit('microphone-error', {stage: "porcupine", timestamp: Date.now()});
 };
 
 // Start the monitoring with Porcupine.
@@ -849,33 +978,6 @@ function start () {
     startStopButton.innerText = "Initializing...";
     startStopButton.disabled = true;
 };
-
-
-// DEBUG
-/*
-function initSounds() {
-        sounds = {
-        cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
-        confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
-        order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
-        order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
-        order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
-        order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
-        repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
-    }
-    console.log("Initialized Sounds.")
-}
-
-function cb () {
-
-    console.log("xx");
-}
-
-function start () {
-    tell("order_ask", cb);
-}
-*/
-// DEBUG
 
 // Triggered every time Porcupine finishes processing something
 let porcupineProcessCallback = function (keyword) {
@@ -943,6 +1045,8 @@ function initializeSounds() {
     order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
     repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
     }
+  
+  return sounds
 
 }
 
@@ -969,6 +1073,7 @@ function captureMicrophone(maxSilenceSecondsAfterSpeech) {
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
+        socketio.emit('microphone-error', {stage: "recording", timestamp: Date.now()});
     });
 }
 
