@@ -26,7 +26,8 @@
     "request": "latest",
     "jwk-to-pem": "latest",
     "jsonwebtoken": "latest",
-    "object-hash": "latest"
+    "object-hash": "latest",
+    "node-binance-api": "^0.12.5"
   },
   "scripts": {
     "start": "node app.js"

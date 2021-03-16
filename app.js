@@ -38,9 +38,11 @@ if (cluster.isMaster) {
     var util = require('util')
     var hash = require('object-hash');
     var spawn = require("child_process").spawn;
+    const Binance = require('node-binance-api');
 
     // Server
 
+    // TODO not sure this is needed, since we're serving wasm from nginx, not nodejs. Try commenting out
     express.static.mime.define({'application/wasm': ['wasm']})
 
     AWS.config.region = process.env.REGION

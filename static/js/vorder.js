@@ -825,7 +825,7 @@ let porcupineAudioManagerErrorCallback = function (ex) {
     };
     startStopButton.innerText = "Start";
     startStopButton.disabled = false;
-    socketio.emit('microphone-error', {stage: "porcupine", timestamp:Date.now()});
+    socketio.emit('microphone-error', {stage: "porcupine", timestamp: Date.now()});
 };
 
 // Start the monitoring with Porcupine.
@@ -943,7 +943,7 @@ function captureMicrophone(maxSilenceSecondsAfterSpeech) {
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
-        socketio.emit('microphone-error', {stage: "recording", timestamp:Date.now()});
+        socketio.emit('microphone-error', {stage: "recording", timestamp: Date.now()});
     });
 }
 
