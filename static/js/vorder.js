@@ -1,19 +1,26 @@
-var state;
-var startStopButton = document.getElementById('start_stop_button')
+// Cache references to DOM elements.
+var elms = ['headerLeft', 'headerCenter', 'headerRight', 'startBtn', 'pauseBtn', 'settingsBtn', 'volumeBtn', 'wave', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
+elms.forEach(function(elm) {
+  window[elm] = document.getElementById(elm);
+});
 
-startStopButton.onclick = function() {
-        // audio loading can only be initialized after the user interacts with the page
-        if (!sounds) initializeSounds();
-        
-        socketio.emit('start-monitoring', {timestamp: Date.now()});
-        // start monitoring
-        start();
-
-};
-
-//  ------- Porcupine -------    
-const KEYWORDS_ID = {
-        "Terminator": new Uint8Array([
+/**
+ * Vorder class containing the state of our orderflow and where we are in it.
+ * Includes all the methods necessary to manage the order flow
+ * @param {Array} options Array of objects with option details.
+ */
+var Vorder = function(options) {
+  this.options = options;
+  this.sounds = null;
+  this.state = {running: false, stage: ""};
+  this.recorder = null;
+  this.speechEvents = null;
+  this.orderAudio=null;
+  this.socketio = io();
+  this.socketio.on('connect', function() {
+    console.log("Socket.io connection established.")
+  });
+  this.wakeKeywords = { "Terminator": new Uint8Array([
               0x49, 0x66, 0x6d, 0xcb, 0x89, 0xfe, 0xba, 0x1c, 0xfb, 0x55, 0x67, 0x12,
               0xf7, 0x52, 0x0d, 0x90, 0xbb, 0x4c, 0x06, 0x54, 0xae, 0xf4, 0x62, 0xf2,
               0xd3, 0xae, 0x5d, 0xa2, 0x94, 0x48, 0x88, 0x34, 0x5f, 0xc0, 0x97, 0xd7,
@@ -799,181 +806,225 @@ const KEYWORDS_ID = {
         ])
     };
 
-const SENSITIVITIES = new Float32Array([
-    0.75
-]);
-
-// Triggered when Porcupine is ready to listen
-let porcupineReadyCallback = function () {
-    startStopButton.onclick = function() {
-        socketio.emit('stop-monitoring', {timestamp: Date.now()});
-        stopAll();
-    }
-    startStopButton.innerText = "Stop";
-    startStopButton.disabled = false;
-    statusWaitWake();
+  this.wakeKeywordSensitivities = new Float32Array([0.75]);
 };
 
-// Triggered when it's not possible to get recording audio
-let porcupineAudioManagerErrorCallback = function (ex) {
-    alert(ex.toString());
+Vorder.prototype = {
+  
+  initializeSounds: function() {
+    var self = this;
 
-    startStopButton.onclick = function() {
-        socketio.emit('start-monitoring', {timestamp: Date.now()});
-        // start monitoring
-        start();
+    self.sounds = {
+      initializing: new Howl({src: ['static/sounds/initializing.mp3']}),
+      ready: new Howl({src: ['static/sounds/ready.mp3']}),
+      cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
+      confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
+      order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
+      order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
+      order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
+      order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
+      repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
     };
-    startStopButton.innerText = "Start";
-    startStopButton.disabled = false;
-    socketio.emit('microphone-error', {stage: "porcupine", timestamp: Date.now()});
-};
 
-// Start the monitoring with Porcupine.
-// The start/stop button gets the "Initializing..." text while Porcupine is still
-// not ready to listen. When it's finally ready to listen, `readyCallback` gets 
-// called and the text button text changes to "Stop".
-function start () {
+  },
+   /**
+   * Start monitoring
+   */
+  start: function() {
+    var self = this;
+    
+    // If the sound library has not yet been initialized, then initialize it.
+    if(self.sounds == null) {
+      self.initializeSounds();
+    }
+    
+    // Let the server know that monitoring has started
+    self.socketio.emit('start-monitoring', {timestamp: Date.now()});
 
-    state = {running: true, stage: "porcupine"};
-
-    PorcupineManager.start(
-      KEYWORDS_ID,
-      SENSITIVITIES,
-      porcupineProcessCallback,
-      porcupineAudioManagerErrorCallback,
-      porcupineReadyCallback,
-      "static/porcupine/porcupine_worker.js",
-      "static/porcupine/downsampling_worker.js",
-      audioSourceDeviceId
-    );
-
-    startStopButton.innerText = "Initializing...";
-    startStopButton.disabled = true;
-};
-
-// Triggered every time Porcupine finishes processing something
-let porcupineProcessCallback = function (keyword) {
+    self.initializePorcupine();
+    
+  },
+  
+  // TODO dynamic set of `keyword` in keyword === "Terminator", depending on options
+  porcupineProcessCallback: function(keyword) {
+    var self = this;
     if (keyword === "Terminator") {
-      socketio.emit('wake-word-detected', {timestamp: Date.now()});
+
+      self.socketio.emit('wake-word-detected', {timestamp: Date.now()});
 
       // Stop listening to wake word and release microphone.
       PorcupineManager.stop();
 
-      state.stage = "order-flow";
-
-      console.log("------------------------>Porcupine called listenOrder: " + currentDate());
-
       // Ask for order
-      tell("order_ask", listenOrder)
-    }
-};
-
-// Websocket
-
-const socketio = io();
-
-const socket = socketio.on('connect', function() {
-    console.log("Socket.io connection established.")
-});
-
-// Feedback indicators
-
-var currStatus = document.getElementById('status');
-var indicator = document.getElementById('recording-indicator');
-
-function statusWaitWake() {
-    currStatus.innerText = "Ready. Waiting for wake word."; 
-    indicator.style.backgroundColor = "blue";
-}
-
-function statusRecording() {
-    currStatus.innerText = "Recording..."; 
-    indicator.style.backgroundColor = "red";
-}
-
-function statusWaitServer() {
-    currStatus.innerText = "Sent audio to server. Waiting for response..."; 
-    indicator.style.backgroundColor = "yellow";
-}
-
-function statusHold(){
-    currStatus.innerText = ""; 
-    indicator.style.backgroundColor = "white";
-}
-
-// ------- Audio ------- 
-var audioSourceDeviceId = 'default';
-var orderAudio = null;
-var sounds = null;
-
-function initializeSounds() {
-
-  sounds = {
-    cancel: new Howl({src: ['static/sounds/cancel.mp3']}),
-    confirm: new Howl({src: ['static/sounds/confirm.mp3']}),
-    order_ask: new Howl({src: ['static/sounds/order_ask.mp3']}),
-    order_invalid: new Howl({src: ['static/sounds/order_invalid.mp3']}),
-    order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
-    order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
-    repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
+      self.tell("order_ask", self.listenOrder)
     }
 
-}
+  },
 
-// Play audio to inform the user, then call a callback function
-function tell(soundName, callback) {
-  console.log("------------------------>tell: " + currentDate());
-  // VERY IMPORTANT: using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
-  sounds[soundName].once('end', callback);
-  sounds[soundName].play();
-}
+  // Triggered when Porcupine is ready to listen
+  porcupineReadyCallback: function () {
+    var self = this;
 
-//  ------- RecordRTC -------
+    pauseBtn.style.display = 'block';
+    startBtn.style.display = 'none';
+    loading.style.display = 'none';
+  },
 
-function currentDate() {
-    return new Date().toISOString();
-}
+  // Triggered when it's not possible to get recording audio
+  porcupineAudioManagerErrorCallback: function (ex) {
+    var self = this;
 
-function captureMicrophone(maxSilenceSecondsAfterSpeech) {
-    console.log("------------------------>captureMicrophone: " + currentDate());
+    alert(ex.toString());
+
+    startStopButton.onclick = function() {
+      self.socketio.emit('start-monitoring', {timestamp: Date.now()});
+      // start monitoring
+      start();
+    };
+    startStopButton.innerText = "Start";
+    startStopButton.disabled = false;
+    self.socketio.emit('microphone-error', {stage: "porcupine", timestamp: Date.now()});
+  },
+
+    /**
+   * Initialize the wake word detection engine
+   */
+  initializePorcupine: function() {
+    var self = this;
+
+    // Need the .bind in `porcupineProcessCallback` it will be called by PorcupineManager, and so `this` won't be from Vorder
+    // See https://stackoverflow.com/questions/20279484/how-to-access-the-correct-this-inside-a-callback
+    PorcupineManager.start(
+      self.wakeKeywords,
+      self.wakeKeywordSensitivities,
+      self.porcupineProcessCallback.bind(this), 
+      self.porcupineAudioManagerErrorCallback,
+      self.porcupineReadyCallback,
+      self.options.porcupineWorkerPath,
+      self.options.downSamplingWorkerPath,
+      self.options.audioSourceDeviceId
+    );
+
+    loading.style.display = 'block';
+    startBtn.style.display = 'none';
+    pauseBtn.style.display = 'none';
+
+  },
+
+  // TODO Change to stop instead of pause
+    /**
+   * Pause the monitoring
+   */
+  pause: function() {
+    var self = this;
+
+    self.socketio.emit('stop-monitoring', {timestamp: Date.now()});
+
+    self.state.running = false;
+
+    if (self.state.stage == "porcupine") { 
+      try {
+       PorcupineManager.stop();
+      }
+      catch (e) {
+       console.log("Unable to stop porcupine manager.")
+       console.log(e);
+      }
+    }
+
+    // Stop any sound that's currently playing
+    try {
+      Object.keys(self.sounds).forEach(function(key) {
+        self.sounds[key].stop(); // stop all playing sounds, if any
+        self.sounds[key].off(); // remove all callbacks if there are any
+      });
+      if (self.orderAudio != null) {
+        self.orderAudio.stop();
+        self.orderAudio.off();
+        orderAudio = null;
+      }
+    }
+    catch (e) {
+      console.log(e);
+    }
+
+    // Stop voice detection if it's currently running
+    try {
+      self.speechEvents.stop();
+    }
+    catch (e) {
+      console.log(e);
+    }
+
+    // Stop everything that's using the microphone
+    try {
+      self.recorder.microphone.stop();
+    }
+    catch (e) {
+      console.log(e);
+    }
+
+    stopResetPage();
+
+  },
+  
+  // TODO
+  changeSettings: function() {
+    var self = this;
+
+  },
+
+  listenOrder: function() {
+    var self = this;
+    // TODO put in listenOrder
+    self.state.stage = "process-order";
+    self.captureMicrophone(self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
+  },
+
+  listenConfirmation: function() {
+    var self = this;
+    self.state.stage = "confirm-order";
+    self.captureMicrophone(self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
+  },
+
+  captureMicrophone: function(maxSilenceSecondsAfterSpeech) {
+    var self = this;
     // When the microphone is ready to capture, the callback is called.
     // Use the chosen deviceId to record
-    navigator.mediaDevices.getUserMedia({ audio: { deviceId: audioSourceDeviceId } }).then(function(microphone) {
-        microphoneRecordCallback(microphone, maxSilenceSecondsAfterSpeech);
+    navigator.mediaDevices.getUserMedia({ audio: { deviceId: self.options.audioSourceDeviceId } }).then(function(microphone) {
+        self.microphoneRecordCallback(microphone, maxSilenceSecondsAfterSpeech);
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
-        socketio.emit('microphone-error', {stage: "recording", timestamp: Date.now()});
+        self.socketio.emit('microphone-error', {stage: "recording", timestamp: Date.now()});
     });
-}
+  },
 
-var recorder, speechEvents;
+  microphoneRecordCallback: function(microphone, maxSilenceSecondsAfterSpeech) {
+    var self = this;
+    var stopped_speaking_timeout;
 
-let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech) {
-    console.log("------------------------>microphoneRecordCallback: " + currentDate());
-    if (!state.running) {
+    if (!self.state.running) {
         return;
     }
+
     statusRecording();
 
-    recorder = RecordRTC(microphone, {
+    self.recorder = RecordRTC(microphone, {
         type: 'audio',
         mimeType: 'audio/webm',
         recorderType: StereoAudioRecorder,
         numberOfAudioChannels: 1,
-        desiredSampRate: 16000
+        desiredSampRate: self.options.samplingRate
     });
 
-    recorder.startRecording();
+    self.recorder.startRecording();
 
-    var stopped_speaking_timeout;
-    
+    self.speechEvents = hark(microphone, {});
 
-    speechEvents = hark(microphone, {});
-
-    speechEvents.on('speaking', function() {
-        if (!state.running) {
-          speechEvents.stop();
+    self.speechEvents.on('speaking', function() {
+        if (!self.state.running) {
+          self.speechEvents.stop();
           stopResetPage();
         }
         currStatus.innerText = "Speech detected.";
@@ -981,224 +1032,143 @@ let microphoneRecordCallback = function(microphone, maxSilenceSecondsAfterSpeech
         clearTimeout(stopped_speaking_timeout);
     });
 
-    speechEvents.on('stopped_speaking', function() {
-        console.log("------------------------>Called stop looper: " + currentDate());
-        speechEvents.stop();
-        
+    self.speechEvents.on('stopped_speaking', function() {
+        self.speechEvents.stop();
+
         stopped_speaking_timeout = setTimeout(function() {
-            recorder.stopRecording(sendRecordingCallback);
+            self.recorder.stopRecording(sendRecordingCallback);
         }, maxSilenceSecondsAfterSpeech * 1000);
     });
 
     recorder.microphone = microphone;
-}
+  },
 
-function sendRecordingCallback() {
-    console.log("------------------------>sendRecordingCallback: " + currentDate());
+  sendRecordingCallback: function () {
+    var self = this;
+
     if (!state.running) {
       stopResetPage();
       return;
     }
-    recorder.microphone.stop();
+    self.recorder.microphone.stop();
     // waiting for server response
     statusWaitServer();
     // after stopping the audio, get the audio data
-    recorder.getDataURL(function(audioDataURL) {
+    self.recorder.getDataURL(function(audioDataURL) {
         var data = {
             audio: {
-                type: recorder.getBlob().type || 'audio/wav',
+                type: self.recorder.getBlob().type || 'audio/wav',
                 dataURL: audioDataURL
             },
             // timestamp at which audio was sent
             timestamp: Date.now()
         };
-        if (orderStage == 'PROCESS'){
-          socketio.emit('process-order', data);
-        }
-        else if (orderStage == 'CONFIRMATION'){
-          socketio.emit('confirm-order', data);
-        }
+        self.socketio.emit('process-order', data);
+
     });
-}
+  },
+  
+  // 
+    /**
+   * Play audio to inform the user, then run a callback function
+   */
+  tell: function(soundName, callback) {
+    var self = this;
+    // Using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
+    self.sounds[soundName].once('end', callback);
+    self.sounds[soundName].play();
+  },
 
-var orderStage;
+    /**
+   * Set the volume and update the volume slider display.
+   * @param  {Number} val Volume between 0 and 1.
+   */
+  volume: function(val) {
+    var self = this;
 
-function listenOrder() {
-    console.log("------------------------>listenOrder: " + currentDate());
-    console.log("------------------------>listenOrder Caller: " + listenOrder.caller)
-    orderStage = 'PROCESS';
-    captureMicrophone(maxSilenceSecondsAfterSpeech=1);
-}
+    // Update the global volume (affecting all Howls).
+    Howler.volume(val);
 
-function listenConfirmation() {
-    console.log("------------------------>listenConfirmation: " + currentDate());
-    orderStage = 'CONFIRMATION';
-    captureMicrophone(maxSilenceSecondsAfterSpeech=0.5);
-}
+    // Update the display on the slider.
+    var barWidth = (val * 90) / 100;
+    barFull.style.width = (barWidth * 100) + '%';
+    sliderBtn.style.left = (window.innerWidth * barWidth + window.innerWidth * 0.05 - 25) + 'px';
+  },
 
-// Order flow management
+    /**
+   * Toggle the volume display on/off.
+   */
+  toggleVolume: function() {
+    var self = this;
+    var display = (volume.style.display === 'block') ? 'none' : 'block';
 
-socketio.on('order-processing', function (orderDescription) {
-    if (!state.running) {
-      stopResetPage();
-      return;
-    }
-    indicator.style.backgroundColor = "green";
-    const od = JSON.parse(orderDescription);
-
-    if (od.status == "VALID") {
-      const order = od.output;
-      var orderText;
-
-      if (order.type == "limit") {
-        orderText = `${order.polarity} ${order.size} ${order.ticker} at ${order.price} US Dollars. Do you want to confirm?`;
-      }
-
-      else if (order.type == "market") {
-        orderText = `${order.polarity} ${order.size} ${order.ticker} at market price. Do you want to confirm?`;
-      }
-
-      // TODO only show text when playStreamAudio(audioBuffer) starts playing
-
-      currStatus.innerHTML = orderText;
-      
-    }
-    else if (od.status == "PROCESSING_ERROR") {
-      currStatus.innerHTML = "Invalid order: " + od.output;
-      tell("order_invalid", listenOrder);
-    }
-    else if (od.status == "TRANSCRIPTION_ERROR"){
-      currStatus.innerHTML = "Transcription error: " + od.output;
-      tell("repeat", listenOrder);
-    }
-    
-});
-
-socketio.on('stream-audio-confirm-order', function (arrayBuffer) {
-    if (!state.running) {
-      stopResetPage();
-      return;
-    }
-    console.log("Size of arrayBuffer:");
-    console.log(arrayBuffer.byteLength);
-    // Note: Assuming mp3 format
-    orderAudio = new Howl({
-          src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
-    });
-
-    sounds.confirm.once('end', function() {
-      console.log("------------------------>sounds.confirm.on('end'): " + currentDate())
-      // As soon as the confirmation is asked, run listenConfirmation()
-      listenConfirmation();
-    });
-
-    orderAudio.once('end', function() {
-      if (!state.running) {
-          stopResetPage();
-          return;
-      }
-      // As soon as the order description is said, ask for confirmation
-      sounds.confirm.play();
-    });
-
-    orderAudio.play();
-});
-
-socketio.on('order-confirmation', function (orderConfirmation) {
-    if (!state.running) {
-      stopResetPage();
-      return;
-    }
-    const oc = JSON.parse(orderConfirmation);
-
-    // User said "yes" and Binance accepted the order
-    if (oc.status == "ORDER_PLACED") {
-      sounds.order_success.play();
-      // re-start immediately, without waiting for sound to finish
-      start();
-    }
-    // User said no
-    if (oc.status == "ORDER_CANCEL") {
-      sounds.cancel.play();
-      // re-start immediately, without waiting for sound to finish
-      start();
-    }
-    // Something unexpected appeared in the transcription, 
-    // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
-    else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
-      currStatus.innerHTML = "Confirmation failed: " + oc.output;
-      tell("repeat", listenConfirmation);
-    }
-    // The order was rejected by Binance
-    else if (oc.status == "ORDER_REJECTED") {
-      currStatus.innerHTML = "Binance rejected order: " + oc.output;
-      sounds.order_rejected.play();
-      // re-start immediately, without waiting for sound to finish
-      start();
-    }
-});
-
-// Stop everything
-function stopAll () {
-    state.running = false;
-
-    if (state.stage == "porcupine") { 
-
-      try {
-         PorcupineManager.stop();
-      }
-      catch (e) {
-         console.log("Unable to stop porcupine manager.")
-         console.log(e);
-      }
-    }
-
-    // Stop any sound that's currently playing
-    try {
-      Object.keys(sounds).forEach(function(key) {
-        sounds[key].stop(); // stop all playing sounds, if any
-        sounds[key].off(); // remove all callbacks if there are any
-      });
-      if (orderAudio) {
-        orderAudio.stop();
-        orderAudio.off();
-        orderAudio = null;
-      }
-    }
-    catch (e) {
-        console.log(e);
-    }
-
-    // Stop voice detection if it's currently running
-    try {
-        speechEvents.stop();
-    }
-    catch (e) {
-        console.log(e);
-    }
-
-    // Stop everything that's using the microphone
-    try {
-        recorder.microphone.stop();
-    }
-    catch (e) {
-        console.log(e);
-    }
-
-    stopResetPage();
+    setTimeout(function() {
+      volume.style.display = display;
+    }, (display === 'block') ? 0 : 500);
+    volume.className = (display === 'block') ? 'fadein' : 'fadeout';
+  }
 
 };
 
-function stopResetPage () {
-    statusHold();
+// Setup our new vorder class and pass it the initial options
+var vorder = new Vorder({audioSourceDeviceId: 'default',
+                         porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
+                         downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
+                         orderProcessing: {maxSilenceSecondsAfterSpeech: 1.0},
+                         orderConfirmation: {maxSilenceSecondsAfterSpeech: 0.5},
+                         samplingRate: 16000
+                        });
 
-    startStopButton.onclick = function() {
-        socketio.emit('start-monitoring', {timestamp: Date.now()});
-        start();
-    }
-    startStopButton.innerText = "Start";
-    startStopButton.disabled = false;
-}
+// Bind our player controls.
+startBtn.addEventListener('click', function() {
+  vorder.start();
+});
+pauseBtn.addEventListener('click', function() {
+  vorder.pause();
+});
+waveform.addEventListener('click', function(event) {
+  vorder.seek(event.clientX / window.innerWidth);
+});
+settingsBtn.addEventListener('click', function() {
+  vorder.togglePlaylist();
+});
+volumeBtn.addEventListener('click', function() {
+  vorder.toggleVolume();
+});
+volume.addEventListener('click', function() {
+  vorder.toggleVolume();
+});
+
+// Setup the event listeners to enable dragging of volume slider.
+barEmpty.addEventListener('click', function(event) {
+  var per = event.layerX / parseFloat(barEmpty.scrollWidth);
+  vorder.volume(per);
+});
+sliderBtn.addEventListener('mousedown', function() {
+  window.sliderDown = true;
+});
+sliderBtn.addEventListener('touchstart', function() {
+  window.sliderDown = true;
+});
+volume.addEventListener('mouseup', function() {
+  window.sliderDown = false;
+});
+volume.addEventListener('touchend', function() {
+  window.sliderDown = false;
+});
+
+var move = function(event) {
+  if (window.sliderDown) {
+    var x = event.clientX || event.touches[0].clientX;
+    var startX = window.innerWidth * 0.05;
+    var layerX = x - startX;
+    var per = Math.min(1, Math.max(0, layerX / parseFloat(barEmpty.scrollWidth)));
+    vorder.volume(per);
+  }
+};
+
+volume.addEventListener('mousemove', move);
+volume.addEventListener('touchmove', move);
 
 // Utils
 

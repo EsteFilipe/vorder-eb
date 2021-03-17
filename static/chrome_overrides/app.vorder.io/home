@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.1/howler.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io-stream/0.9.1/socket.io-stream.js"></script>
+    <script src="https://unpkg.com/siriwave/dist/siriwave.umd.min.js"></script>
 
   </head>
 
@@ -34,7 +35,6 @@
 
     <!-- Progress -->
     <div id="waveform"></div>
-    <!--<div id="bar"></div>-->
 
     <!-- Volume -->
     <div id="volume" class="fadeout">
@@ -45,7 +45,7 @@
 
     <script src="static/js/vorder.js"></script>
     <script src="static/js/hark.js"></script>
-    <script src="static/js/audio_devices.js"></script>
+    <!--<script src="static/js/audio_devices.js"></script>-->
     <script src="static/porcupine/web_voice_processor.js"></script>
     <script src="static/porcupine/porcupine_manager.js"></script>
 

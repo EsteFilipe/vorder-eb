@@ -62,6 +62,7 @@ if (cluster.isMaster) {
     var jwkToPem = require('jwk-to-pem');
     var jwt = require('jsonwebtoken');
     global.fetch = require('node-fetch');
+    // TODO Put this in options.config
     var poolData = {
     UserPoolId : "us-east-2_XVWGKwmzC",
     ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
