@@ -13,13 +13,11 @@ var Vorder = function(options) {
   this.options = options;
   this.sounds = null;
   this.state = {running: false, stage: ""};
+  this.firstRun = true;
   this.recorder = null;
   this.speechEvents = null;
   this.orderAudio=null;
   this.socketio = io();
-  this.socketio.on('connect', function() {
-    console.log("Socket.io connection established.")
-  });
   this.wakeKeywords = { "Terminator": new Uint8Array([
               0x49, 0x66, 0x6d, 0xcb, 0x89, 0xfe, 0xba, 0x1c, 0xfb, 0x55, 0x67, 0x12,
               0xf7, 0x52, 0x0d, 0x90, 0xbb, 0x4c, 0x06, 0x54, 0xae, 0xf4, 0x62, 0xf2,
@@ -864,6 +862,10 @@ Vorder.prototype = {
   // Triggered when Porcupine is ready to listen
   porcupineReadyCallback: function () {
     var self = this;
+    
+    if (self.firstRun) self.sounds.ready.play();
+    self.state.running = true;
+    self.firstRun = false;
 
     pauseBtn.style.display = 'block';
     startBtn.style.display = 'none';
@@ -892,14 +894,16 @@ Vorder.prototype = {
   initializePorcupine: function() {
     var self = this;
 
-    // Need the .bind in `porcupineProcessCallback` it will be called by PorcupineManager, and so `this` won't be from Vorder
+    headerCenter.innerHTML = '';
+
+    // Need the .bind because those callbacks will be called by PorcupineManager, and so `this` won't be from Vorder
     // See https://stackoverflow.com/questions/20279484/how-to-access-the-correct-this-inside-a-callback
     PorcupineManager.start(
       self.wakeKeywords,
       self.wakeKeywordSensitivities,
-      self.porcupineProcessCallback.bind(this), 
+      self.porcupineProcessCallback.bind(self), 
       self.porcupineAudioManagerErrorCallback,
-      self.porcupineReadyCallback,
+      self.porcupineReadyCallback.bind(self),
       self.options.porcupineWorkerPath,
       self.options.downSamplingWorkerPath,
       self.options.audioSourceDeviceId
@@ -919,8 +923,12 @@ Vorder.prototype = {
     var self = this;
 
     self.socketio.emit('stop-monitoring', {timestamp: Date.now()});
+    
+    headerCenter.innerHTML = '';
+    waveform.style.display = 'none';
 
     self.state.running = false;
+    self.firstRun = true;
 
     if (self.state.stage == "porcupine") { 
       try {
@@ -930,6 +938,13 @@ Vorder.prototype = {
        console.log("Unable to stop porcupine manager.")
        console.log(e);
       }
+    }
+
+    try {
+      stopSiriWave();
+    }
+    catch (e) {
+      console.log(e);
     }
 
     // Stop any sound that's currently playing
@@ -963,9 +978,10 @@ Vorder.prototype = {
     catch (e) {
       console.log(e);
     }
-
-    stopResetPage();
-
+    
+    startBtn.style.display = 'block';
+    loading.style.display = 'none';
+    pauseBtn.style.display = 'none';
   },
   
   // TODO
@@ -976,7 +992,6 @@ Vorder.prototype = {
 
   listenOrder: function() {
     var self = this;
-    // TODO put in listenOrder
     self.state.stage = "process-order";
     self.captureMicrophone(self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
   },
@@ -1008,8 +1023,6 @@ Vorder.prototype = {
         return;
     }
 
-    statusRecording();
-
     self.recorder = RecordRTC(microphone, {
         type: 'audio',
         mimeType: 'audio/webm',
@@ -1018,6 +1031,11 @@ Vorder.prototype = {
         desiredSampRate: self.options.samplingRate
     });
 
+    // Start the wave animation with the microphone signal
+    waveform.style.display = 'block';
+    // TODO best practice would be to reuse the stream already initialized
+    runSiriWave();
+
     self.recorder.startRecording();
 
     self.speechEvents = hark(microphone, {});
@@ -1025,9 +1043,8 @@ Vorder.prototype = {
     self.speechEvents.on('speaking', function() {
         if (!self.state.running) {
           self.speechEvents.stop();
-          stopResetPage();
         }
-        currStatus.innerText = "Speech detected.";
+        //currStatus.innerText = "Speech detected.";
 
         clearTimeout(stopped_speaking_timeout);
     });
@@ -1036,23 +1053,27 @@ Vorder.prototype = {
         self.speechEvents.stop();
 
         stopped_speaking_timeout = setTimeout(function() {
-            self.recorder.stopRecording(sendRecordingCallback);
+            self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
         }, maxSilenceSecondsAfterSpeech * 1000);
     });
 
-    recorder.microphone = microphone;
+    self.recorder.microphone = microphone;
   },
 
   sendRecordingCallback: function () {
     var self = this;
 
-    if (!state.running) {
-      stopResetPage();
+    if (!self.state.running) {
       return;
     }
+
+    waveform.style.display = 'none';
+    stopSiriWave();
+
+    headerCenter.innerHTML = "Processing..."
     self.recorder.microphone.stop();
     // waiting for server response
-    statusWaitServer();
+    //statusWaitServer();
     // after stopping the audio, get the audio data
     self.recorder.getDataURL(function(audioDataURL) {
         var data = {
@@ -1063,7 +1084,7 @@ Vorder.prototype = {
             // timestamp at which audio was sent
             timestamp: Date.now()
         };
-        self.socketio.emit('process-order', data);
+        self.socketio.emit(self.state.stage, data);
 
     });
   },
@@ -1075,7 +1096,7 @@ Vorder.prototype = {
   tell: function(soundName, callback) {
     var self = this;
     // Using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
-    self.sounds[soundName].once('end', callback);
+    self.sounds[soundName].once('end', callback.bind(self));
     self.sounds[soundName].play();
   },
 
@@ -1106,6 +1127,114 @@ Vorder.prototype = {
       volume.style.display = display;
     }, (display === 'block') ? 0 : 500);
     volume.className = (display === 'block') ? 'fadein' : 'fadeout';
+  },
+
+  initSocketIo: function() {
+    var self = this;
+ 
+    self.socketio.on('connect', function() {
+      console.log("Socket.io connection established.")
+    });
+    
+     /*
+     ** Receive the description of the processed order and display it on the screen
+     */
+    self.socketio.on('order-processing', function (orderDescription) {
+      if (!self.state.running) {
+        return;
+      }
+
+      const od = JSON.parse(orderDescription);
+
+      if (od.status == "VALID") {
+        const order = od.output;
+        var orderText;
+
+        if (order.type == "limit") {
+          orderText = `${order.polarity} ${order.size} ${order.ticker} at ${order.price} US Dollars. Do you want to confirm?`;
+        }
+
+        else if (order.type == "market") {
+          orderText = `${order.polarity} ${order.size} ${order.ticker} at market price. Do you want to confirm?`;
+        }
+
+        headerCenter.innerHTML = orderText;
+
+      }
+      else if (od.status == "PROCESSING_ERROR") {
+        headerCenter.innerHTML = "Invalid order: " + od.output;
+        self.tell("order_invalid", self.listenOrder);
+      }
+      else if (od.status == "TRANSCRIPTION_ERROR"){
+        headerCenter.innerHTML = "Transcription error: " + od.output;
+        self.tell("repeat", self.listenOrder);
+      }
+    
+    });
+    
+     /*
+     ** Case valid order, receive the audio with the processed order description and play it
+     */
+    self.socketio.on('stream-audio-confirm-order', function (arrayBuffer) {
+      if (!self.state.running) {
+        return;
+      }
+
+      // Note: Assuming mp3 format
+      self.orderAudio = new Howl({
+            src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
+      });
+      
+      // As soon as the confirmation is asked, run listenConfirmation()
+      self.sounds.confirm.once('end', self.listenConfirmation.bind(self));
+
+      self.orderAudio.once('end', function() {
+        if (!self.state.running) {
+            return;
+        }
+        // As soon as the order description is said, ask for confirmation
+        self.sounds.confirm.play();
+      });
+
+      self.orderAudio.play();
+    });
+
+     /*
+     ** Receive the outcome of the processing of the audio of the order confirmation
+     */
+    self.socketio.on('order-confirmation', function (orderConfirmation) {
+        if (!self.state.running) {
+          return;
+        }
+        const oc = JSON.parse(orderConfirmation);
+
+        // User said "yes" and Binance accepted the order
+        if (oc.status == "ORDER_PLACED") {
+          self.sounds.order_success.play();
+          // re-start immediately, without waiting for sound to finish
+          self.initializePorcupine();
+        }
+        // User said no
+        if (oc.status == "ORDER_CANCEL") {
+          sounds.cancel.play();
+          // re-start immediately, without waiting for sound to finish
+          self.initializePorcupine();
+        }
+        // Something unexpected appeared in the transcription, 
+        // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
+        else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
+          headerCenter.innerHTML = "Confirmation failed: " + oc.output;
+          self.tell("repeat", listenConfirmation);
+        }
+        // The order was rejected by Binance
+        else if (oc.status == "ORDER_REJECTED") {
+          headerCenter.innerHTML = "Binance rejected order: " + oc.output;
+          self.sounds.order_rejected.play();
+          // re-start immediately, without waiting for sound to finish
+          self.initializePorcupine();
+        }
+    });
+
   }
 
 };
@@ -1118,6 +1247,9 @@ var vorder = new Vorder({audioSourceDeviceId: 'default',
                          orderConfirmation: {maxSilenceSecondsAfterSpeech: 0.5},
                          samplingRate: 16000
                         });
+
+// Set the socketio methods
+vorder.initSocketIo();
 
 // Bind our player controls.
 startBtn.addEventListener('click', function() {
@@ -1169,6 +1301,153 @@ var move = function(event) {
 
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move);
+
+const siriWave = new SiriWave({
+  container: waveform,
+  width: window.innerWidth,
+  height: window.innerHeight * 0.3,
+  cover: true, // means the visualisation scales *responsively* according to the element's dimensions
+  style: "ios9"
+});
+
+// TODO reuse the stream from the microphone defined in `captureMicrophone`
+let source = undefined;
+let taskHandle = 0;
+
+function runSiriWave() {
+
+  RA = f => 
+  12194 ** 2 * f ** 4 /
+  ((f ** 2 + 20.6 ** 2) * Math.sqrt((f ** 2 + 107.7 ** 2) * (f ** 2 + 737.9 ** 2)) * (f ** 2 + 12194 ** 2)),
+  A = f => 20 * Math.log10(RA(f)) + 2.0;
+
+  let spectrum, dBASpectrum;
+
+  const audioStream =
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+  // Note that the visualisation itself is animated with fps_ani = 60 Hz ↷ interval_ani = 17 msec
+  // ν
+  const approxVisualisationUpdateFrequency = 20;
+  // total sample time T = 1 / ν
+  // sampling rate f
+  // total number of samples N = f ∙ T
+
+  audioStream
+  .then(stream => Promise.all([stream, navigator.mediaDevices.enumerateDevices()]))
+  .then(([stream, devices]) => {
+    //context depending on browser(Chrome/Firefox)
+    let context = new (window.AudioContext || window.webkitAudioContext)();
+    //create source for sound input.
+    source = context.createMediaStreamSource(stream);
+    //create analyser node.
+    let analyser = context.createAnalyser();
+
+    const 
+      trackSettings = stream.getAudioTracks()[0].getSettings(),
+      sampleRate = trackSettings.sampleRate || context.sampleRate, // Firefox does not support trackSettings.sampleRate
+      deviceName = devices.find(device => device.deviceId === trackSettings.deviceId).label;
+
+    console.log(`sample rate: ${sampleRate} Hz, 
+    audio context sample rate: ${context.sampleRate} Hz,
+    dynamic: ${trackSettings.sampleSize} bit
+    device: ${deviceName}`);
+
+    let totalNumberOfSamples = 
+      sampleRate / approxVisualisationUpdateFrequency; // e.g. 48000 / 5 = 9600
+
+    analyser.fftSize = 2 ** Math.floor(Math.log2(totalNumberOfSamples));
+
+    const 
+      uint8TodB = byteLevel => 
+        (byteLevel / 255) * (analyser.maxDecibels - analyser.minDecibels) + analyser.minDecibels;
+
+    console.log(`frequency bins: ${analyser.frequencyBinCount}`);
+
+    const
+      weightings = [-100];
+    for (let i = 1; i < analyser.frequencyBinCount; i++) {
+      weightings[i] = A(i * sampleRate / 2 / analyser.frequencyBinCount);
+    }
+
+    //array for frequency data.
+    // holds Number.NEGATIVE_INFINITY, [0 = -100dB, ..., 255 = -30 dB]
+    spectrum = new Uint8Array(analyser.frequencyBinCount);
+    dBASpectrum = new Float32Array(analyser.frequencyBinCount);
+
+    let waveForm = new Uint8Array(analyser.frequencyBinCount);
+
+    //connect source->analyser->destination.
+    source.connect(analyser);
+    // noisy feedback loop if we put the mic on the speakers 
+    //analyser.connect(context.destination);
+
+    siriWave.start();
+
+    const updateAnimation = function (idleDeadline) {
+      taskHandle = requestIdleCallback(updateAnimation, { timeout: 1000 / approxVisualisationUpdateFrequency });
+
+      //copy frequency data to spectrum from analyser.
+      // holds Number.NEGATIVE_INFINITY, [0 = -100dB, ..., 255 = -30 dB]
+      analyser.getByteFrequencyData(spectrum);
+
+      spectrum.forEach((byteLevel, idx) => {
+        dBASpectrum[idx] = uint8TodB(byteLevel) + weightings[idx];
+      });
+
+      const 
+        highestPerceptibleFrequencyBin =
+          dBASpectrum.reduce((acc, y, idx) => y > -90 ? idx : acc, 0),
+        // S = ∑ s_i
+        totaldBAPower =
+          dBASpectrum.reduce((acc, y) => acc + y),
+
+        // s⍉ = ∑ s_i ∙ i / ∑ s_i
+        meanFrequencyBin =
+          dBASpectrum.reduce((acc, y, idx) => acc + y * idx) / totaldBAPower,
+
+        highestPowerBin = 
+          dBASpectrum.reduce(([maxPower, iMax], y, idx) => 
+            y > maxPower ? [y, idx] : [maxPower, iMax], [-120, 0]
+          )[1],
+          
+        highestDetectedFrequency = 
+          highestPerceptibleFrequencyBin * (sampleRate / 2 / analyser.frequencyBinCount),
+        meanFrequency = 
+          meanFrequencyBin * (sampleRate / 2 / analyser.frequencyBinCount),
+        maxPowerFrequency = 
+          highestPowerBin * (sampleRate / 2 / analyser.frequencyBinCount);
+
+      //set the speed for siriwave
+      // scaled to [0..22kHz] -> [0..1]
+      siriWave.setSpeed(maxPowerFrequency / 10e+3);
+      
+      const averagedBAPower = 
+        totaldBAPower / analyser.frequencyBinCount;
+
+      //find the max amplituded
+      // the zero level is at 128
+      analyser.getByteTimeDomainData(waveForm);
+
+      // find the maximum not considering negative values (without loss of generality)
+      const amplitude = waveForm.reduce((acc, y) => Math.max(acc, y), 128) - 128;
+
+      //scale amplituded from [0, 128] to [0, 10].
+      siriWave.setAmplitude(amplitude / 128 * 10);
+    };
+
+    taskHandle = requestIdleCallback(updateAnimation, { timeout: 1000 / approxVisualisationUpdateFrequency });
+  });
+}
+
+function stopSiriWave() {
+  cancelIdleCallback(taskHandle);
+  siriWave.setAmplitude(0);
+  siriWave.setSpeed(0);
+  source.disconnect();
+  siriWave.stop();
+  source.mediaStream.getAudioTracks()[0].stop();
+}
 
 // Utils
 
