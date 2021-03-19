@@ -822,9 +822,36 @@ Vorder.prototype = {
       order_rejected: new Howl({src: ['static/sounds/order_rejected.mp3']}),
       order_success: new Howl({src: ['static/sounds/order_success.mp3']}),
       repeat: new Howl({src: ['static/sounds/repeat.mp3']}),
+      sfx_initializing: new Howl({src: ['static/sounds/sfx_initializing.mp3']}),
+      sfx_user_speak: new Howl({src: ['static/sounds/sfx_user_speak.mp3']}),
+      sfx_processing: new Howl({src: ['static/sounds/sfx_processing.mp3']}),
+      sfx_order_success: new Howl({src: ['static/sounds/sfx_order_success.mp3']})
     };
 
+    self.sounds.order_success.on('end', function() {self.sounds.sfx_order_success.play();})
+
   },
+
+    // 
+    /**
+   * Play audio to inform the user, then play onendSoundName if not null. Then run a callback function
+   */
+  tell: function(soundName, onendSoundName, callback) {
+    var self = this;
+    // Using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
+
+    if (!onendSoundName) {
+      self.sounds[soundName].once('end', callback.bind(self));
+    }
+    else {                  
+      self.sounds[onendSoundName].once('end', callback.bind(self));
+      self.sounds[soundName].once('end', function() {self.sounds[onendSoundName].play()});
+    }
+
+    self.sounds[soundName].play();
+    const x = 1;
+  },
+
    /**
    * Start monitoring
    */
@@ -840,7 +867,6 @@ Vorder.prototype = {
     self.socketio.emit('start-monitoring', {timestamp: Date.now()});
 
     self.initializePorcupine();
-    
   },
   
   // TODO dynamic set of `keyword` in keyword === "Terminator", depending on options
@@ -854,7 +880,7 @@ Vorder.prototype = {
       PorcupineManager.stop();
 
       // Ask for order
-      self.tell("order_ask", self.listenOrder)
+      self.tell("order_ask", "sfx_user_speak", self.listenOrder)
     }
 
   },
@@ -893,6 +919,8 @@ Vorder.prototype = {
    */
   initializePorcupine: function() {
     var self = this;
+
+    if (self.firstRun) self.sounds.sfx_initializing.play();
 
     headerCenter.innerHTML = '';
 
@@ -1070,6 +1098,8 @@ Vorder.prototype = {
     waveform.style.display = 'none';
     stopSiriWave();
 
+    self.sounds.sfx_processing.play();
+
     headerCenter.innerHTML = "Processing..."
     self.recorder.microphone.stop();
     // waiting for server response
@@ -1089,17 +1119,6 @@ Vorder.prototype = {
     });
   },
   
-  // 
-    /**
-   * Play audio to inform the user, then run a callback function
-   */
-  tell: function(soundName, callback) {
-    var self = this;
-    // Using 'on' instead of 'once' keeps adding callbacks without removing the previous ones
-    self.sounds[soundName].once('end', callback.bind(self));
-    self.sounds[soundName].play();
-  },
-
     /**
    * Set the volume and update the volume slider display.
    * @param  {Number} val Volume between 0 and 1.
@@ -1163,11 +1182,11 @@ Vorder.prototype = {
       }
       else if (od.status == "PROCESSING_ERROR") {
         headerCenter.innerHTML = "Invalid order: " + od.output;
-        self.tell("order_invalid", self.listenOrder);
+        self.tell("order_invalid", null, self.listenOrder);
       }
       else if (od.status == "TRANSCRIPTION_ERROR"){
         headerCenter.innerHTML = "Transcription error: " + od.output;
-        self.tell("repeat", self.listenOrder);
+        self.tell("repeat", null, self.listenOrder);
       }
     
     });
@@ -1185,15 +1204,13 @@ Vorder.prototype = {
             src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
       });
       
-      // As soon as the confirmation is asked, run listenConfirmation()
-      self.sounds.confirm.once('end', self.listenConfirmation.bind(self));
 
       self.orderAudio.once('end', function() {
         if (!self.state.running) {
             return;
         }
         // As soon as the order description is said, ask for confirmation
-        self.sounds.confirm.play();
+        self.tell("confirm", "sfx_user_speak", self.listenConfirmation.bind(self))
       });
 
       self.orderAudio.play();
@@ -1224,7 +1241,7 @@ Vorder.prototype = {
         // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
         else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
           headerCenter.innerHTML = "Confirmation failed: " + oc.output;
-          self.tell("repeat", listenConfirmation);
+          self.tell("repeat", "user_ask", listenConfirmation);
         }
         // The order was rejected by Binance
         else if (oc.status == "ORDER_REJECTED") {
@@ -1307,13 +1324,22 @@ const siriWave = new SiriWave({
   width: window.innerWidth,
   height: window.innerHeight * 0.3,
   cover: true, // means the visualisation scales *responsively* according to the element's dimensions
-  style: "ios9"
+  style: "ios9",
+  curveDefinition: [
+    { color: "255,255,255", supportLine: true },
+    { color: "214, 40, 40" },
+    { color: "247, 127, 0" },
+    { color: "252, 191, 73" },
+  ]
 });
 
 // TODO reuse the stream from the microphone defined in `captureMicrophone`
 let source = undefined;
 let taskHandle = 0;
 
+
+// From https://jsitor.com/PPQtOp9Yp
+// Changed some constants, so comments about scale are not necessarily true
 function runSiriWave() {
 
   RA = f => 
@@ -1328,7 +1354,11 @@ function runSiriWave() {
 
   // Note that the visualisation itself is animated with fps_ani = 60 Hz ↷ interval_ani = 17 msec
   // ν
-  const approxVisualisationUpdateFrequency = 20;
+  const approxVisualisationUpdateFrequency = 50;
+  // The lower, the faster
+  const speedScaling = 5000;
+  // The higher, the bigger the amplitude
+  const amplitudeScaling = 10;
   // total sample time T = 1 / ν
   // sampling rate f
   // total number of samples N = f ∙ T
@@ -1419,8 +1449,8 @@ function runSiriWave() {
           highestPowerBin * (sampleRate / 2 / analyser.frequencyBinCount);
 
       //set the speed for siriwave
-      // scaled to [0..22kHz] -> [0..1]
-      siriWave.setSpeed(maxPowerFrequency / 10e+3);
+      // scaled to [0..22kHz] -> [0..1]  --> not true if speedScaling != 10e+3
+      siriWave.setSpeed(maxPowerFrequency / speedScaling);
       
       const averagedBAPower = 
         totaldBAPower / analyser.frequencyBinCount;
@@ -1432,8 +1462,8 @@ function runSiriWave() {
       // find the maximum not considering negative values (without loss of generality)
       const amplitude = waveForm.reduce((acc, y) => Math.max(acc, y), 128) - 128;
 
-      //scale amplituded from [0, 128] to [0, 10].
-      siriWave.setAmplitude(amplitude / 128 * 10);
+      //scale amplituded from [0, 128] to [0, amplitudeScaling].
+      siriWave.setAmplitude(amplitude / 128 * amplitudeScaling);
     };
 
     taskHandle = requestIdleCallback(updateAnimation, { timeout: 1000 / approxVisualisationUpdateFrequency });

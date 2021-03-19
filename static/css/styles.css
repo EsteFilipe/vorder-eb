@@ -124,9 +124,11 @@ body {
 
 /* Progress */
 #waveform {
+  height:25%;
+  width: 70%;
   position: relative;
   left: 0;
-  top: 70%;
+  top: 60%;
   margin: -15% auto;
   display: none;
   cursor: pointer;
