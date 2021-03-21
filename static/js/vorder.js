@@ -858,6 +858,9 @@ Vorder.prototype = {
   start: function() {
     var self = this;
     
+    //waveform.style.display = 'block';
+    //runSiriWave();
+    
     // If the sound library has not yet been initialized, then initialize it.
     if(self.sounds == null) {
       self.initializeSounds();
@@ -872,17 +875,18 @@ Vorder.prototype = {
   // TODO dynamic set of `keyword` in keyword === "Terminator", depending on options
   porcupineProcessCallback: function(keyword) {
     var self = this;
-    if (keyword === "Terminator") {
+    // Porcupine is always running, but the keyword only triggers when self.state.stage is 'porcupine'
+    if (self.state.running && self.state.stage == 'porcupine'){
+      if (keyword === "Terminator") {
 
-      self.socketio.emit('wake-word-detected', {timestamp: Date.now()});
+        self.socketio.emit('wake-word-detected', {timestamp: Date.now()});
 
-      // Stop listening to wake word and release microphone.
-      PorcupineManager.stop();
+        //PorcupineManager.stop();
 
-      // Ask for order
-      self.tell("order_ask", "sfx_user_speak", self.listenOrder)
+        // Ask for order
+        self.tell("order_ask", "sfx_user_speak", self.listenOrder)
+      }
     }
-
   },
 
   // Triggered when Porcupine is ready to listen
@@ -890,7 +894,7 @@ Vorder.prototype = {
     var self = this;
     
     if (self.firstRun) self.sounds.ready.play();
-    self.state.running = true;
+    self.state = {running: true, stage: 'porcupine'};
     self.firstRun = false;
 
     pauseBtn.style.display = 'block';
@@ -958,15 +962,15 @@ Vorder.prototype = {
     self.state.running = false;
     self.firstRun = true;
 
-    if (self.state.stage == "porcupine") { 
-      try {
-       PorcupineManager.stop();
-      }
-      catch (e) {
-       console.log("Unable to stop porcupine manager.")
-       console.log(e);
-      }
+
+    try {
+     PorcupineManager.stop();
     }
+    catch (e) {
+     console.log("Unable to stop porcupine manager.")
+     console.log(e);
+    }
+
 
     try {
       stopSiriWave();
@@ -1102,8 +1106,7 @@ Vorder.prototype = {
 
     headerCenter.innerHTML = "Processing..."
     self.recorder.microphone.stop();
-    // waiting for server response
-    //statusWaitServer();
+
     // after stopping the audio, get the audio data
     self.recorder.getDataURL(function(audioDataURL) {
         var data = {
@@ -1225,33 +1228,34 @@ Vorder.prototype = {
         }
         const oc = JSON.parse(orderConfirmation);
 
+        headerCenter.innerHTML = '';
+
         // User said "yes" and Binance accepted the order
         if (oc.status == "ORDER_PLACED") {
           self.sounds.order_success.play();
           // re-start immediately, without waiting for sound to finish
-          self.initializePorcupine();
+          self.state.stage = 'porcupine';
         }
         // User said no
         if (oc.status == "ORDER_CANCEL") {
-          sounds.cancel.play();
+          self.sounds.cancel.play();
           // re-start immediately, without waiting for sound to finish
-          self.initializePorcupine();
+          self.state.stage = 'porcupine';
         }
         // Something unexpected appeared in the transcription, 
         // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
         else if (oc.status == "PROCESSING_ERROR" || oc.status == "TRANSCRIPTION_ERROR") {
           headerCenter.innerHTML = "Confirmation failed: " + oc.output;
-          self.tell("repeat", "user_ask", listenConfirmation);
+          self.tell("repeat", "sfx_user_speak", self.listenConfirmation);
         }
         // The order was rejected by Binance
         else if (oc.status == "ORDER_REJECTED") {
           headerCenter.innerHTML = "Binance rejected order: " + oc.output;
           self.sounds.order_rejected.play();
           // re-start immediately, without waiting for sound to finish
-          self.initializePorcupine();
+          self.state.stage = 'porcupine';
         }
     });
-
   }
 
 };
@@ -1319,6 +1323,9 @@ var move = function(event) {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move);
 
+// Update the height of the wave animation.
+// These are basically some hacks to get SiriWave.js to do what we want.
+
 const siriWave = new SiriWave({
   container: waveform,
   width: window.innerWidth,
@@ -1333,6 +1340,16 @@ const siriWave = new SiriWave({
   ]
 });
 
+
+var resize = function() {
+  // Update the position of the slider.
+  var vol = Howler.volume();
+  var barWidth = (vol * 0.9);
+  sliderBtn.style.left = (window.innerWidth * barWidth + window.innerWidth * 0.05 - 25) + 'px';
+};
+window.addEventListener('resize', resize);
+resize();
+
 // TODO reuse the stream from the microphone defined in `captureMicrophone`
 let source = undefined;
 let taskHandle = 0;
@@ -1341,6 +1358,8 @@ let taskHandle = 0;
 // From https://jsitor.com/PPQtOp9Yp
 // Changed some constants, so comments about scale are not necessarily true
 function runSiriWave() {
+
+  //resize();
 
   RA = f => 
   12194 ** 2 * f ** 4 /
