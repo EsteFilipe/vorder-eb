@@ -297,8 +297,6 @@ if (cluster.isMaster) {
         	if (req.session.loggedin) {
                 res.render('index', {
                     static_path: 'static',
-                    theme: 'flatly',
-                    flask_debug: process.env.FLASK_DEBUG || 'false'
                 });
         	} else {
         		res.sendFile(path.join(__dirname + '/views/login.html'));
@@ -770,5 +768,6 @@ if (cluster.isMaster) {
     setupServer();
     //registerUser("rodrigues.gon@gmail.com", "Famalicao6!")
     //registerUser("filipe.b.aleixo@gmail.com", "Famalicao10!")
+    //registerUser("tester_001@vorder.io", "WowVorderIsCool!!99")
     //login()
 }

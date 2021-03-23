@@ -1025,21 +1025,23 @@ Vorder.prototype = {
   listenOrder: function() {
     var self = this;
     self.state.stage = "process-order";
-    self.captureMicrophone(self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
+    self.captureMicrophone(self.options.orderProcessing.maxRecordingSeconds, 
+                           self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
   },
 
   listenConfirmation: function() {
     var self = this;
     self.state.stage = "confirm-order";
-    self.captureMicrophone(self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
+    self.captureMicrophone(self.options.orderConfirmation.maxRecordingSeconds,
+                           self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
   },
 
-  captureMicrophone: function(maxSilenceSecondsAfterSpeech) {
+  captureMicrophone: function(maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
     var self = this;
     // When the microphone is ready to capture, the callback is called.
     // Use the chosen deviceId to record
     navigator.mediaDevices.getUserMedia({ audio: { deviceId: self.options.audioSourceDeviceId } }).then(function(microphone) {
-        self.microphoneRecordCallback(microphone, maxSilenceSecondsAfterSpeech);
+        self.microphoneRecordCallback(microphone, maxRecordingSeconds, maxSilenceSecondsAfterSpeech);
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
@@ -1047,9 +1049,10 @@ Vorder.prototype = {
     });
   },
 
-  microphoneRecordCallback: function(microphone, maxSilenceSecondsAfterSpeech) {
+  microphoneRecordCallback: function(microphone, maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
     var self = this;
-    var stopped_speaking_timeout;
+    var globalTimeout, silenceTimeout;
+    var secondsToStopGlobal, milisecondsToStopSilence;
 
     if (!self.state.running) {
         return;
@@ -1072,21 +1075,53 @@ Vorder.prototype = {
 
     self.speechEvents = hark(microphone, {});
 
+    var secondsToStopGlobal = maxRecordingSeconds;
+    
+    // Global timeout (maximum number of recording seconds)
+    (function looper() {
+        headerRight.innerHTML = '00:' + secondsToStopGlobal;
+        secondsToStopGlobal--;
+
+        if(secondsToStopGlobal < 0 || !self.state.running) {
+            clearTimeout(silenceTimeout);
+            self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
+            headerCenter.innerHTML = '';
+            headerRight.innerHTML = '';
+            self.speechEvents.stop();
+            return;
+        }
+        // Refresh every second
+        globalTimeout = setTimeout(looper, 1000);
+    })();
+
+    // Silence-based timeout (maximum number of silence seconds after speech last detected)
+
     self.speechEvents.on('speaking', function() {
+        headerCenter.innerHTML = 'Speech detected.';
         if (!self.state.running) {
           self.speechEvents.stop();
         }
-        //currStatus.innerText = "Speech detected.";
 
-        clearTimeout(stopped_speaking_timeout);
+        clearTimeout(silenceTimeout);
     });
 
     self.speechEvents.on('stopped_speaking', function() {
-        self.speechEvents.stop();
+        milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
-        stopped_speaking_timeout = setTimeout(function() {
-            self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
-        }, maxSilenceSecondsAfterSpeech * 1000);
+        (function looper() {
+            headerCenter.innerHTML = 'Silence detected. Stopping in ' + milisecondsToStopSilence + ' ms.';
+            milisecondsToStopSilence = milisecondsToStopSilence - 100;
+
+            if(milisecondsToStopSilence < 0 || !self.state.running) {
+                clearTimeout(globalTimeout);
+                self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
+                headerCenter.innerHTML = '';
+                headerRight.innerHTML = '';
+                self.speechEvents.stop();
+                return;
+            }
+            silenceTimeout = setTimeout(looper, 100);
+        })();
     });
 
     self.recorder.microphone = microphone;
@@ -1094,6 +1129,8 @@ Vorder.prototype = {
 
   sendRecordingCallback: function () {
     var self = this;
+
+    self.speechEvents.stop();
 
     if (!self.state.running) {
       return;
@@ -1264,8 +1301,8 @@ Vorder.prototype = {
 var vorder = new Vorder({audioSourceDeviceId: 'default',
                          porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
-                         orderProcessing: {maxSilenceSecondsAfterSpeech: 1.0},
-                         orderConfirmation: {maxSilenceSecondsAfterSpeech: 0.5},
+                         orderProcessing: {maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 2.0},
+                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
                          samplingRate: 16000
                         });
 
