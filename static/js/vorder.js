@@ -1,5 +1,5 @@
 // Cache references to DOM elements.
-var elms = ['headerLeft', 'headerCenter', 'headerRight', 'startBtn', 'pauseBtn', 'settingsBtn', 'volumeBtn', 'wave', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
+var elms = ['headerLeft', 'headerCenter', 'headerRight', 'startBtn', 'waitingWakeWordBtn', 'recordingBtn', 'settingsBtn', 'volumeBtn', 'wave', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
 elms.forEach(function(elm) {
   window[elm] = document.getElementById(elm);
 });
@@ -804,10 +804,42 @@ var Vorder = function(options) {
         ])
     };
 
-  this.wakeKeywordSensitivities = new Float32Array([0.75]);
+  this.wakeKeywordSensitivities = new Float32Array([0.85]);
 };
 
 Vorder.prototype = {
+
+  showIdle: function() {
+    startBtn.style.display = 'block';
+    loading.style.display = 'none';
+    waitingWakeWordBtn.style.display = 'none';
+    recordingBtn.style.display = 'none';
+    waveform.style.display = 'none';
+  },
+
+  showLoading: function() {
+    startBtn.style.display = 'none';
+    loading.style.display = 'block';
+    waitingWakeWordBtn.style.display = 'none';
+    recordingBtn.style.display = 'none';
+    waveform.style.display = 'none';
+  },
+
+  showWaitingWakeWord: function() {
+    startBtn.style.display = 'none';
+    loading.style.display = 'none';
+    waitingWakeWordBtn.style.display = 'block';
+    recordingBtn.style.display = 'none';
+    waveform.style.display = 'none';
+  },
+
+  showRecording: function() {
+    startBtn.style.display = 'none';
+    loading.style.display = 'none';
+    waitingWakeWordBtn.style.display = 'none';
+    recordingBtn.style.display = 'block';
+    waveform.style.display = 'block';
+  },
   
   initializeSounds: function() {
     var self = this;
@@ -858,9 +890,9 @@ Vorder.prototype = {
   start: function() {
     var self = this;
     
-    //waveform.style.display = 'block';
+    //self.showRecording();
     //runSiriWave();
-    
+
     // If the sound library has not yet been initialized, then initialize it.
     if(self.sounds == null) {
       self.initializeSounds();
@@ -897,9 +929,7 @@ Vorder.prototype = {
     self.state = {running: true, stage: 'porcupine'};
     self.firstRun = false;
 
-    pauseBtn.style.display = 'block';
-    startBtn.style.display = 'none';
-    loading.style.display = 'none';
+    self.showWaitingWakeWord();
   },
 
   // Triggered when it's not possible to get recording audio
@@ -941,23 +971,20 @@ Vorder.prototype = {
       self.options.audioSourceDeviceId
     );
 
-    loading.style.display = 'block';
-    startBtn.style.display = 'none';
-    pauseBtn.style.display = 'none';
+    self.showLoading();
 
   },
 
   // TODO Change to stop instead of pause
     /**
-   * Pause the monitoring
+   * Stop the monitoring
    */
-  pause: function() {
+  stop: function() {
     var self = this;
 
     self.socketio.emit('stop-monitoring', {timestamp: Date.now()});
     
     headerCenter.innerHTML = '';
-    waveform.style.display = 'none';
 
     self.state.running = false;
     self.firstRun = true;
@@ -971,7 +998,6 @@ Vorder.prototype = {
      console.log(e);
     }
 
-
     try {
       stopSiriWave();
     }
@@ -983,7 +1009,8 @@ Vorder.prototype = {
     try {
       Object.keys(self.sounds).forEach(function(key) {
         self.sounds[key].stop(); // stop all playing sounds, if any
-        self.sounds[key].off(); // remove all callbacks if there are any
+        // remove all callbacks if there are any, except for the stuff initialized in `initializeSounds`
+        if (key != 'order_success') self.sounds[key].off();
       });
       if (self.orderAudio != null) {
         self.orderAudio.stop();
@@ -1011,9 +1038,7 @@ Vorder.prototype = {
       console.log(e);
     }
     
-    startBtn.style.display = 'block';
-    loading.style.display = 'none';
-    pauseBtn.style.display = 'none';
+    self.showIdle();
   },
   
   // TODO
@@ -1066,8 +1091,8 @@ Vorder.prototype = {
         desiredSampRate: self.options.samplingRate
     });
 
-    // Start the wave animation with the microphone signal
-    waveform.style.display = 'block';
+    self.showRecording();
+    
     // TODO best practice would be to reuse the stream already initialized
     runSiriWave();
 
@@ -1078,7 +1103,7 @@ Vorder.prototype = {
     var secondsToStopGlobal = maxRecordingSeconds;
     
     // Global timeout (maximum number of recording seconds)
-    (function looper() {
+    (function globalLooper() {
         headerRight.innerHTML = '00:' + secondsToStopGlobal;
         secondsToStopGlobal--;
 
@@ -1087,11 +1112,10 @@ Vorder.prototype = {
             self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
             headerCenter.innerHTML = '';
             headerRight.innerHTML = '';
-            self.speechEvents.stop();
             return;
         }
         // Refresh every second
-        globalTimeout = setTimeout(looper, 1000);
+        globalTimeout = setTimeout(globalLooper, 1000);
     })();
 
     // Silence-based timeout (maximum number of silence seconds after speech last detected)
@@ -1108,8 +1132,8 @@ Vorder.prototype = {
     self.speechEvents.on('stopped_speaking', function() {
         milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
-        (function looper() {
-            headerCenter.innerHTML = 'Silence detected. Stopping in ' + milisecondsToStopSilence + ' ms.';
+        (function silenceLooper() {
+            headerCenter.innerHTML = 'If silence remains, will stop recording in ' + milisecondsToStopSilence + ' ms.';
             milisecondsToStopSilence = milisecondsToStopSilence - 100;
 
             if(milisecondsToStopSilence < 0 || !self.state.running) {
@@ -1117,10 +1141,9 @@ Vorder.prototype = {
                 self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
                 headerCenter.innerHTML = '';
                 headerRight.innerHTML = '';
-                self.speechEvents.stop();
                 return;
             }
-            silenceTimeout = setTimeout(looper, 100);
+            silenceTimeout = setTimeout(silenceLooper, 100);
         })();
     });
 
@@ -1135,8 +1158,9 @@ Vorder.prototype = {
     if (!self.state.running) {
       return;
     }
+    
+    self.showLoading();
 
-    waveform.style.display = 'none';
     stopSiriWave();
 
     self.sounds.sfx_processing.play();
@@ -1272,12 +1296,14 @@ Vorder.prototype = {
           self.sounds.order_success.play();
           // re-start immediately, without waiting for sound to finish
           self.state.stage = 'porcupine';
+          self.showWaitingWakeWord();
         }
         // User said no
         if (oc.status == "ORDER_CANCEL") {
           self.sounds.cancel.play();
           // re-start immediately, without waiting for sound to finish
           self.state.stage = 'porcupine';
+          self.showWaitingWakeWord();
         }
         // Something unexpected appeared in the transcription, 
         // e.g. both "yes" and "no" was transcribed, or the transcriber couldn't understand what was said
@@ -1291,6 +1317,7 @@ Vorder.prototype = {
           self.sounds.order_rejected.play();
           // re-start immediately, without waiting for sound to finish
           self.state.stage = 'porcupine';
+          self.showWaitingWakeWord();
         }
     });
   }
@@ -1313,11 +1340,11 @@ vorder.initSocketIo();
 startBtn.addEventListener('click', function() {
   vorder.start();
 });
-pauseBtn.addEventListener('click', function() {
-  vorder.pause();
+waitingWakeWordBtn.addEventListener('click', function() {
+  vorder.stop();
 });
-waveform.addEventListener('click', function(event) {
-  vorder.seek(event.clientX / window.innerWidth);
+recordingBtn.addEventListener('click', function() {
+  vorder.stop();
 });
 settingsBtn.addEventListener('click', function() {
   vorder.togglePlaylist();
@@ -1471,6 +1498,8 @@ function runSiriWave() {
     siriWave.start();
 
     const updateAnimation = function (idleDeadline) {
+      console.log("running siriwave");
+
       taskHandle = requestIdleCallback(updateAnimation, { timeout: 1000 / approxVisualisationUpdateFrequency });
 
       //copy frequency data to spectrum from analyser.

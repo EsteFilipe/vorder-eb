@@ -86,7 +86,7 @@ function hark(stream, options) {
                 return;
             }
 
-            console.log("Looper running");
+            console.log("Hark running");
 
             var currentVolume = getMaxVolume(analyser, fftBins);
 
