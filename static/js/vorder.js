@@ -1049,14 +1049,14 @@ Vorder.prototype = {
 
   listenOrder: function() {
     var self = this;
-    self.state.stage = "process-order";
+    self.state.stage = "process-order-record";
     self.captureMicrophone(self.options.orderProcessing.maxRecordingSeconds, 
                            self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
   },
 
   listenConfirmation: function() {
     var self = this;
-    self.state.stage = "confirm-order";
+    self.state.stage = "confirm-order-record";
     self.captureMicrophone(self.options.orderConfirmation.maxRecordingSeconds,
                            self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
   },
@@ -1078,6 +1078,8 @@ Vorder.prototype = {
     var self = this;
     var globalTimeout, silenceTimeout;
     var secondsToStopGlobal, milisecondsToStopSilence;
+
+    var recordingStage;
 
     if (!self.state.running) {
         return;
@@ -1109,9 +1111,9 @@ Vorder.prototype = {
 
         if(secondsToStopGlobal < 0 || !self.state.running) {
             clearTimeout(silenceTimeout);
-            self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
             headerCenter.innerHTML = '';
             headerRight.innerHTML = '';
+            self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
             return;
         }
         // Refresh every second
@@ -1119,7 +1121,6 @@ Vorder.prototype = {
     })();
 
     // Silence-based timeout (maximum number of silence seconds after speech last detected)
-
     self.speechEvents.on('speaking', function() {
         headerCenter.innerHTML = 'Speech detected.';
         if (!self.state.running) {
@@ -1152,12 +1153,28 @@ Vorder.prototype = {
 
   sendRecordingCallback: function () {
     var self = this;
+    var recordingStage;
 
-    self.speechEvents.stop();
-
-    if (!self.state.running) {
+    if(self.state.stage == 'process-order-record') {
+      recordingStage = 'process-order';
+    }
+    else if(self.state.stage == 'confirm-order-record') {
+      recordingStage = 'confirm-order';
+    }
+    
+    // Never send recording twice if something unexpected happens 
+    // (for example, it might happen that `globalLooper` and `silenceLooper` return
+    // at the same time, and so `sendRecordingCallback()` will be called twice)
+    if (!self.state.running || self.state.stage == 'send-recording' || self.state.stage == 'waiting-server') {
+      //console.log("-------> SEND RECORDING RETURNED: " + self.state.stage);
       return;
     }
+
+    //console.log("-------> SEND RECORDING");
+
+    self.state.stage = 'send-recording';
+
+    self.speechEvents.stop();
     
     self.showLoading();
 
@@ -1178,8 +1195,9 @@ Vorder.prototype = {
             // timestamp at which audio was sent
             timestamp: Date.now()
         };
-        self.socketio.emit(self.state.stage, data);
 
+        self.socketio.emit(recordingStage, data);
+        self.state.stage == 'waiting-server';
     });
   },
   
@@ -1263,6 +1281,10 @@ Vorder.prototype = {
         return;
       }
 
+      Object.keys(self.sounds).forEach(function(key) {
+        self.sounds[key].stop(); // stop all playing sounds, if any
+      });
+
       // Note: Assuming mp3 format
       self.orderAudio = new Howl({
             src: ["data:audio/mp3;base64," + base64ArrayBuffer(arrayBuffer)],
@@ -1287,6 +1309,11 @@ Vorder.prototype = {
         if (!self.state.running) {
           return;
         }
+
+        Object.keys(self.sounds).forEach(function(key) {
+          self.sounds[key].stop(); // stop all playing sounds, if any
+        });
+        
         const oc = JSON.parse(orderConfirmation);
 
         headerCenter.innerHTML = '';
@@ -1498,7 +1525,6 @@ function runSiriWave() {
     siriWave.start();
 
     const updateAnimation = function (idleDeadline) {
-      console.log("running siriwave");
 
       taskHandle = requestIdleCallback(updateAnimation, { timeout: 1000 / approxVisualisationUpdateFrequency });
 
