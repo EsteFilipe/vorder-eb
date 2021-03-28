@@ -985,6 +985,7 @@ Vorder.prototype = {
     self.socketio.emit('stop-monitoring', {timestamp: Date.now()});
     
     headerCenter.innerHTML = '';
+    headerRight.innerHTML = '';
 
     self.state.running = false;
     self.firstRun = true;
@@ -1080,9 +1081,13 @@ Vorder.prototype = {
     var secondsToStopGlobal, milisecondsToStopSilence;
 
     var recordingStage;
+    
+    clearTimeout(globalTimeout);
+    clearTimeout(silenceTimeout);
+    var recordingRunning = true;
 
-    if (!self.state.running) {
-        return;
+    if (!self.state.running || !['process-order-record', 'confirm-order-record'].includes(self.state.stage)) {
+      return;
     }
 
     self.recorder = RecordRTC(microphone, {
@@ -1106,10 +1111,22 @@ Vorder.prototype = {
     
     // Global timeout (maximum number of recording seconds)
     (function globalLooper() {
+        if (!self.state.running) {
+          clearTimeout(silenceTimeout);
+          clearTimeout(globalTimeout);
+          self.stop()
+          return;
+        }
+        if (!recordingRunning) {
+          console.log("-----> RETURNED globalLooper()");
+          return;
+        }
+        
         headerRight.innerHTML = '00:' + secondsToStopGlobal;
         secondsToStopGlobal--;
 
-        if(secondsToStopGlobal < 0 || !self.state.running) {
+        if(secondsToStopGlobal < 0) {
+            recordingRunning = false;
             clearTimeout(silenceTimeout);
             headerCenter.innerHTML = '';
             headerRight.innerHTML = '';
@@ -1134,10 +1151,21 @@ Vorder.prototype = {
         milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
         (function silenceLooper() {
+            if (!self.state.running) {
+              clearTimeout(silenceTimeout);
+              clearTimeout(globalTimeout);
+              self.stop()
+              return;
+            }
+            if (!recordingRunning) {
+              console.log("-----> RETURNED silenceLooper()");
+              return;
+            }
             headerCenter.innerHTML = 'If silence remains, will stop recording in ' + milisecondsToStopSilence + ' ms.';
             milisecondsToStopSilence = milisecondsToStopSilence - 100;
 
-            if(milisecondsToStopSilence < 0 || !self.state.running) {
+            if(milisecondsToStopSilence < 0) {
+                recordingRunning = false;
                 clearTimeout(globalTimeout);
                 self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
                 headerCenter.innerHTML = '';
@@ -1155,35 +1183,27 @@ Vorder.prototype = {
     var self = this;
     var recordingStage;
 
+    self.speechEvents.stop();
+    self.recorder.microphone.stop();
+
+    if (!self.state.running) {
+      self.stop()
+      return;
+    }
+
     if(self.state.stage == 'process-order-record') {
       recordingStage = 'process-order';
     }
     else if(self.state.stage == 'confirm-order-record') {
       recordingStage = 'confirm-order';
     }
-    
-    // Never send recording twice if something unexpected happens 
-    // (for example, it might happen that `globalLooper` and `silenceLooper` return
-    // at the same time, and so `sendRecordingCallback()` will be called twice)
-    if (!self.state.running || self.state.stage == 'send-recording' || self.state.stage == 'waiting-server') {
-      //console.log("-------> SEND RECORDING RETURNED: " + self.state.stage);
-      return;
-    }
-
-    //console.log("-------> SEND RECORDING");
 
     self.state.stage = 'send-recording';
 
-    self.speechEvents.stop();
-    
     self.showLoading();
-
     stopSiriWave();
-
     self.sounds.sfx_processing.play();
-
     headerCenter.innerHTML = "Processing..."
-    self.recorder.microphone.stop();
 
     // after stopping the audio, get the audio data
     self.recorder.getDataURL(function(audioDataURL) {
@@ -1264,11 +1284,11 @@ Vorder.prototype = {
       }
       else if (od.status == "PROCESSING_ERROR") {
         headerCenter.innerHTML = "Invalid order: " + od.output;
-        self.tell("order_invalid", null, self.listenOrder);
+        self.tell("order_invalid", "sfx_user_speak", self.listenOrder);
       }
       else if (od.status == "TRANSCRIPTION_ERROR"){
         headerCenter.innerHTML = "Transcription error: " + od.output;
-        self.tell("repeat", null, self.listenOrder);
+        self.tell("repeat", "sfx_user_speak", self.listenOrder);
       }
     
     });

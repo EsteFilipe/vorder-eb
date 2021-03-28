@@ -93,7 +93,9 @@ if (cluster.isMaster) {
     const encoding = 'LINEAR16';
     const sampleRateHertz = 16000;
 
+    // Currencies
     const coins = {BTC: "Bitcoin", ETH: "Ether"};
+    const fiatPair = "USDT";
 
     // Speech Contexts for Google Speech API
     var orderSpeechContexts, confirmationSpeechContexts;
@@ -105,8 +107,6 @@ if (cluster.isMaster) {
 						        phrases: phrases,
 						        boost: 20.0
 						       }];
-
-		//console.log(orderSpeechContexts);
 	});
 
     confirmationSpeechContexts = [{
@@ -117,7 +117,6 @@ if (cluster.isMaster) {
 
     // For several Cognito examples, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
-
     function registerUser(email, password){
         var attributeList = [];
         attributeList.push(new AmazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
@@ -329,8 +328,6 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'START_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
-
-                //client.request.session.running = true;
             });
 
             // When the user clicks "Stop"
@@ -342,7 +339,6 @@ if (cluster.isMaster) {
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
 
-                //client.request.session.running = false;
                 client.request.session.order = -1;
             });
 
@@ -391,12 +387,6 @@ if (cluster.isMaster) {
 
 	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
 	    				output = orderInfo.output;
-
-	    				/*
-	    				if (!client.request.session.running) {
-	    					return;
-	    				}
-	    				*/
 
 	    				// Send text result of order processing to client
 						client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
@@ -483,10 +473,8 @@ if (cluster.isMaster) {
                 	if (confirmationProcessing != "PROCESSING_ERROR") {
 
 	                	if (confirmationProcessing == "YES") {
-	                		// TODO Pass order to the Binance API. For now I'm always returning success,
-	                		// but the two following statuses are possible: 
-	                		// - "ORDER_PLACED"
-	                		// - "ORDER_REJECTED"
+	                		// TODO Pass order to the Binance API.
+                            const binanceResponse = await placeOrder("binance", client.request.session.order);
 	                		status = "ORDER_PLACED";
 	                	}
 	                	else if (confirmationProcessing == "NO") {
@@ -502,20 +490,14 @@ if (cluster.isMaster) {
                 		status = "PROCESSING_ERROR";
 	            		output = "There has been a problem processing the confirmation. One of the two happened:" +
 	            		 "1) Both words 'yes' and 'no' were found;" +
-	            		 "2) None of the words 'yes' or 'no' were found";
+	            		 "2) None of the words 'yes' or 'no' were found.";
                 	}
                 }
 
                 else {
                 	status = "TRANSCRIPTION_ERROR";
-	            	output = "There has been a problem transcribing the audio";
+	            	output = "There has been a problem transcribing the audio.";
                 }
-
-                /*
-				if (!client.request.session.running) {
-					return;
-				}
-				*/
 
                 client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
@@ -622,36 +604,6 @@ if (cluster.isMaster) {
 	      }
 	    }
     }
-
-    /*
-    // DEBUG
-    async function test_speechtotext() {
-      // The path to the remote LINEAR16 file
-      const gcsUri = 'gs://cloud-samples-data/speech/brooklyn_bridge.raw';
-
-      // The audio file's encoding, sample rate in hertz, and BCP-47 language code
-      const audio = {
-        uri: gcsUri,
-      };
-      const config = {
-        encoding: 'LINEAR16',
-        sampleRateHertz: 16000,
-        languageCode: 'en-US',
-      };
-      const request = {
-        audio: audio,
-        config: config,
-      };
-
-      // Detects speech in the audio file
-      const [response] = await speechClient.recognize(request);
-      const transcription = response.results
-        .map(result => result.alternatives[0].transcript)
-        .join('\n');
-      console.log(`Transcription: ${transcription}`);
-    }
-    //DEBUG
-    */
 
     /**
      * Setup Cloud STT Integration
@@ -779,11 +731,34 @@ if (cluster.isMaster) {
         // is placed. Although, when I do refresh on the page, the set leverage
         // on binance updates.
         //await binance.futuresLeverage( 'BTCUSDT', 2 );
-        await binance.futuresMarketBuy( 'BTCUSDT', 0.001 );
+        console.log(orderDetails);
+        console.log("POLARITY")
+        console.log(orderDetails.polarity)
+        console.log("SIZE")
+        console.log(orderDetails.size)
+        const pair = orderDetails.ticker + fiatPair;
+        console.log("PAIR")
+        console.log(pair)
+        console.log("TYPE")
+        console.log(orderDetails.type)
+        console.log("PRICE")
+        console.log(orderDetails.price)
+
+        /*
+        const binanceResponse = await binance.futuresMarketBuy( pair, -0.001 );
+
+        var bResponse = {status: true, output: ''};
+        // Error responses are of the form {code:<CODE>, msg:<MSG>}
+        // Only in the case of error does the response have the field `code`
+        if ("code" in binanceResponse) {
+            bResponse = {status: false, output: binanceResponse.msg}
+        }
+
+        return bResponse
+        */
     }
 
-    //setupBinance();
-    //placeOrder();
+    setupBinance();
     setupSTT();
     setupTTS();
     setupServer();
