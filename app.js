@@ -81,6 +81,7 @@ if (cluster.isMaster) {
     var sessionId, sessionClient, sessionPath, request;
     var speechClient, requestSTT, ttsClient, requestTTS, mediaTranslationClient, requestMedia;
     const port = process.env.PORT || 3000;
+    var binance;
 
     // Credentials for the Google Service Account
     // Using two service accounts because if I only used one, I got an error. Apparently two
@@ -763,6 +764,26 @@ if (cluster.isMaster) {
 
     }
 
+    async function setupBinance() {
+        binance = new Binance().options({
+            APIKEY: process.env.BINANCE_API_KEY,
+            APISECRET: process.env.BINANCE_API_SECRET,
+            test: true
+        });
+    	
+    }
+
+    async function placeOrder(exchange, orderDetails) {
+        // Set leverage value
+        // TODO this doesn't affect the leverage with which the order
+        // is placed. Although, when I do refresh on the page, the set leverage
+        // on binance updates.
+        //await binance.futuresLeverage( 'BTCUSDT', 2 );
+        await binance.futuresMarketBuy( 'BTCUSDT', 0.001 );
+    }
+
+    //setupBinance();
+    //placeOrder();
     setupSTT();
     setupTTS();
     setupServer();
