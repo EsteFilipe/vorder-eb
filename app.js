@@ -95,7 +95,7 @@ if (cluster.isMaster) {
 
     // Currencies
     const coins = {BTC: "Bitcoin", ETH: "Ether"};
-    const fiatPair = "USDT";
+    const fiatSymbol = "USDT";
 
     // Speech Contexts for Google Speech API
     var orderSpeechContexts, confirmationSpeechContexts;
@@ -328,6 +328,10 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'START_MONITORING'},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
+
+                // Putting this in almost every call to avoid the case where a stale
+                // order stays in memory and then is executed by accident 
+                client.request.session.order = -1;
             });
 
             // When the user clicks "Stop"
@@ -350,6 +354,8 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'WAKE_WORD_DETECTED'},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
+
+                client.request.session.order = -1;
             });
 
             client.on('microphone-error', function(data) {
@@ -360,6 +366,8 @@ if (cluster.isMaster) {
                          'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
                          'client_timestamp': {'S': data.timestamp.toString()},
                      	 'server_timestamp': {'S': Date.now().toString()}});
+
+                client.request.session.order = -1;
             });
 
             // Transcribe, process and validate order
@@ -377,6 +385,8 @@ if (cluster.isMaster) {
 
                 var status, output;
 
+                client.request.session.order = -1;
+
                 if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
 	                // Process the order using python script
@@ -393,6 +403,7 @@ if (cluster.isMaster) {
 
 						// Get the order description audio data
 				    	if (status == "VALID") {
+
 							// Save order in session variable
 							client.request.session.order = orderInfo.output;
 							
@@ -412,10 +423,6 @@ if (cluster.isMaster) {
 				            }).catch(function(e){
 				                console.log(e);
 				            });
-						}
-						else {
-							// -1 means no order to confirm
-							client.request.session.order = -1;
 						}
 
 		                storeProcessingData({
@@ -439,7 +446,6 @@ if (cluster.isMaster) {
 	                	eventType: eventType,
 	                	status: status,
 	                	output: output});
-
 	            }
 
             	storeAudioData({
@@ -453,7 +459,7 @@ if (cluster.isMaster) {
 
 			// Transcribe, process and validate order confirmation
 			client.on('confirm-order', async function(data) {
-				const order = client.request.session.order
+				const orderDetails = client.request.session.order
 				const eventType = 'CONFIRM_ORDER';
                 const clientTimestamp = data.timestamp.toString();
 				const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
@@ -473,9 +479,16 @@ if (cluster.isMaster) {
                 	if (confirmationProcessing != "PROCESSING_ERROR") {
 
 	                	if (confirmationProcessing == "YES") {
-	                		// TODO Pass order to the Binance API.
-                            const binanceResponse = await placeOrder("binance", client.request.session.order);
-	                		status = "ORDER_PLACED";
+
+	                		// Pass order to the Binance API.
+                            const binanceResponse = await placeOrder("binance", orderDetails, true);
+                            if (binanceResponse.status) {
+	                		     status = "ORDER_PLACED";
+                            }
+                            else {
+                                 status = "ORDER_REJECTED";
+                                 output = binanceResponse.output;
+                            }
 	                	}
 	                	else if (confirmationProcessing == "NO") {
 	                		status = "ORDER_CANCEL";
@@ -483,6 +496,7 @@ if (cluster.isMaster) {
                 		output = JSON.stringify({
 	            			transcription: confirmationTranscription,
 	            			processing: confirmationProcessing});
+
 	                	// Order resolved. Clean it up
 	                	client.request.session.order = -1;
 	                }
@@ -515,9 +529,7 @@ if (cluster.isMaster) {
                 	clientTimestamp: clientTimestamp});
 
 			});
-
         });
-
     }
 
     function storeAudioData(data){
@@ -725,37 +737,55 @@ if (cluster.isMaster) {
     	
     }
 
-    async function placeOrder(exchange, orderDetails) {
+    async function placeOrder(exchange, orderDetails, testMode) {
+
         // Set leverage value
         // TODO this doesn't affect the leverage with which the order
         // is placed. Although, when I do refresh on the page, the set leverage
         // on binance updates.
         //await binance.futuresLeverage( 'BTCUSDT', 2 );
-        console.log(orderDetails);
-        console.log("POLARITY")
-        console.log(orderDetails.polarity)
-        console.log("SIZE")
-        console.log(orderDetails.size)
-        const pair = orderDetails.ticker + fiatPair;
-        console.log("PAIR")
-        console.log(pair)
-        console.log("TYPE")
-        console.log(orderDetails.type)
-        console.log("PRICE")
-        console.log(orderDetails.price)
 
-        /*
-        const binanceResponse = await binance.futuresMarketBuy( pair, -0.001 );
+        const orderSymbol = orderDetails.ticker + fiatSymbol;
 
-        var bResponse = {status: true, output: ''};
-        // Error responses are of the form {code:<CODE>, msg:<MSG>}
-        // Only in the case of error does the response have the field `code`
-        if ("code" in binanceResponse) {
-            bResponse = {status: false, output: binanceResponse.msg}
+        // Actual response from the exchange API
+        var exchangeResponse;
+        // Processed response to pass to the user
+        var eResponse = {status: true, output: ''};
+
+        if (orderDetails.type == 'market') {
+            if (exchange == 'binance') {
+                if (testMode) {
+                    exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
+                }
+            }
+        }
+        else if (orderDetails.type == 'limit') {
+            if (exchange == 'binance') {
+                if (testMode) {
+                    exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
+                }
+            }
+        }
+        else if (orderDetails.type == 'range') {
+            if (exchange == 'binance') {
+                if (testMode) {
+                    // TODO
+                    const x = 0;
+                }
+            }
         }
 
-        return bResponse
-        */
+        // Error processing
+        if (exchange == 'binance') {
+            // Error response objects are of the form {code:<CODE>, msg:<MSG>}
+            // Only in the case of error does the response have the fields `code` and `msg`
+            if ("code" in exchangeResponse) {
+                eResponse = {status: false, output: binanceResponse.msg}
+            }
+        }
+
+        return eResponse
+
     }
 
     setupBinance();
