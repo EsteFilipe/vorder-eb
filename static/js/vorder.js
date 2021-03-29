@@ -881,7 +881,6 @@ Vorder.prototype = {
     }
 
     self.sounds[soundName].play();
-    const x = 1;
   },
 
    /**
@@ -982,14 +981,13 @@ Vorder.prototype = {
   stop: function() {
     var self = this;
 
+    self.state.running = false;
+    self.firstRun = true;
+
     self.socketio.emit('stop-monitoring', {timestamp: Date.now()});
     
     headerCenter.innerHTML = '';
     headerRight.innerHTML = '';
-
-    self.state.running = false;
-    self.firstRun = true;
-
 
     try {
      PorcupineManager.stop();
@@ -1081,14 +1079,15 @@ Vorder.prototype = {
     var secondsToStopGlobal, milisecondsToStopSilence;
 
     var recordingStage;
-    
-    clearTimeout(globalTimeout);
-    clearTimeout(silenceTimeout);
     var recordingRunning = true;
 
     if (!self.state.running || !['process-order-record', 'confirm-order-record'].includes(self.state.stage)) {
       return;
     }
+
+    Object.keys(self.sounds).forEach(function(key) {
+      self.sounds[key].stop(); // stop all playing sounds, if any
+    });
 
     self.recorder = RecordRTC(microphone, {
         type: 'audio',
@@ -1099,10 +1098,7 @@ Vorder.prototype = {
     });
 
     self.showRecording();
-    
-    // TODO best practice would be to reuse the stream already initialized
     runSiriWave();
-
     self.recorder.startRecording();
 
     self.speechEvents = hark(microphone, {});
@@ -1111,6 +1107,7 @@ Vorder.prototype = {
     
     // Global timeout (maximum number of recording seconds)
     (function globalLooper() {
+        console.log("GLOBAL LOOPER");
         if (!self.state.running) {
           clearTimeout(silenceTimeout);
           clearTimeout(globalTimeout);
@@ -1140,6 +1137,7 @@ Vorder.prototype = {
     // Silence-based timeout (maximum number of silence seconds after speech last detected)
     self.speechEvents.on('speaking', function() {
         headerCenter.innerHTML = 'Speech detected.';
+        console.log('SPEECH DETECTED');
         if (!self.state.running) {
           self.speechEvents.stop();
         }
@@ -1151,6 +1149,7 @@ Vorder.prototype = {
         milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
         (function silenceLooper() {
+            console.log("SILENCE LOOPER");
             if (!self.state.running) {
               clearTimeout(silenceTimeout);
               clearTimeout(globalTimeout);
@@ -1183,13 +1182,12 @@ Vorder.prototype = {
     var self = this;
     var recordingStage;
 
-    self.speechEvents.stop();
-    self.recorder.microphone.stop();
-
     if (!self.state.running) {
-      self.stop()
       return;
     }
+
+    self.speechEvents.stop();
+    self.recorder.microphone.stop();
 
     if(self.state.stage == 'process-order-record') {
       recordingStage = 'process-order';
@@ -1345,8 +1343,16 @@ Vorder.prototype = {
           self.state.stage = 'porcupine';
           self.showWaitingWakeWord();
         }
+        // The order was rejected by Binance
+        else if (oc.status == "ORDER_REJECTED") {
+          headerCenter.innerHTML = "Binance rejected order: " + oc.output;
+          self.sounds.order_rejected.play();
+          // re-start immediately, without waiting for sound to finish
+          self.state.stage = 'porcupine';
+          self.showWaitingWakeWord();
+        }
         // User said no
-        if (oc.status == "ORDER_CANCEL") {
+        else if (oc.status == "ORDER_CANCEL") {
           self.sounds.cancel.play();
           // re-start immediately, without waiting for sound to finish
           self.state.stage = 'porcupine';
@@ -1358,17 +1364,8 @@ Vorder.prototype = {
           headerCenter.innerHTML = "Confirmation failed: " + oc.output;
           self.tell("repeat", "sfx_user_speak", self.listenConfirmation);
         }
-        // The order was rejected by Binance
-        else if (oc.status == "ORDER_REJECTED") {
-          headerCenter.innerHTML = "Binance rejected order: " + oc.output;
-          self.sounds.order_rejected.play();
-          // re-start immediately, without waiting for sound to finish
-          self.state.stage = 'porcupine';
-          self.showWaitingWakeWord();
-        }
     });
   }
-
 };
 
 // Setup our new vorder class and pass it the initial options
@@ -1376,7 +1373,7 @@ var vorder = new Vorder({audioSourceDeviceId: 'default',
                          porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
                          orderProcessing: {maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 2.0},
-                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
+                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 2.0},
                          samplingRate: 16000
                         });
 
