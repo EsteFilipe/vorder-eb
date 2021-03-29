@@ -815,6 +815,8 @@ Vorder.prototype = {
     waitingWakeWordBtn.style.display = 'none';
     recordingBtn.style.display = 'none';
     waveform.style.display = 'none';
+    headerCenter.innerHTML = '';
+    headerRight.innerHTML = '';
   },
 
   showLoading: function() {
@@ -937,14 +939,9 @@ Vorder.prototype = {
 
     alert(ex.toString());
 
-    startStopButton.onclick = function() {
-      self.socketio.emit('start-monitoring', {timestamp: Date.now()});
-      // start monitoring
-      start();
-    };
-    startStopButton.innerText = "Start";
-    startStopButton.disabled = false;
     self.socketio.emit('microphone-error', {stage: "porcupine", timestamp: Date.now()});
+
+    self.stop();
   },
 
     /**
@@ -1107,14 +1104,8 @@ Vorder.prototype = {
     
     // Global timeout (maximum number of recording seconds)
     (function globalLooper() {
-        console.log("GLOBAL LOOPER");
-        if (!self.state.running) {
-          clearTimeout(silenceTimeout);
-          clearTimeout(globalTimeout);
-          self.stop()
-          return;
-        }
-        if (!recordingRunning) {
+        console.log("-----> RUNNING globalLooper()");
+        if (!self.state.running || !recordingRunning) {
           console.log("-----> RETURNED globalLooper()");
           return;
         }
@@ -1125,8 +1116,6 @@ Vorder.prototype = {
         if(secondsToStopGlobal < 0) {
             recordingRunning = false;
             clearTimeout(silenceTimeout);
-            headerCenter.innerHTML = '';
-            headerRight.innerHTML = '';
             self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
             return;
         }
@@ -1137,9 +1126,9 @@ Vorder.prototype = {
     // Silence-based timeout (maximum number of silence seconds after speech last detected)
     self.speechEvents.on('speaking', function() {
         headerCenter.innerHTML = 'Speech detected.';
-        console.log('SPEECH DETECTED');
+
         if (!self.state.running) {
-          self.speechEvents.stop();
+          return
         }
 
         clearTimeout(silenceTimeout);
@@ -1149,17 +1138,13 @@ Vorder.prototype = {
         milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
         (function silenceLooper() {
-            console.log("SILENCE LOOPER");
-            if (!self.state.running) {
-              clearTimeout(silenceTimeout);
-              clearTimeout(globalTimeout);
-              self.stop()
-              return;
-            }
-            if (!recordingRunning) {
+            console.log("-----> RUNNING silenceLooper()");
+
+            if (!self.state.running || !recordingRunning) {
               console.log("-----> RETURNED silenceLooper()");
               return;
             }
+
             headerCenter.innerHTML = 'If silence remains, will stop recording in ' + milisecondsToStopSilence + ' ms.';
             milisecondsToStopSilence = milisecondsToStopSilence - 100;
 
@@ -1167,8 +1152,6 @@ Vorder.prototype = {
                 recordingRunning = false;
                 clearTimeout(globalTimeout);
                 self.recorder.stopRecording(self.sendRecordingCallback.bind(self));
-                headerCenter.innerHTML = '';
-                headerRight.innerHTML = '';
                 return;
             }
             silenceTimeout = setTimeout(silenceLooper, 100);
@@ -1202,6 +1185,7 @@ Vorder.prototype = {
     stopSiriWave();
     self.sounds.sfx_processing.play();
     headerCenter.innerHTML = "Processing..."
+    headerRight.innerHTML = '';
 
     // after stopping the audio, get the audio data
     self.recorder.getDataURL(function(audioDataURL) {
@@ -1372,8 +1356,8 @@ Vorder.prototype = {
 var vorder = new Vorder({audioSourceDeviceId: 'default',
                          porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
-                         orderProcessing: {maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 2.0},
-                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 2.0},
+                         orderProcessing: {maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 1.0},
+                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
                          samplingRate: 16000
                         });
 
@@ -1662,6 +1646,9 @@ function base64ArrayBuffer(arrayBuffer) {
     return base64
 }
 
+
+// Code from https://github.com/muaz-khan/WebRTC-Experiment/blob/master/hark/hark.js with some modifications
+
 // original source code is taken from:
 // https://github.com/SimpleWebRTC/hark
 // copyright goes to &yet team
@@ -1740,6 +1727,15 @@ function hark(stream, options) {
         harker.speakingHistory.push(0);
     }
 
+    // Note: Filipe changed this. Noticed that, sometimes, the first couple of iterations from
+    // `looper`, getMaxVolume yielded values > than -50, which made for false positive starts.
+    // Guessing this has something so do with some artifact in the noise levels right after starting
+    // to capture sound from the microphone.
+    // For that reason, ignoring the first `cutoffFirstNLoops` loops from `looper`.
+
+    var loopsCounter = 0;
+    const cutoffFirstNLoops = 3;
+
     // Poll the analyser node to determine if speaking
     // and emit events if changed
     var looper = function () {
@@ -1750,11 +1746,22 @@ function hark(stream, options) {
                 return;
             }
 
-            console.log("Hark running");
-
             var currentVolume = getMaxVolume(analyser, fftBins);
 
+            // -- Added by Filipe
+            loopsCounter++;
+
+            if (loopsCounter <= cutoffFirstNLoops) {
+              // Go back to the beginning
+              console.log('HARK IGNORING. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
+              setTimeout(looper,interval)
+              return;
+            }
+            // Added by Filipe --
+
             harker.emit('volume_change', currentVolume, threshold);
+
+            console.log('HARK CONSIDERING LOOP. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
 
             var history = 0;
             if (currentVolume > threshold && !harker.speaking) {
@@ -1763,6 +1770,7 @@ function hark(stream, options) {
                     history += harker.speakingHistory[i];
                 }
                 if (history >= 2) {
+                    console.log('HARK SPEAKING <-------');
                     harker.speaking = true;
                     harker.emit('speaking');
                 }

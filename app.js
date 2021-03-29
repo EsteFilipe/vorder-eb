@@ -481,22 +481,18 @@ if (cluster.isMaster) {
 	                	if (confirmationProcessing == "YES") {
 
 	                		// Pass order to the Binance API.
-                            const binanceResponse = await placeOrder("binance", orderDetails, true);
-                            if (binanceResponse.status) {
+                            const exchangeResponse = await placeOrder("binance", orderDetails, true);
+                            if (exchangeResponse.status) {
 	                		     status = "ORDER_PLACED";
                             }
                             else {
                                  status = "ORDER_REJECTED";
-                                 output = binanceResponse.output;
+                                 output = exchangeResponse.output;
                             }
 	                	}
 	                	else if (confirmationProcessing == "NO") {
 	                		status = "ORDER_CANCEL";
 	                	}
-                		output = JSON.stringify({
-	            			transcription: confirmationTranscription,
-	            			processing: confirmationProcessing});
-
 	                	// Order resolved. Clean it up
 	                	client.request.session.order = -1;
 	                }
@@ -780,7 +776,7 @@ if (cluster.isMaster) {
             // Error response objects are of the form {code:<CODE>, msg:<MSG>}
             // Only in the case of error does the response have the fields `code` and `msg`
             if ("code" in exchangeResponse) {
-                eResponse = {status: false, output: binanceResponse.msg}
+                eResponse = {status: false, output: exchangeResponse.msg}
             }
         }
 
