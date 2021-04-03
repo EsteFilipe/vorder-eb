@@ -26,7 +26,8 @@ if (cluster.isMaster) {
 
     var AWS = require('aws-sdk');
     var express = require('express');
-    var session = require('express-session')
+    var session = require('express-session');
+    var dbStore = require('connect-dynamodb')({session: session});
     var bodyParser = require('body-parser');
     var cors = require('cors');
     var socketIo = require('socket.io');
@@ -43,17 +44,14 @@ if (cluster.isMaster) {
     // Server
 
     // TODO not sure this is needed, since we're serving wasm from nginx, not nodejs. Try commenting out
-    express.static.mime.define({'application/wasm': ['wasm']})
+    express.static.mime.define({'application/wasm': ['wasm']});
 
-    AWS.config.region = process.env.REGION
+    AWS.config.region = process.env.REGION;
 
     //var sns = new AWS.SNS();
     //var snsTopic =  process.env.NEW_SIGNUP_TOPIC;
     var ddb = new AWS.DynamoDB();
-    var ddbTable =  process.env.EVENTS_TABLE;
     var S3 = new AWS.S3();
-
-    const S3_bucket = process.env.EVENTS_BUCKET;
 
     // AWS Cognito
     var AmazonCognitoIdentity = require('amazon-cognito-identity-js');
@@ -69,6 +67,8 @@ if (cluster.isMaster) {
     };
     const pool_region = 'us-east-2';
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    const cookieMaxAge = 86400000;
 
     // STT
     var speech = require('@google-cloud/speech').v1p1beta1;
@@ -114,6 +114,398 @@ if (cluster.isMaster) {
 							       boost: 20.0
 							      }];
 
+    function setupServer() {
+
+        var app = express();
+
+        // Require authentication to access (from https://stackoverflow.com/questions/23616371/basic-http-authentication-with-node-and-express-4)
+        //app.use(basicAuth({
+        //    users: { dawuon9d39feaAFCEb19bdy332id13: '9f2y4fg274624xn7cn289cADASry9482cvyb' },
+        //    challenge: true // <--- needed to actually show the login dialog!
+        //}));
+
+        app.use(cors());
+        app.set('view engine', 'ejs');
+        app.set('views', __dirname + '/views');
+
+        app.use(bodyParser.urlencoded({extended : true}));
+        app.use(bodyParser.json());
+
+        // Necessary for session.cookie.secure == true, as per
+        //https://www.npmjs.com/package/express-session
+        app.set('trust proxy', 1); 
+
+        var sess = session({
+            store: new dbStore ({
+                table: process.env.SESSIONS_TABLE,
+                prefix: '',
+                hashKey: 'id',
+                client: ddb
+            }),
+            secret: process.env.SESSIONS_SECRET,
+            resave: false,
+            saveUninitialized: false,
+            cookie: {
+                maxAge: cookieMaxAge,
+                secure: true
+            }
+        });
+
+        app.use(sess);
+
+        // X-Ray debug logs
+        //var AWSXRay = require('aws-xray-sdk');
+        //app.use(AWSXRay.express.openSegment('VorderApp'));
+
+        // Move all this stuff into a separate file to hold just the routes, as in
+        // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
+
+        app.get('/', function(req, res) {
+            if (!req.session.cognitoData) {
+                res.sendFile(path.join(__dirname + '/views/login.html'));
+            } else {
+                res.render('index', {
+                    static_path: 'static',
+                });
+            }
+        });
+
+        app.post('/auth', function(req, res) {
+            var email = req.body.email;
+            var password = req.body.password;
+
+            if (email && password) {
+                userLogin(email, password).then(function(result) {
+                    req.session.order = -1;
+                    req.session.cognitoData = result;
+                    res.redirect('/home');
+                }, function(err) {
+                    res.send('Incorrect e-mail and/or password.');
+                    console.log(err);
+                })
+            } else {
+                res.send('Please enter e-mail and password.');
+            }
+        });
+
+        app.get('/home', function(req, res) {
+            // TODO CHECK FOR TOKEN VALIDITY
+            //validateToken(req.session.token);
+            if (!req.session.cognitoData) {
+                res.sendFile(path.join(__dirname + '/views/login.html'));
+            } else {
+                res.render('index', {
+                    static_path: 'static',
+                });
+            }
+        });
+
+        app.get('/options', async function(req, res) {
+            console.log('/options');
+            // TODO CHECK FOR TOKEN VALIDITY
+            //validateToken(req.session.token);
+            if (!req.session.cognitoData) {
+                res.sendFile(path.join(__dirname + '/views/login.html'));
+            } else {
+                const sub = req.session.cognitoData.idToken.payload.sub;
+                getBinanceAPIKey(sub).then(async function(data) {
+                    console.log(data);
+                    const hasValidAPIKey = await validateBinanceAPIKey(data.api_key, data.api_secret);
+                    console.log(hasValidAPIKey);
+                    if (hasValidAPIKey) {
+                        res.render('options', {
+                            verified: true,
+                        });
+                    }
+                    else {
+                        res.render('options', {
+                            verified: false,
+                        });
+                    }
+                }, function (err){
+                    console.log(err);
+                    res.render('options', {
+                        verified: false,
+                    });
+                })
+            }
+        });
+
+        app.post('/set-api-key', async function(req, res) {
+            var apiKey = req.body.apiKey;
+            var apiSecret = req.body.apiSecret;
+
+            if (!req.session.cognitoData) {
+                return;
+            }
+            else {
+                const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
+
+                if (hasValidAPIKey) {
+                    // TODO validation before storing
+                    const sub = req.session.cognitoData.idToken.payload.sub;
+
+                    ddbPutOrUpdateCredentials({
+                        'sub': {'S': sub},
+                        'api_key': {'S': apiKey},
+                        'api_secret': {'S': apiSecret}
+                    }).then(function(data){
+                        res.send('API Key updated.');
+                    }, function(err) {
+                        res.send("There's been an error updating the API Key");
+                    })
+                }
+                else {
+                    res.send("Invalid API key.");
+                }
+            }
+        });
+
+        app.get('/signup', function(req, res) {
+            res.sendFile(path.join(__dirname + '/views/signup.html'));
+        });
+
+        app.post('/signup', function(req, res) {
+            var email = req.body.email;
+            var password = req.body.password;
+            var repeatPassword = req.body.repeatPassword;
+
+            if (email && password && repeatPassword) {
+                if (password == repeatPassword) {
+                registerUser(email, password).then(function(result) {
+                    res.send('Success. Check your e-mail and click the confirmation link.');
+                }, function(err) {
+                    res.send('Invalid data.');
+                    console.log('Invalid Sign-up:')
+                    console.log(err);
+                })
+                }
+                else {
+                    res.send("Passwords don't match.");
+                }
+            } else {
+                res.send('Please fill-in all fields.');
+            }
+        });
+
+        server = http.createServer(app);
+        io = socketIo(server);
+
+        // Share session variables with socket.io
+        io.use(function(socket, next) {
+            sess(socket.request, socket.request.res || {}, next);
+        });
+
+        server.listen(port, () => {
+            console.log('Running server on port %s', port);
+        });
+
+        // Listener, once the client connect to the server socket
+        io.on('connect', (client) => {
+            console.log(`Client connected [id=${client.id}]`);
+            client.emit('server_setup', `Server connected [id=${client.id}]`);
+
+            // When the user clicks "Start"
+            client.on('start-monitoring', function(data) {
+
+                ddbPutEvent({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'START_MONITORING'},
+                             'client_timestamp': {'S': data.timestamp.toString()},
+                             'server_timestamp': {'S': Date.now().toString()}});
+
+                // Putting this in almost every call to avoid the case where a stale
+                // order stays in memory and then is executed by accident 
+                client.request.session.order = -1;
+            });
+
+            // When the user clicks "Stop"
+            client.on('stop-monitoring', function(data) {
+
+                ddbPutEvent({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'STOP_MONITORING'},
+                             'client_timestamp': {'S': data.timestamp.toString()},
+                             'server_timestamp': {'S': Date.now().toString()}});
+
+                client.request.session.order = -1;
+            });
+
+            client.on('wake-word-detected', function(data) {
+
+                ddbPutEvent({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'WAKE_WORD_DETECTED'},
+                             'client_timestamp': {'S': data.timestamp.toString()},
+                             'server_timestamp': {'S': Date.now().toString()}});
+
+                client.request.session.order = -1;
+            });
+
+            client.on('microphone-error', function(data) {
+
+                ddbPutEvent({'email': {'S': client.request.session.email},
+                             'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
+                             'client_timestamp': {'S': data.timestamp.toString()},
+                             'server_timestamp': {'S': Date.now().toString()}});
+
+                client.request.session.order = -1;
+            });
+
+            // Transcribe, process and validate order
+            client.on('process-order', async function(data) {
+                const eventType = 'PROCESS_ORDER';
+                const clientTimestamp = data.timestamp.toString();
+                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
+                // Get the dataURL which was sent from the client
+                const dataURL = data.audio.dataURL.split(',').pop();
+                // Convert it to a Buffer
+                let fileBuffer = Buffer.from(dataURL, 'base64');
+
+                // Send audio to transcribe and wait for the response
+                const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
+
+                var status, output;
+
+                client.request.session.order = -1;
+
+                if (orderTranscription != "TRANSCRIPTION_ERROR") {
+
+                    // Process the order using python script
+                    runPython38Script ("order_processing.py", orderTranscription, (output) => {
+                        // `output` is a string
+
+                        const orderInfo = JSON.parse(output);
+
+                        status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
+                        output = orderInfo.output;
+
+                        // Send text result of order processing to client
+                        client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
+
+                        // Get the order description audio data
+                        if (status == "VALID") {
+
+                            // Save order in session variable
+                            client.request.session.order = orderInfo.output;
+                            
+                            const order = orderInfo.output;
+                            const coinName = coins[order.ticker];
+                            
+                            if (order.type == "limit") {
+                                orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
+                            }
+
+                            else if (order.type == "market") {
+                                orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
+                            }
+
+                            textToAudioBuffer(orderText).then(function(arrayBuffer){
+                                client.emit('stream-audio-confirm-order', arrayBuffer);
+                            }).catch(function(e){
+                                console.log(e);
+                            });
+                        }
+
+                        storeProcessingData({
+                            email: client.request.session.email,
+                            eventType: eventType,
+                            status: status,
+                            output: JSON.stringify({
+                                transcription: orderTranscription,
+                                processing: orderInfo.output})});
+                    });
+                }
+
+                else {
+                    status = "TRANSCRIPTION_ERROR";
+                    output = "There has been a problem transcribing the audio.";
+
+                    client.emit('order-processing', JSON.stringify({status: status, output: output}));
+
+                    storeProcessingData({
+                        email: client.request.session.email,
+                        eventType: eventType,
+                        status: status,
+                        output: output});
+                }
+
+                storeAudioData({
+                    email: client.request.session.email,
+                    eventType: eventType,
+                    fileName: fileName,
+                    fileBuffer: fileBuffer,
+                    clientTimestamp: clientTimestamp});
+
+            });
+
+            // Transcribe, process and validate order confirmation
+            client.on('confirm-order', async function(data) {
+                const orderDetails = client.request.session.order
+                const eventType = 'CONFIRM_ORDER';
+                const clientTimestamp = data.timestamp.toString();
+                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
+                // Get the dataURL which was sent from the client
+                const dataURL = data.audio.dataURL.split(',').pop();
+                // Convert it to a Buffer
+                let fileBuffer = Buffer.from(dataURL, 'base64');
+                // Send audio to transcribe and wait for the response
+                const confirmationTranscription = await speechTranscription(fileBuffer, "CONFIRMATION");
+
+                var status, output;
+
+                if (confirmationTranscription != "TRANSCRIPTION_ERROR") {
+
+                    const confirmationProcessing = processOrderConfirmation(confirmationTranscription);
+
+                    if (confirmationProcessing != "PROCESSING_ERROR") {
+
+                        if (confirmationProcessing == "YES") {
+
+                            // Pass order to the Binance API.
+                            const exchangeResponse = await placeOrder("binance", orderDetails, true);
+                            if (exchangeResponse.status) {
+                                 status = "ORDER_PLACED";
+                            }
+                            else {
+                                 status = "ORDER_REJECTED";
+                                 output = exchangeResponse.output;
+                            }
+                        }
+                        else if (confirmationProcessing == "NO") {
+                            status = "ORDER_CANCEL";
+                        }
+                        // Order resolved. Clean it up
+                        client.request.session.order = -1;
+                    }
+                    else {
+                        status = "PROCESSING_ERROR";
+                        output = "There has been a problem processing the confirmation. One of the two happened:" +
+                         "1) Both words 'yes' and 'no' were found;" +
+                         "2) None of the words 'yes' or 'no' were found.";
+                    }
+                }
+
+                else {
+                    status = "TRANSCRIPTION_ERROR";
+                    output = "There has been a problem transcribing the audio.";
+                }
+
+                client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
+
+                storeProcessingData({
+                    email: client.request.session.email,
+                    eventType: eventType,
+                    status: status,
+                    output: output});
+
+                storeAudioData({
+                    email: client.request.session.email,
+                    eventType: eventType,
+                    fileName: fileName,
+                    fileBuffer: fileBuffer,
+                    clientTimestamp: clientTimestamp});
+
+            });
+        });
+    }
 
     // For several Cognito examples, check:
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
@@ -121,26 +513,42 @@ if (cluster.isMaster) {
         var attributeList = [];
         attributeList.push(new AmazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
 
-        userPool.signUp(email, password, attributeList, null, function(err, result){
+        return new Promise((resolve, reject) => {
+            userPool.signUp(email, password, attributeList, null, (err, result) => {
+                if (err) {
+                    console.log(err.message);
+                    reject(err);
+                    return;
+                }
+                cognitoUser = result.user;
+                resolve(cognitoUser)
+            });
+        });
+    }
+
+    // TODO INTEGRATE (THIS IS FROM https://www.npmjs.com/package/amazon-cognito-identity-js - USE CASE 11)
+    function changeUserPassword (email, oldPassword, newPassword) {
+        // TODO TURN INTO PROMISE
+        var userData = {
+            Username : email,
+            Pool : userPool
+        };
+
+        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+        cognitoUser.changePassword(oldPassword, newPassword, function(err, result) {
             if (err) {
-                console.log("Error creating user.");
-                console.log(err);
+                alert(err.message || JSON.stringify(err));
                 return;
             }
-            cognitoUser = result.user;
-            console.log("Success creating user.");
-            console.log('user name is ' + cognitoUser.getUsername());
+            console.log('call result: ' + result);
         });
     }
 
     // TODO perhaps in the future I'll have to use the token received from cognito for something
     // Check https://www.npmjs.com/package/amazon-cognito-identity-js
     // Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
-    function login(email, password) {
-
-        console.log("Trying to log in...")
-        console.log("E-mail: ", email)
-        console.log("Password: ", password)
+    function userLogin(email, password) {
 
         var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
             Username : email,
@@ -154,19 +562,34 @@ if (cluster.isMaster) {
 
         var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
 
-        return new Promise((success, error) => {
+        return new Promise((resolve, reject) => {
             cognitoUser.authenticateUser(authenticationDetails, {
                 onSuccess: (result) => {
                     console.log('successfully authenticated', result);
-                    success(result);
+                    resolve(result);
                 },
-
                 onFailure: (err) => {
                     console.log('error authenticating', err);
-                    error(err);
+                    reject(err);
                 }
             });
         });
+
+    }
+
+    async function userLogout (email) {
+
+        var userData = {
+            Username : email,
+            Pool : userPool
+        };
+
+        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+        await cognitoUser.signOut();
+
+        req.session.order = -1;
+        req.session.cognitoData = null;
 
     }
 
@@ -242,319 +665,33 @@ if (cluster.isMaster) {
         })
     }
 
-    function setupServer() {
-
-        var app = express();
-
-        // Require authentication to access (from https://stackoverflow.com/questions/23616371/basic-http-authentication-with-node-and-express-4)
-        //app.use(basicAuth({
-        //    users: { dawuon9d39feaAFCEb19bdy332id13: '9f2y4fg274624xn7cn289cADASry9482cvyb' },
-        //    challenge: true // <--- needed to actually show the login dialog!
-        //}));
-
-        app.use(cors());
-        app.set('view engine', 'ejs');
-        app.set('views', __dirname + '/views');
-
-        app.use(bodyParser.urlencoded({extended : true}));
-        app.use(bodyParser.json());
-
-        var sess = session({secret: 'fiADWXCVejn984w7AWDWADuhftfntwfyb8fcnGRIK7wcwu9chw9IO85151',
-                            resave: false,
-                            saveUninitialized: false
-                            })
-
-        app.use(sess);
-
-        // X-Ray debug logs
-        //var AWSXRay = require('aws-xray-sdk');
-        //app.use(AWSXRay.express.openSegment('VorderApp'));
-
-        app.get('/', function(req, res) {
-            res.sendFile(path.join(__dirname + '/views/login.html'));
-        });
-
-        app.post('/auth', function(req, res) {
-        	var email = req.body.email;
-        	var password = req.body.password;
-
-        	if (email && password) {
-                login(email, password).then(function(result) {
-                    req.session.loggedin = true;
-                    req.session.email = email;
-                    req.session.order = -1;
-                    res.redirect('/home');
-                }, function(err) {
-                    res.send('Incorrect e-mail and/or password.');
-                    console.log(err);
-                })
-        	} else {
-        		res.send('Please enter e-mail and password.');
-        	}
-        });
-
-        app.get('/home', function(req, res) {
-        	if (req.session.loggedin) {
-                res.render('index', {
-                    static_path: 'static',
-                });
-        	} else {
-        		res.sendFile(path.join(__dirname + '/views/login.html'));
-        	}
-        });
-
-        server = http.createServer(app);
-        io = socketIo(server);
-
-        // Share session variables with socket.io
-        io.use(function(socket, next) {
-            sess(socket.request, socket.request.res || {}, next);
-        });
-
-        server.listen(port, () => {
-            console.log('Running server on port %s', port);
-        });
-
-        // Listener, once the client connect to the server socket
-        io.on('connect', (client) => {
-            console.log(`Client connected [id=${client.id}]`);
-            client.emit('server_setup', `Server connected [id=${client.id}]`);
-
-            // When the user clicks "Start"
-            client.on('start-monitoring', function(data) {
-                const db_item =
-
-                ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'START_MONITORING'},
-                         'client_timestamp': {'S': data.timestamp.toString()},
-                     	 'server_timestamp': {'S': Date.now().toString()}});
-
-                // Putting this in almost every call to avoid the case where a stale
-                // order stays in memory and then is executed by accident 
-                client.request.session.order = -1;
-            });
-
-            // When the user clicks "Stop"
-            client.on('stop-monitoring', function(data) {
-                const db_item =
-
-                ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'STOP_MONITORING'},
-                         'client_timestamp': {'S': data.timestamp.toString()},
-                     	 'server_timestamp': {'S': Date.now().toString()}});
-
-                client.request.session.order = -1;
-            });
-
-            client.on('wake-word-detected', function(data) {
-
-                const db_item =
-
-                ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'WAKE_WORD_DETECTED'},
-                         'client_timestamp': {'S': data.timestamp.toString()},
-                     	 'server_timestamp': {'S': Date.now().toString()}});
-
-                client.request.session.order = -1;
-            });
-
-            client.on('microphone-error', function(data) {
-
-                const db_item =
-
-                ddb_put({'email': {'S': client.request.session.email},
-                         'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
-                         'client_timestamp': {'S': data.timestamp.toString()},
-                     	 'server_timestamp': {'S': Date.now().toString()}});
-
-                client.request.session.order = -1;
-            });
-
-            // Transcribe, process and validate order
-            client.on('process-order', async function(data) {
-            	const eventType = 'PROCESS_ORDER';
-                const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
-                // Get the dataURL which was sent from the client
-                const dataURL = data.audio.dataURL.split(',').pop();
-                // Convert it to a Buffer
-                let fileBuffer = Buffer.from(dataURL, 'base64');
-
-                // Send audio to transcribe and wait for the response
-                const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
-
-                var status, output;
-
-                client.request.session.order = -1;
-
-                if (orderTranscription != "TRANSCRIPTION_ERROR") {
-
-	                // Process the order using python script
-	                runPython38Script ("order_processing.py", orderTranscription, (output) => {
-	                	// `output` is a string
-
-	    				const orderInfo = JSON.parse(output);
-
-	    				status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
-	    				output = orderInfo.output;
-
-	    				// Send text result of order processing to client
-						client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
-
-						// Get the order description audio data
-				    	if (status == "VALID") {
-
-							// Save order in session variable
-							client.request.session.order = orderInfo.output;
-							
-							const order = orderInfo.output;
-							const coinName = coins[order.ticker];
-							
-							if (order.type == "limit") {
-								orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
-							}
-
-							else if (order.type == "market") {
-								orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
-							}
-
-			                textToAudioBuffer(orderText).then(function(arrayBuffer){
-				                client.emit('stream-audio-confirm-order', arrayBuffer);
-				            }).catch(function(e){
-				                console.log(e);
-				            });
-						}
-
-		                storeProcessingData({
-		                	email: client.request.session.email,
-		                	eventType: eventType,
-		                	status: status,
-		                	output: JSON.stringify({
-	    						transcription: orderTranscription,
-	    						processing: orderInfo.output})});
-					});
-	            }
-
-	            else {
-	            	status = "TRANSCRIPTION_ERROR";
-	            	output = "There has been a problem transcribing the audio.";
-
-	            	client.emit('order-processing', JSON.stringify({status: status, output: output}));
-
-	                storeProcessingData({
-	                	email: client.request.session.email,
-	                	eventType: eventType,
-	                	status: status,
-	                	output: output});
-	            }
-
-            	storeAudioData({
-                	email: client.request.session.email,
-                	eventType: eventType,
-                	fileName: fileName,
-                	fileBuffer: fileBuffer,
-                	clientTimestamp: clientTimestamp});
-
-            });
-
-			// Transcribe, process and validate order confirmation
-			client.on('confirm-order', async function(data) {
-				const orderDetails = client.request.session.order
-				const eventType = 'CONFIRM_ORDER';
-                const clientTimestamp = data.timestamp.toString();
-				const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
-                // Get the dataURL which was sent from the client
-                const dataURL = data.audio.dataURL.split(',').pop();
-                // Convert it to a Buffer
-                let fileBuffer = Buffer.from(dataURL, 'base64');
-				// Send audio to transcribe and wait for the response
-                const confirmationTranscription = await speechTranscription(fileBuffer, "CONFIRMATION");
-
-                var status, output;
-
-                if (confirmationTranscription != "TRANSCRIPTION_ERROR") {
-
-                	const confirmationProcessing = processOrderConfirmation(confirmationTranscription);
-
-                	if (confirmationProcessing != "PROCESSING_ERROR") {
-
-	                	if (confirmationProcessing == "YES") {
-
-	                		// Pass order to the Binance API.
-                            const exchangeResponse = await placeOrder("binance", orderDetails, true);
-                            if (exchangeResponse.status) {
-	                		     status = "ORDER_PLACED";
-                            }
-                            else {
-                                 status = "ORDER_REJECTED";
-                                 output = exchangeResponse.output;
-                            }
-	                	}
-	                	else if (confirmationProcessing == "NO") {
-	                		status = "ORDER_CANCEL";
-	                	}
-	                	// Order resolved. Clean it up
-	                	client.request.session.order = -1;
-	                }
-                	else {
-                		status = "PROCESSING_ERROR";
-	            		output = "There has been a problem processing the confirmation. One of the two happened:" +
-	            		 "1) Both words 'yes' and 'no' were found;" +
-	            		 "2) None of the words 'yes' or 'no' were found.";
-                	}
-                }
-
-                else {
-                	status = "TRANSCRIPTION_ERROR";
-	            	output = "There has been a problem transcribing the audio.";
-                }
-
-                client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
-
-                storeProcessingData({
-                	email: client.request.session.email,
-                	eventType: eventType,
-                	status: status,
-                	output: output});
-
-                storeAudioData({
-                	email: client.request.session.email,
-                	eventType: eventType,
-                	fileName: fileName,
-                	fileBuffer: fileBuffer,
-                	clientTimestamp: clientTimestamp});
-
-			});
-        });
-    }
-
     function storeAudioData(data){
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
-	    s3_put(data.fileName, data.fileBuffer).then(function(result) {
-	        ddb_put({'email': {'S': data.email},
-	                 'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
-	                 'file_name': {'S': data.fileName},
-	                 'client_timestamp': {'S': data.clientTimestamp},
-	                 'server_timestamp': {'S': Date.now().toString()}});
+	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
+	        ddbPutEvent({'email': {'S': data.email},
+	                    'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
+	                    'file_name': {'S': data.fileName},
+	                    'client_timestamp': {'S': data.clientTimestamp},
+	                    'server_timestamp': {'S': Date.now().toString()}});
 
 	    }, function(err) {
-	        ddb_put({'email': {'S': data.email},
-	                 'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
-	                 'file_name': {'S': "UPLOAD_ERROR"},
-	                 'client_timestamp': {'S': data.clientTimestamp},
-	                 'server_timestamp': {'S': Date.now().toString()}});
+	        ddbPutEvent({'email': {'S': data.email},
+	                     'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
+	                     'file_name': {'S': "UPLOAD_ERROR"},
+	                     'client_timestamp': {'S': data.clientTimestamp},
+	                     'server_timestamp': {'S': Date.now().toString()}});
 	    });
 
     }
 
     function storeProcessingData(data) {
     	// Put processing result into database
-	    ddb_put({'email': {'S': data.email},
-	             'event_type': {'S': data.eventType + '-PROCESS'},
-	             'status': {'S': data.status},
-	             'output': {'S': data.output},
-	             'server_timestamp': {'S': Date.now().toString()}});
+	    ddbPutEvent({'email': {'S': data.email},
+	                 'event_type': {'S': data.eventType + '-PROCESS'},
+	                 'status': {'S': data.status},
+	                 'output': {'S': data.output},
+	                 'server_timestamp': {'S': Date.now().toString()}});
     }
 
     function processOrderConfirmation(transcription) {
@@ -679,17 +816,13 @@ if (cluster.isMaster) {
         return response[0].audioContent;
     }
 
-    // Insert new item in DynamoDB table
-    function ddb_put(item) {
+    function ddbPutEvent(item) {
 
         // calculate unique hash for the item id (uses SHA1)
         item.id = {'S': hash(item)};
 
-        console.log("Inserting item into DB")
-        console.dir(item)
-
         ddb.putItem({
-            'TableName': ddbTable,
+            'TableName': process.env.EVENTS_TABLE,
             'Item': item,
             'Expected': { id: { Exists: false } }
         }, function(err, data) {
@@ -702,13 +835,41 @@ if (cluster.isMaster) {
 
     }
 
-    function s3_put(file_name, file_content) {
+    function ddbPutOrUpdateCredentials(item) {
+
+        ddb.putItem({
+            'TableName': process.env.CREDENTIALS_TABLE,
+            'Item': item,
+        }, function(err, data) {
+            if (err) {
+                console.log('DDB Error: ' + err);
+            } else {
+                console.log('DDB Success!');
+            }
+        });
+
+        return new Promise(function(resolve, reject) {
+            ddb.putItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Item': item,
+            }, function(err, data) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+
+    }
+
+    function s3Put(fileName, fileContent) {
 
         // Setting up S3 upload parameters
         const params = {
-            Bucket: S3_bucket,
-            Key: file_name, // File name you want to save as in S3
-            Body: file_content
+            Bucket: process.env.EVENTS_BUCKET,
+            Key: fileName, // File name you want to save as in S3
+            Body: fileContent
         };
 
         // Uploading files to the bucket
@@ -724,17 +885,51 @@ if (cluster.isMaster) {
 
     }
 
-    async function setupBinance() {
+    function setupBinance() {
         binance = new Binance().options({
             APIKEY: process.env.BINANCE_API_KEY,
             APISECRET: process.env.BINANCE_API_SECRET,
             test: true
         });
-    	
+    }
+
+    async function validateBinanceAPIKey(apiKey, apiSecret) {
+        const binanceValidate = new Binance().options({
+            APIKEY: apiKey,
+            APISECRET: apiSecret,
+            test: true
+        });
+        // Make an API call just to check if the credentials are valid
+        var exchangeResponse = await binance.futuresOpenOrders();
+
+        console.log(exchangeResponse);
+
+        if (exchangeResponse.length === 0) {
+            // Invalid credentials
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+
+    function getBinanceAPIKey(sub) {
+
+        return new Promise(function(resolve, reject) {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {'sub': {S: sub}},
+            }, function(err, data) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data.Item);
+                }
+            });
+        });
     }
 
     async function placeOrder(exchange, orderDetails, testMode) {
-
         // Set leverage value
         // TODO this doesn't affect the leverage with which the order
         // is placed. Although, when I do refresh on the page, the set leverage

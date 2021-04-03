@@ -27,7 +27,8 @@
     "jwk-to-pem": "latest",
     "jsonwebtoken": "latest",
     "object-hash": "latest",
-    "node-binance-api": "^0.12.5"
+    "node-binance-api": "^0.12.5",
+    "connect-dynamodb": "^2.0.4"
   },
   "scripts": {
     "start": "node app.js"
