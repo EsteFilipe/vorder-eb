@@ -81,7 +81,6 @@ if (cluster.isMaster) {
     var sessionId, sessionClient, sessionPath, request;
     var speechClient, requestSTT, ttsClient, requestTTS, mediaTranslationClient, requestMedia;
     const port = process.env.PORT || 3000;
-    var binance;
 
     // Credentials for the Google Service Account
     // Using two service accounts because if I only used one, I got an error. Apparently two
@@ -189,8 +188,7 @@ if (cluster.isMaster) {
         });
 
         app.get('/home', function(req, res) {
-            // TODO CHECK FOR TOKEN VALIDITY
-            //validateToken(req.session.token);
+            // TODO CHECK FOR JWT TOKEN VALIDITY?
             if (!req.session.cognitoData) {
                 res.sendFile(path.join(__dirname + '/views/login.html'));
             } else {
@@ -201,17 +199,20 @@ if (cluster.isMaster) {
         });
 
         app.get('/options', async function(req, res) {
-            console.log('/options');
-            // TODO CHECK FOR TOKEN VALIDITY
-            //validateToken(req.session.token);
+            // TODO CHECK FOR JWT TOKEN VALIDITY?
             if (!req.session.cognitoData) {
                 res.sendFile(path.join(__dirname + '/views/login.html'));
             } else {
                 const sub = req.session.cognitoData.idToken.payload.sub;
-                getBinanceAPIKey(sub).then(async function(data) {
-                    console.log(data);
-                    const hasValidAPIKey = await validateBinanceAPIKey(data.api_key, data.api_secret);
-                    console.log(hasValidAPIKey);
+
+                binanceAPIKey = await getBinanceAPIKey(sub);
+                //console.log("--------> binanceAPIKey");
+                //console.log(binanceAPIKey);
+
+                if (binanceAPIKey.status == "API_KEY_DEFINED") {
+                    const key = binanceAPIKey.output;
+                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key.S, key.api_secret.S);
+
                     if (hasValidAPIKey) {
                         res.render('options', {
                             verified: true,
@@ -222,12 +223,12 @@ if (cluster.isMaster) {
                             verified: false,
                         });
                     }
-                }, function (err){
-                    console.log(err);
-                    res.render('options', {
+                }
+                else {
+                     res.render('options', {
                         verified: false,
-                    });
-                })
+                    });   
+                }
             }
         });
 
@@ -242,7 +243,6 @@ if (cluster.isMaster) {
                 const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
 
                 if (hasValidAPIKey) {
-                    // TODO validation before storing
                     const sub = req.session.cognitoData.idToken.payload.sub;
 
                     ddbPutOrUpdateCredentials({
@@ -276,8 +276,8 @@ if (cluster.isMaster) {
                     res.send('Success. Check your e-mail and click the confirmation link.');
                 }, function(err) {
                     res.send('Invalid data.');
-                    console.log('Invalid Sign-up:')
-                    console.log(err);
+                    //console.log('Invalid Sign-up:')
+                    //console.log(err);
                 })
                 }
                 else {
@@ -302,13 +302,37 @@ if (cluster.isMaster) {
 
         // Listener, once the client connect to the server socket
         io.on('connect', (client) => {
-            console.log(`Client connected [id=${client.id}]`);
-            client.emit('server_setup', `Server connected [id=${client.id}]`);
+            console.log(`[socket.io] Client connected [id=${client.id}]`);
+            client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
 
             // When the user clicks "Start"
-            client.on('start-monitoring', function(data) {
+            client.on('start-monitoring', async function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.email},
+                const sub = client.request.session.cognitoData.idToken.payload.sub;
+                var output;
+                // Only allow if user has valid API key stored
+                const binanceAPIKey = await getBinanceAPIKey(sub);
+
+                if (binanceAPIKey.status == "API_KEY_DEFINED") {
+                    const key = binanceAPIKey.output;
+                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key.S, key.api_secret.S);
+                    if (hasValidAPIKey) {
+                        output = "SUCCESS";
+                        client.emit('start-monitoring', {status: true, output: ""});
+                    }
+                    else {
+                        output = "API_KEY_INVALID";
+                        client.emit('start-monitoring', {status: false, output: "Invalid API key"});
+                    }
+                }
+                else {
+                    output = "API_KEY_UNDEFINED";
+                    client.emit('start-monitoring', {status: false, output: "Undefined API key."});
+                }
+
+                // TODO register errors
+                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
+                             'output': {'S': output},
                              'event_type': {'S': 'START_MONITORING'},
                              'client_timestamp': {'S': data.timestamp.toString()},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -321,7 +345,7 @@ if (cluster.isMaster) {
             // When the user clicks "Stop"
             client.on('stop-monitoring', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.email},
+                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
                              'event_type': {'S': 'STOP_MONITORING'},
                              'client_timestamp': {'S': data.timestamp.toString()},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -331,7 +355,7 @@ if (cluster.isMaster) {
 
             client.on('wake-word-detected', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.email},
+                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
                              'event_type': {'S': 'WAKE_WORD_DETECTED'},
                              'client_timestamp': {'S': data.timestamp.toString()},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -341,7 +365,7 @@ if (cluster.isMaster) {
 
             client.on('microphone-error', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.email},
+                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
                              'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
                              'client_timestamp': {'S': data.timestamp.toString()},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -353,7 +377,7 @@ if (cluster.isMaster) {
             client.on('process-order', async function(data) {
                 const eventType = 'PROCESS_ORDER';
                 const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
+                const fileName = client.request.session.cognitoData.idToken.payload.email + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
@@ -405,7 +429,7 @@ if (cluster.isMaster) {
                         }
 
                         storeProcessingData({
-                            email: client.request.session.email,
+                            email: client.request.session.cognitoData.idToken.payload.email,
                             eventType: eventType,
                             status: status,
                             output: JSON.stringify({
@@ -421,14 +445,14 @@ if (cluster.isMaster) {
                     client.emit('order-processing', JSON.stringify({status: status, output: output}));
 
                     storeProcessingData({
-                        email: client.request.session.email,
+                        email: client.request.session.cognitoData.idToken.payload.email,
                         eventType: eventType,
                         status: status,
                         output: output});
                 }
 
                 storeAudioData({
-                    email: client.request.session.email,
+                    email: client.request.session.cognitoData.idToken.payload.email,
                     eventType: eventType,
                     fileName: fileName,
                     fileBuffer: fileBuffer,
@@ -439,9 +463,10 @@ if (cluster.isMaster) {
             // Transcribe, process and validate order confirmation
             client.on('confirm-order', async function(data) {
                 const orderDetails = client.request.session.order
+                const sub = client.request.session.cognitoData.idToken.payload.sub;
                 const eventType = 'CONFIRM_ORDER';
                 const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.email + "-" + clientTimestamp + ".wav";
+                const fileName = client.request.session.cognitoData.idToken.payload.email + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
@@ -456,17 +481,23 @@ if (cluster.isMaster) {
                     const confirmationProcessing = processOrderConfirmation(confirmationTranscription);
 
                     if (confirmationProcessing != "PROCESSING_ERROR") {
-
                         if (confirmationProcessing == "YES") {
+                            const binanceAPIKey = await getBinanceAPIKey(sub);
 
-                            // Pass order to the Binance API.
-                            const exchangeResponse = await placeOrder("binance", orderDetails, true);
-                            if (exchangeResponse.status) {
-                                 status = "ORDER_PLACED";
+                            if (binanceAPIKey.status == "API_KEY_DEFINED") {
+                                const key = binanceAPIKey.output;
+                               // Pass order to the Binance API.
+                                const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key.S, key.api_secret.S);
+                                if (exchangeResponse.status) {
+                                     status = "ORDER_PLACED";
+                                }
+                                else {
+                                     status = "ORDER_REJECTED";
+                                     output = exchangeResponse.output;
+                                }
                             }
                             else {
-                                 status = "ORDER_REJECTED";
-                                 output = exchangeResponse.output;
+                                status = "UNEXPECTED_ERROR";
                             }
                         }
                         else if (confirmationProcessing == "NO") {
@@ -491,13 +522,13 @@ if (cluster.isMaster) {
                 client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
                 storeProcessingData({
-                    email: client.request.session.email,
+                    email: client.request.session.cognitoData.idToken.payload.email,
                     eventType: eventType,
                     status: status,
                     output: output});
 
                 storeAudioData({
-                    email: client.request.session.email,
+                    email: client.request.session.cognitoData.idToken.payload.email,
                     eventType: eventType,
                     fileName: fileName,
                     fileBuffer: fileBuffer,
@@ -516,7 +547,7 @@ if (cluster.isMaster) {
         return new Promise((resolve, reject) => {
             userPool.signUp(email, password, attributeList, null, (err, result) => {
                 if (err) {
-                    console.log(err.message);
+                    //console.log(err.message);
                     reject(err);
                     return;
                 }
@@ -541,7 +572,7 @@ if (cluster.isMaster) {
                 alert(err.message || JSON.stringify(err));
                 return;
             }
-            console.log('call result: ' + result);
+            //console.log('call result: ' + result);
         });
     }
 
@@ -565,11 +596,11 @@ if (cluster.isMaster) {
         return new Promise((resolve, reject) => {
             cognitoUser.authenticateUser(authenticationDetails, {
                 onSuccess: (result) => {
-                    console.log('successfully authenticated', result);
+                    //console.log('successfully authenticated', result);
                     resolve(result);
                 },
                 onFailure: (err) => {
-                    console.log('error authenticating', err);
+                    //console.log('error authenticating', err);
                     reject(err);
                 }
             });
@@ -666,6 +697,8 @@ if (cluster.isMaster) {
     }
 
     function storeAudioData(data){
+        console.log("-----> storeAudioData");
+        console.log(data);
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
 	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
@@ -686,6 +719,8 @@ if (cluster.isMaster) {
     }
 
     function storeProcessingData(data) {
+        console.log("-----> storeProcessingData");
+        console.log(data);
     	// Put processing result into database
 	    ddbPutEvent({'email': {'S': data.email},
 	                 'event_type': {'S': data.eventType + '-PROCESS'},
@@ -818,6 +853,8 @@ if (cluster.isMaster) {
 
     function ddbPutEvent(item) {
 
+        //console.log(item);
+
         // calculate unique hash for the item id (uses SHA1)
         item.id = {'S': hash(item)};
 
@@ -885,14 +922,6 @@ if (cluster.isMaster) {
 
     }
 
-    function setupBinance() {
-        binance = new Binance().options({
-            APIKEY: process.env.BINANCE_API_KEY,
-            APISECRET: process.env.BINANCE_API_SECRET,
-            test: true
-        });
-    }
-
     async function validateBinanceAPIKey(apiKey, apiSecret) {
         const binanceValidate = new Binance().options({
             APIKEY: apiKey,
@@ -900,12 +929,12 @@ if (cluster.isMaster) {
             test: true
         });
         // Make an API call just to check if the credentials are valid
-        var exchangeResponse = await binance.futuresOpenOrders();
+        var exchangeResponse = await binanceValidate.futuresOpenOrders();
 
-        console.log(exchangeResponse);
+        //console.log(exchangeResponse);
 
-        if (exchangeResponse.length === 0) {
-            // Invalid credentials
+        if ("code" in exchangeResponse) {
+            // Invalid API key
             return false;
         }
         else {
@@ -915,21 +944,32 @@ if (cluster.isMaster) {
 
     function getBinanceAPIKey(sub) {
 
-        return new Promise(function(resolve, reject) {
+        return new Promise((resolve, reject) => {
             ddb.getItem({
                 'TableName': process.env.CREDENTIALS_TABLE,
                 'Key': {'sub': {S: sub}},
             }, function(err, data) {
                 if (err) {
-                    reject(err);
+                    resolve({status:"DB_ERROR", output: err});
                 } else {
-                    resolve(data.Item);
+                    if(typeof data.Item !== 'undefined') {
+                        resolve({status:'API_KEY_DEFINED', output: data.Item});
+                    }
+                    // If the user doesn't yet have an API key defined, reject
+                    else {
+                        resolve({status:"API_KEY_UNDEFINED", output: ""});
+                    }
                 }
             });
         });
     }
 
-    async function placeOrder(exchange, orderDetails, testMode) {
+    async function placeOrder(exchange, orderDetails, testMode, apiKey, apiSecret) {
+        var binance = new Binance().options({
+            APIKEY: apiKey,
+            APISECRET: apiSecret,
+            test: testMode
+        });
         // Set leverage value
         // TODO this doesn't affect the leverage with which the order
         // is placed. Although, when I do refresh on the page, the set leverage
@@ -979,12 +1019,7 @@ if (cluster.isMaster) {
 
     }
 
-    setupBinance();
     setupSTT();
     setupTTS();
     setupServer();
-    //registerUser("rodrigues.gon@gmail.com", "Famalicao6!")
-    //registerUser("filipe.b.aleixo@gmail.com", "Famalicao10!")
-    //registerUser("tester_001@vorder.io", "WowVorderIsCool!!99")
-    //login()
 }

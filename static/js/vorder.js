@@ -899,10 +899,9 @@ Vorder.prototype = {
       self.initializeSounds();
     }
     
-    // Let the server know that monitoring has started
+    // Let the server know that monitoring has started and ask for permission (based
+    // on the validity of the stored API key for the user)
     self.socketio.emit('start-monitoring', {timestamp: Date.now()});
-
-    self.initializePorcupine();
   },
   
   // TODO dynamic set of `keyword` in keyword === "Terminator", depending on options
@@ -1238,7 +1237,20 @@ Vorder.prototype = {
     self.socketio.on('connect', function() {
       console.log("Socket.io connection established.")
     });
-    
+
+    self.socketio.on('start-monitoring', function (hasValidApiKey) {
+      // Valid API key
+      if(hasValidApiKey.status) {
+        self.initializePorcupine();
+      }
+      // Invalid API key
+      else {
+        headerCenter.innerHTML = hasValidApiKey.output;
+        return;
+      }
+
+    });
+
      /*
      ** Receive the description of the processed order and display it on the screen
      */
