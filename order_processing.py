@@ -84,19 +84,21 @@ def bypass_sanitize_numbers(words):
     else:
         # If the order already has the expected structure, we can skip sanitation
         # Case 1 to bypass sanitation:
+        # - There are 4 words in total in the sequence (first check to avoid index out of range)
         # - Word in index 3 is "market"
-        # - There are 4 words in total in the sequence
         # - There is exactly 1 'number word',
         # - That 'number word' is in index 1
-        if all((words[3] == "market", len(words) == 4, len(nw_indexes_output) == 1, nw_indexes_output == [1])):
-            return True
+        if len(words) == 4:
+            if all((words[3] == "market", len(nw_indexes_output) == 1, nw_indexes_output == [1])):
+                return True
         # Case 2 to bypass sanitation:
+        # - There are 5 words in the sequence (first check to avoid index out of range)
         # - Word in index 3 is "limit"
-        # - There are 5 words in the sequence
         # - There are 2 'number words'
         # - Those 2 'number words' are in indexes 1 and 4.
-        elif all((words[3] == "limit", len(words) == 5, len(nw_indexes_output) == 2, nw_indexes_output == [1, 4])):
-            return True
+        elif len(words) == 5:
+            if all((words[3] == "limit", len(nw_indexes_output) == 2, nw_indexes_output == [1, 4])):
+                return True
         else:
             # ---- For all other cases, sanitize, because there's something wrong atypical with the numbers ----
             return False
