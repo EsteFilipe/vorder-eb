@@ -24,59 +24,48 @@ if (cluster.isMaster) {
 // Code to run if we're in a worker process
 } else {
 
-    var AWS = require('aws-sdk');
-    var express = require('express');
-    var session = require('express-session');
-    var dbStore = require('connect-dynamodb')({session: session});
-    var bodyParser = require('body-parser');
-    var cors = require('cors');
-    var socketIo = require('socket.io');
-    var ss = require('socket.io-stream');
-    var path = require('path');
-    var fs = require('fs');
-    var http = require('http');
-    //var basicAuth = require('express-basic-auth');
-    var util = require('util')
-    var hash = require('object-hash');
-    var spawn = require("child_process").spawn;
-    const Binance = require('node-binance-api');
+    var AWS = require('aws-sdk'),
+        express = require('express'),
+        session = require('express-session'),
+        dbStore = require('connect-dynamodb')({session: session}),
+        bodyParser = require('body-parser'),
+        cors = require('cors'),
+        socketIo = require('socket.io'),
+        ss = require('socket.io-stream'),
+        path = require('path'),
+        fs = require('fs'),
+        http = require('http'),
+        util = require('util'),
+        hash = require('object-hash'),
+        spawn = require("child_process").spawn,
+        binanceAPI = require('node-binance-api'),
+        speech = require('@google-cloud/speech').v1p1beta1,
+        textToSpeech = require('@google-cloud/text-to-speech'),
+        amazonCognitoIdentity = require('amazon-cognito-identity-js'),
+        request = require('request'),
+        jwkToPem = require('jwk-to-pem'),
+        jwt = require('jsonwebtoken');
 
-    // Server
+    global.fetch = require('node-fetch');
 
     // TODO not sure this is needed, since we're serving wasm from nginx, not nodejs. Try commenting out
     express.static.mime.define({'application/wasm': ['wasm']});
 
     AWS.config.region = process.env.REGION;
 
-    //var sns = new AWS.SNS();
-    //var snsTopic =  process.env.NEW_SIGNUP_TOPIC;
+
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-    // AWS Cognito
-    var AmazonCognitoIdentity = require('amazon-cognito-identity-js');
-    var CognitoUserPool = AmazonCognitoIdentity.CognitoUserPool;
-    var request = require('request');
-    var jwkToPem = require('jwk-to-pem');
-    var jwt = require('jsonwebtoken');
-    global.fetch = require('node-fetch');
     // TODO Put this in options.config
     var poolData = {
     UserPoolId : "us-east-2_XVWGKwmzC",
     ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
     };
     const pool_region = 'us-east-2';
-    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-
+    const userPool = new amazonCognitoIdentity.CognitoUserPool(poolData);
     const cookieMaxAge = 86400000;
 
-    // STT
-    var speech = require('@google-cloud/speech').v1p1beta1;
-
-    // TTS
-    var textToSpeech = require('@google-cloud/text-to-speech');
-
-    // set some server variables
     var server;
     var sessionId, sessionClient, sessionPath, request;
     var speechClient, requestSTT, ttsClient, requestTTS, mediaTranslationClient, requestMedia;
@@ -309,7 +298,7 @@ if (cluster.isMaster) {
             client.on('start-monitoring', async function(data) {
 
                 const sub = client.request.session.cognitoData.idToken.payload.sub;
-                var output;
+                var status;
                 // Only allow if user has valid API key stored
                 const binanceAPIKey = await getBinanceAPIKey(sub);
 
@@ -317,22 +306,22 @@ if (cluster.isMaster) {
                     const key = binanceAPIKey.output;
                     const hasValidAPIKey = await validateBinanceAPIKey(key.api_key.S, key.api_secret.S);
                     if (hasValidAPIKey) {
-                        output = "SUCCESS";
+                        status = "SUCCESS";
                         client.emit('start-monitoring', {status: true, output: ""});
                     }
                     else {
-                        output = "API_KEY_INVALID";
+                        status = "API_KEY_INVALID";
                         client.emit('start-monitoring', {status: false, output: "Invalid API key"});
                     }
                 }
                 else {
-                    output = "API_KEY_UNDEFINED";
+                    status = "API_KEY_UNDEFINED";
                     client.emit('start-monitoring', {status: false, output: "Undefined API key."});
                 }
 
                 // TODO register errors
                 ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
-                             'output': {'S': output},
+                             'status': {'S': status},
                              'event_type': {'S': 'START_MONITORING'},
                              'client_timestamp': {'S': data.timestamp.toString()},
                              'server_timestamp': {'S': Date.now().toString()}});
@@ -386,6 +375,8 @@ if (cluster.isMaster) {
                 // Send audio to transcribe and wait for the response
                 const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
 
+                console.log(orderTranscription);
+
                 var status, output;
 
                 client.request.session.order = -1;
@@ -394,7 +385,6 @@ if (cluster.isMaster) {
 
                     // Process the order using python script
                     runPython38Script ("order_processing.py", orderTranscription, (output) => {
-                        // `output` is a string
 
                         const orderInfo = JSON.parse(output);
 
@@ -490,6 +480,7 @@ if (cluster.isMaster) {
                                 const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key.S, key.api_secret.S);
                                 if (exchangeResponse.status) {
                                      status = "ORDER_PLACED";
+                                     output = "-";
                                 }
                                 else {
                                      status = "ORDER_REJECTED";
@@ -498,10 +489,12 @@ if (cluster.isMaster) {
                             }
                             else {
                                 status = "UNEXPECTED_ERROR";
+                                output = "-";
                             }
                         }
                         else if (confirmationProcessing == "NO") {
                             status = "ORDER_CANCEL";
+                            output = "-";
                         }
                         // Order resolved. Clean it up
                         client.request.session.order = -1;
@@ -542,7 +535,7 @@ if (cluster.isMaster) {
     //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
     function registerUser(email, password){
         var attributeList = [];
-        attributeList.push(new AmazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
+        attributeList.push(new amazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
 
         return new Promise((resolve, reject) => {
             userPool.signUp(email, password, attributeList, null, (err, result) => {
@@ -565,7 +558,7 @@ if (cluster.isMaster) {
             Pool : userPool
         };
 
-        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
 
         cognitoUser.changePassword(oldPassword, newPassword, function(err, result) {
             if (err) {
@@ -581,7 +574,7 @@ if (cluster.isMaster) {
     // Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
     function userLogin(email, password) {
 
-        var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+        var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
             Username : email,
             Password : password,
         });
@@ -591,7 +584,7 @@ if (cluster.isMaster) {
             Pool : userPool
         };
 
-        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
 
         return new Promise((resolve, reject) => {
             cognitoUser.authenticateUser(authenticationDetails, {
@@ -615,7 +608,7 @@ if (cluster.isMaster) {
             Pool : userPool
         };
 
-        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
 
         await cognitoUser.signOut();
 
@@ -671,16 +664,16 @@ if (cluster.isMaster) {
     }
 
     function renewToken() {
-        const RefreshToken = new AmazonCognitoIdentity.CognitoRefreshToken({RefreshToken: "your_refresh_token_from_a_previous_login"});
+        const RefreshToken = new amazonCognitoIdentity.CognitoRefreshToken({RefreshToken: "your_refresh_token_from_a_previous_login"});
 
-        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+        const userPool = new amazonCognitoIdentity.CognitoUserPool(poolData);
 
         const userData = {
             Username: "sample@gmail.com",
             Pool: userPool
         };
 
-        const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+        const cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
 
         cognitoUser.refreshSession(RefreshToken, (err, session) => {
             if (err) {
@@ -866,7 +859,7 @@ if (cluster.isMaster) {
             if (err) {
                 console.log('DDB Error: ' + err);
             } else {
-                console.log('DDB Success!');
+                //console.log('DDB Success!');
             }
         });
 
@@ -881,7 +874,7 @@ if (cluster.isMaster) {
             if (err) {
                 console.log('DDB Error: ' + err);
             } else {
-                console.log('DDB Success!');
+                //console.log('DDB Success!');
             }
         });
 
@@ -923,7 +916,7 @@ if (cluster.isMaster) {
     }
 
     async function validateBinanceAPIKey(apiKey, apiSecret) {
-        const binanceValidate = new Binance().options({
+        const binanceValidate = new binanceAPI().options({
             APIKEY: apiKey,
             APISECRET: apiSecret,
             test: true
@@ -957,7 +950,7 @@ if (cluster.isMaster) {
                     }
                     // If the user doesn't yet have an API key defined, reject
                     else {
-                        resolve({status:"API_KEY_UNDEFINED", output: ""});
+                        resolve({status:"API_KEY_UNDEFINED", output: "-"});
                     }
                 }
             });
@@ -965,54 +958,59 @@ if (cluster.isMaster) {
     }
 
     async function placeOrder(exchange, orderDetails, testMode, apiKey, apiSecret) {
-        var binance = new Binance().options({
-            APIKEY: apiKey,
-            APISECRET: apiSecret,
-            test: testMode
-        });
-        // Set leverage value
-        // TODO this doesn't affect the leverage with which the order
-        // is placed. Although, when I do refresh on the page, the set leverage
-        // on binance updates.
-        //await binance.futuresLeverage( 'BTCUSDT', 2 );
 
         const orderSymbol = orderDetails.ticker + fiatSymbol;
-
         // Actual response from the exchange API
         var exchangeResponse;
         // Processed response to pass to the user
         var eResponse = {status: true, output: ''};
 
-        if (orderDetails.type == 'market') {
-            if (exchange == 'binance') {
-                if (testMode) {
-                    exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
-                }
-            }
-        }
-        else if (orderDetails.type == 'limit') {
-            if (exchange == 'binance') {
-                if (testMode) {
-                    exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
-                }
-            }
-        }
-        else if (orderDetails.type == 'range') {
-            if (exchange == 'binance') {
-                if (testMode) {
-                    // TODO
-                    const x = 0;
-                }
-            }
-        }
+        console.log(orderDetails);
 
-        // Error processing
         if (exchange == 'binance') {
+            var binance = new Binance().options({
+                APIKEY: apiKey,
+                APISECRET: apiSecret,
+                test: testMode
+            });
+            // Set leverage value
+            // TODO this doesn't affect the leverage with which the order
+            // is placed. Although, when I do refresh on the page, the set leverage
+            // on binance updates.
+            //await binance.futuresLeverage( 'BTCUSDT', 2 );
+            if (testMode) {
+                if (orderDetails.polarity == 'buy') {
+                    if (orderDetails.type == 'market') {
+                        exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
+                    }
+                    else if (orderDetails.type == 'limit') {
+                        exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
+                    }
+                    else if (orderDetails.type == 'range') {
+                        const x = 0;
+                    }
+                }
+                else if (orderDetails.polarity == 'sell') {
+                    if (orderDetails.type == 'market') {
+                        exchangeResponse = await binance.futuresMarketSell(orderSymbol, orderDetails.size);
+                    }
+                    else if (orderDetails.type == 'limit') {
+                        exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
+                    }
+                    else if (orderDetails.type == 'range') {
+                        const x = 0;
+                    }
+                }
+            }
+
+            console.log(exchangeResponse);
+
             // Error response objects are of the form {code:<CODE>, msg:<MSG>}
             // Only in the case of error does the response have the fields `code` and `msg`
             if ("code" in exchangeResponse) {
                 eResponse = {status: false, output: exchangeResponse.msg}
             }
+
         }
 
         return eResponse

@@ -6,7 +6,7 @@
     "ejs": "latest",
     "aws-sdk": "latest",
     "body-parser": "latest",
-    "@google-cloud/speech": "^3.5.3",
+    "@google-cloud/speech": "^4.4.0",
     "@google-cloud/text-to-speech": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
