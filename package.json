@@ -1,36 +1,51 @@
 {
-  "name": "Vorder-Elastic-Beanstalk-App",
-  "version": "0.0.1",
+  "name": "vorder-eb",
+  "version": "1.0.0",
   "private": true,
+  "description": "",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/returnKitten/vorder-eb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/returnKitten/vorder-eb/issues"
+  },
+  "homepage": "https://github.com/returnKitten/vorder-eb#readme",
   "dependencies": {
-    "ejs": "latest",
-    "aws-sdk": "latest",
-    "body-parser": "latest",
     "@google-cloud/speech": "^4.4.0",
-    "@google-cloud/text-to-speech": "^2.1.0",
+    "@google-cloud/text-to-speech": "^3.1.3",
+    "amazon-cognito-identity-js": "^4.6.0",
+    "aws-sdk": "^2.879.0",
+    "body-parser": "^1.19.0",
+    "connect-dynamodb": "^2.0.4",
     "cors": "^2.8.5",
+    "debug": "^3.1.0",
     "dotenv": "^8.2.0",
+    "ejs": "^3.1.6",
     "express": "^4.17.1",
-    "node-fetch": "^2.6.0",
-    "pb-util": "^0.1.2",
-    "recordrtc": "latest",
+    "express-basic-auth": "^1.2.0",
+    "express-session": "^1.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "jwk-to-pem": "^2.0.5",
+    "node-binance-api": "^0.12.5",
+    "node-fetch": "^2.6.1",
+    "nodemon": "^2.0.7",
+    "object-hash": "^2.1.1",
+    "pb-util": "^0.1.3",
+    "recordrtc": "^5.6.2",
+    "request": "^2.88.2",
     "socket.io": "^2.3.0",
     "socket.io-stream": "^0.9.1",
     "stream": "0.0.2",
-    "through2": "^3.0.1",
-    "util": "^0.12.1",
-    "uuid": "^3.3.3",
-    "express-basic-auth": "^1.2.0",
-    "express-session": "latest",
-    "amazon-cognito-identity-js":  "latest",
-    "request": "latest",
-    "jwk-to-pem": "latest",
-    "jsonwebtoken": "latest",
-    "object-hash": "latest",
-    "node-binance-api": "^0.12.5",
-    "connect-dynamodb": "^2.0.4"
-  },
-  "scripts": {
-    "start": "node app.js"
+    "through2": "^4.0.2",
+    "util": "^0.12.3",
+    "uuid": "^8.3.2"
   }
 }

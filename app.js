@@ -968,7 +968,7 @@ if (cluster.isMaster) {
         console.log(orderDetails);
 
         if (exchange == 'binance') {
-            var binance = new Binance().options({
+            var binance = new binanceAPI().options({
                 APIKEY: apiKey,
                 APISECRET: apiSecret,
                 test: testMode
