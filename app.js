@@ -121,8 +121,8 @@ if (cluster.isMaster) {
             new Promise((resolve, reject) => {
                 ddb.getItem({
                     'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {'partition': {S: 'server'},
-                            'id': {S: 'google-service-account-key-1'}},
+                    'Key': {partition: {S: 'server'},
+                            id: {S: 'google-service-account-key-1'}},
                 }, function(err, data) {
                     if (err) {
                         reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-1]');
@@ -135,8 +135,8 @@ if (cluster.isMaster) {
             new Promise((resolve, reject) => {
                 ddb.getItem({
                     'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {'partition': {S: 'server'},
-                            'id': {S: 'google-service-account-key-2'}},
+                    'Key': {partition: {S: 'server'},
+                            id: {S: 'google-service-account-key-2'}},
                 }, function(err, data) {
                     if (err) {
                         reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-2]');
@@ -149,8 +149,8 @@ if (cluster.isMaster) {
             new Promise((resolve, reject) => {
                 ddb.getItem({
                     'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {'partition': {S: 'server'},
-                            'id': {S: 'cognito-user-pool'}},
+                    'Key': {partition: {S: 'server'},
+                            id: {S: 'cognito-user-pool'}},
                 }, function(err, data) {
                     if (err) {
                         reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
@@ -163,8 +163,8 @@ if (cluster.isMaster) {
             new Promise((resolve, reject) => {
                 ddb.getItem({
                     'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {'partition': {S: 'server'},
-                            'id': {S: 'cookie-session-secret'}},
+                    'Key': {partition: {S: 'server'},
+                            id: {S: 'cookie-session-secret'}},
                 }, function(err, data) {
                     if (err) {
                         reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
@@ -275,7 +275,7 @@ if (cluster.isMaster) {
 
                 if (binanceAPIKey.status == "API_KEY_DEFINED") {
                     const key = binanceAPIKey.output;
-                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key.S, key.api_secret.S);
+                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
 
                     if (hasValidAPIKey) {
                         res.render('options', {
@@ -310,12 +310,12 @@ if (cluster.isMaster) {
                     const sub = req.session.cognitoData.idToken.payload.sub;
 
                     ddbPutOrUpdateCredentials({
-                        partition: {'S': 'users'},
-                        id: {'S': sub},
+                        partition: {S: 'users'},
+                        id: {S: sub},
                         binance_api_key:
-                            {'M': {
-                                'api_key': {'S': apiKey},
-                                'api_secret': {'S': apiSecret}
+                            {M: {
+                                api_key: {S: apiKey},
+                                api_secret: {S: apiSecret}
                             }
                         }
                     }).then(function(data){
@@ -384,7 +384,7 @@ if (cluster.isMaster) {
 
                 if (binanceAPIKey.status == "API_KEY_DEFINED") {
                     const key = binanceAPIKey.output;
-                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key.S, key.api_secret.S);
+                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
                     if (hasValidAPIKey) {
                         status = "SUCCESS";
                         client.emit('start-monitoring', {status: true, output: ""});
@@ -400,11 +400,11 @@ if (cluster.isMaster) {
                 }
 
                 // TODO register errors
-                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
-                             status: {'S': status},
-                             event_type: {'S': 'START_MONITORING'},
-                             client_timestamp: {'S': data.timestamp.toString()},
-                             server_timestamp: {'S': Date.now().toString()}});
+                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                             status: {S: status},
+                             event_type: {S: 'START_MONITORING'},
+                             client_timestamp: {S: data.timestamp.toString()},
+                             server_timestamp: {S: Date.now().toString()}});
 
                 // Putting this in almost every call to avoid the case where a stale
                 // order stays in memory and then is executed by accident 
@@ -414,30 +414,30 @@ if (cluster.isMaster) {
             // When the user clicks "Stop"
             client.on('stop-monitoring', function(data) {
 
-                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
-                             event_type: {'S': 'STOP_MONITORING'},
-                             client_timestamp: {'S': data.timestamp.toString()},
-                             server_timestamp: {'S': Date.now().toString()}});
+                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {S: 'STOP_MONITORING'},
+                             client_timestamp: {S: data.timestamp.toString()},
+                             server_timestamp: {S: Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
 
             client.on('wake-word-detected', function(data) {
 
-                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
-                             event_type: {'S': 'WAKE_WORD_DETECTED'},
-                             client_timestamp: {'S': data.timestamp.toString()},
-                             server_timestamp: {'S': Date.now().toString()}});
+                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {S: 'WAKE_WORD_DETECTED'},
+                             client_timestamp: {S: data.timestamp.toString()},
+                             server_timestamp: {S: Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
 
             client.on('microphone-error', function(data) {
 
-                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
-                             event_type: {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
-                             client_timestamp: {'S': data.timestamp.toString()},
-                             server_timestamp: {'S': Date.now().toString()}});
+                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {S: 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
+                             client_timestamp: {S: data.timestamp.toString()},
+                             server_timestamp: {S: Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
@@ -557,7 +557,7 @@ if (cluster.isMaster) {
                             if (binanceAPIKey.status == "API_KEY_DEFINED") {
                                 const key = binanceAPIKey.output;
                                // Pass order to the Binance API.
-                                const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key.S, key.api_secret.S);
+                                const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key, key.api_secret);
                                 if (exchangeResponse.status) {
                                      status = "ORDER_PLACED";
                                      output = "-";
@@ -775,18 +775,18 @@ if (cluster.isMaster) {
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
 	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
-	        ddbPutEvent({email: {'S': data.email},
-	                    event_type: {'S': data.eventType + '-SAVE_AUDIO'},
-	                    file_name: {'S': data.fileName},
-	                    client_timestamp: {'S': data.clientTimestamp},
-	                    server_timestamp: {'S': Date.now().toString()}});
+	        ddbPutEvent({email: {S: data.email},
+	                    event_type: {S: data.eventType + '-SAVE_AUDIO'},
+	                    file_name: {S: data.fileName},
+	                    client_timestamp: {S: data.clientTimestamp},
+	                    server_timestamp: {S: Date.now().toString()}});
 
 	    }, function(err) {
-	        ddbPutEvent({email: {'S': data.email},
-	                     event_type: {'S': data.eventType + '-SAVE_AUDIO'},
-	                     file_name: {'S': "UPLOAD_ERROR"},
-	                     client_timestamp: {'S': data.clientTimestamp},
-	                     server_timestamp: {'S': Date.now().toString()}});
+	        ddbPutEvent({email: {S: data.email},
+	                     event_type: {S: data.eventType + '-SAVE_AUDIO'},
+	                     file_name: {S: "UPLOAD_ERROR"},
+	                     client_timestamp: {S: data.clientTimestamp},
+	                     server_timestamp: {S: Date.now().toString()}});
 	    });
 
     }
@@ -795,11 +795,11 @@ if (cluster.isMaster) {
         console.log("-----> storeProcessingData");
         console.log(data);
     	// Put processing result into database
-	    ddbPutEvent({email: {'S': data.email},
-	                 event_type: {'S': data.eventType + '-PROCESS'},
-	                 status: {'S': data.status},
-	                 output: {'S': data.output},
-	                 server_timestamp: {'S': Date.now().toString()}});
+	    ddbPutEvent({email: {S: data.email},
+	                 event_type: {S: data.eventType + '-PROCESS'},
+	                 status: {S: data.status},
+	                 output: {S: data.output},
+	                 server_timestamp: {S: Date.now().toString()}});
     }
 
     function processOrderConfirmation(transcription) {
@@ -1034,13 +1034,13 @@ if (cluster.isMaster) {
         return new Promise((resolve, reject) => {
             ddb.getItem({
                 'TableName': process.env.CREDENTIALS_TABLE,
-                'Key': {'sub': {S: sub}},
+                'Key': {partition: {S: 'users'}, id: {S: sub}},
             }, function(err, data) {
                 if (err) {
                     resolve({status:"DB_ERROR", output: err});
                 } else {
                     if(typeof data.Item !== 'undefined') {
-                        resolve({status:'API_KEY_DEFINED', output: data.Item});
+                        resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item).binance_api_key});
                     }
                     // If the user doesn't yet have an API key defined, reject
                     else {
