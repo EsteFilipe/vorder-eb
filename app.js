@@ -455,7 +455,7 @@ if (cluster.isMaster) {
                 // Send audio to transcribe and wait for the response
                 const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
 
-                console.log(orderTranscription);
+                //console.log(orderTranscription);
 
                 var status, output;
 
@@ -697,81 +697,7 @@ if (cluster.isMaster) {
 
     }
 
-    function validateToken(token) {
-            request({
-                url: `https://cognito-idp.${pool_region}.amazonaws.com/${poolData.UserPoolId}/.well-known/jwks.json`,
-                json: true
-            }, function (error, response, body) {
-                if (!error && response.statusCode === 200) {
-                    pems = {};
-                    var keys = body['keys'];
-                    for(var i = 0; i < keys.length; i++) {
-                        //Convert each key to PEM
-                        var key_id = keys[i].kid;
-                        var modulus = keys[i].n;
-                        var exponent = keys[i].e;
-                        var key_type = keys[i].kty;
-                        var jwk = { kty: key_type, n: modulus, e: exponent};
-                        var pem = jwkToPem(jwk);
-                        pems[key_id] = pem;
-                    }
-                    //validate the token
-                    var decodedJwt = jwt.decode(token, {complete: true});
-                    if (!decodedJwt) {
-                        console.log("Not a valid JWT token");
-                        return;
-                    }
-
-                    var kid = decodedJwt.header.kid;
-                    var pem = pems[kid];
-                    if (!pem) {
-                        console.log('Invalid token');
-                        return;
-                    }
-
-                    jwt.verify(token, pem, function(err, payload) {
-                        if(err) {
-                            console.log("Invalid Token.");
-                        } else {
-                            console.log("Valid Token.");
-                            console.log(payload);
-                        }
-                    });
-                } else {
-                    console.log("Error! Unable to download JWKs");
-                }
-            });
-    }
-
-    function renewToken() {
-        const RefreshToken = new amazonCognitoIdentity.CognitoRefreshToken({RefreshToken: "your_refresh_token_from_a_previous_login"});
-
-        const userPool = new amazonCognitoIdentity.CognitoUserPool(poolData);
-
-        const userData = {
-            Username: "sample@gmail.com",
-            Pool: userPool
-        };
-
-        const cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
-
-        cognitoUser.refreshSession(RefreshToken, (err, session) => {
-            if (err) {
-                console.log(err);
-            } else {
-                let retObj = {
-                    "access_token": session.accessToken.jwtToken,
-                    "id_token": session.idToken.jwtToken,
-                    "refresh_token": session.refreshToken.token,
-                }
-                console.log(retObj);
-            }
-        })
-    }
-
     function storeAudioData(data){
-        console.log("-----> storeAudioData");
-        console.log(data);
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
 	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
@@ -792,8 +718,6 @@ if (cluster.isMaster) {
     }
 
     function storeProcessingData(data) {
-        console.log("-----> storeProcessingData");
-        console.log(data);
     	// Put processing result into database
 	    ddbPutEvent({email: {S: data.email},
 	                 event_type: {S: data.eventType + '-PROCESS'},
@@ -855,13 +779,13 @@ if (cluster.isMaster) {
 	    // with a certain sampleRateHerz, encoding and languageCode
 	    // this needs to be in line with the audio settings
 	    // that are set in the client
-	    requestSTT = {
-	      config: {
-	        sampleRateHertz: sampleRateHertz,
-	        encoding: encoding,
-	        languageCode: languageCode
-	      }
-	    }
+        requestSTT = {
+            config: {
+                sampleRateHertz: sampleRateHertz,
+                encoding: encoding,
+                languageCode: languageCode
+            }
+        };
     }
 
     /**
@@ -870,7 +794,6 @@ if (cluster.isMaster) {
     function setupTTS(){
 
         const creds = serverCredentials['google-service-account-key-2'];
-
 
         // Creates a client
         ttsClient = new textToSpeech.TextToSpeechClient({
@@ -939,6 +862,8 @@ if (cluster.isMaster) {
     }
 
     function ddbPutEvent(item) {
+
+        console.log(item);
 
         //console.log(item);
 
