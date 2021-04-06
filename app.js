@@ -38,7 +38,7 @@ if (cluster.isMaster) {
         http = require('http'),
         util = require('util'),
         hash = require('object-hash'),
-        spawn = require("child_process").spawn,
+        spawn = require('await-spawn'),
         binanceAPI = require('node-binance-api'),
         speech = require('@google-cloud/speech').v1p1beta1,
         textToSpeech = require('@google-cloud/text-to-speech'),
@@ -464,48 +464,42 @@ if (cluster.isMaster) {
                 if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
                     // Process the order using python script
-                    runPython38Script ("order_processing.py", orderTranscription, (output) => {
+                    const orderProcessingResult = await runPython38Script(orderTranscription);
+                    const orderInfo = JSON.parse(orderProcessingResult);
 
-                        const orderInfo = JSON.parse(output);
+                    status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
+                    output = JSON.stringify({
+                                transcription: orderTranscription,
+                                processing: orderInfo.output});
 
-                        status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
-                        output = orderInfo.output;
+                    // Send text result of order processing to client
+                    client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
 
-                        // Send text result of order processing to client
-                        client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
+                    // Get the order description audio data
+                    if (status == "VALID") {
 
-                        // Get the order description audio data
-                        if (status == "VALID") {
-
-                            // Save order in session variable
-                            client.request.session.order = orderInfo.output;
-                            
-                            const order = orderInfo.output;
-                            const coinName = coins[order.ticker];
-                            
-                            if (order.type == "limit") {
-                                orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
-                            }
-
-                            else if (order.type == "market") {
-                                orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
-                            }
-
-                            textToAudioBuffer(orderText).then(function(arrayBuffer){
-                                client.emit('stream-audio-confirm-order', arrayBuffer);
-                            }).catch(function(e){
-                                console.log(e);
-                            });
+                        // Save order in session variable
+                        client.request.session.order = orderInfo.output;
+                        
+                        const order = orderInfo.output;
+                        const coinName = coins[order.ticker];
+                        
+                        if (order.type == "limit") {
+                            orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
                         }
 
-                        storeProcessingData({
-                            sub: client.request.session.cognitoData.idToken.payload.sub,
-                            eventType: eventType,
-                            status: status,
-                            output: JSON.stringify({
-                                transcription: orderTranscription,
-                                processing: orderInfo.output})});
-                    });
+                        else if (order.type == "market") {
+                            orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
+                        }
+
+                        try {
+                            const audioArrayBuffer = await textToAudioBuffer(orderText);
+                            client.emit('stream-audio-confirm-order', audioArrayBuffer);
+                        }
+                        catch (err){
+                            console.log(err);
+                        }
+                    }
                 }
 
                 else {
@@ -513,13 +507,13 @@ if (cluster.isMaster) {
                     output = "There has been a problem transcribing the audio.";
 
                     client.emit('order-processing', JSON.stringify({status: status, output: output}));
+                }
 
-                    storeProcessingData({
+                storeProcessingData({
                         sub: client.request.session.cognitoData.idToken.payload.sub,
                         eventType: eventType,
                         status: status,
                         output: output});
-                }
 
                 storeAudioData({
                     sub: client.request.session.cognitoData.idToken.payload.sub,
@@ -747,15 +741,9 @@ if (cluster.isMaster) {
 	    }
     }
 
-    function runPython38Script (scriptPath, arg, callback) {
-    	const pythonProcess = spawn('python3.8',[scriptPath, arg]);
-	    var output = '';
-	    pythonProcess.stdout.on('data', function(data) {
-	         output += data.toString();
-	    });
-	    pythonProcess.on('close', function(code) {
-	        return callback(output);
-	    });
+    async function runPython38Script (scriptPath, arg, callback) {
+    	const pythonProcess = await spawn('python3.8',[scriptPath, arg]);
+        return pythonProcess.toString();
     }
 
     /**
