@@ -468,7 +468,7 @@ if (cluster.isMaster) {
                 if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
                     // Process the order using python script
-                    const orderProcessingResult = await runPython38Script(orderTranscription);
+                    const orderProcessingResult = await runPython38Script(process.env.ORDER_PROCESSING_SCRIPT_PATH, orderTranscription);
                     const orderInfo = JSON.parse(orderProcessingResult);
 
                     status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
@@ -749,7 +749,7 @@ if (cluster.isMaster) {
 	    }
     }
 
-    async function runPython38Script (scriptPath, arg, callback) {
+    async function runPython38Script (scriptPath, arg) {
     	const pythonProcess = await spawn('python3.8',[scriptPath, arg]);
         return pythonProcess.toString();
     }
