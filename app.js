@@ -28,6 +28,7 @@ if (cluster.isMaster) {
         express = require('express'),
         session = require('express-session'),
         dbStore = require('connect-dynamodb')({session: session}),
+        attr = require('dynamodb-data-types').AttributeValue,
         bodyParser = require('body-parser'),
         cors = require('cors'),
         socketIo = require('socket.io'),
@@ -53,17 +54,21 @@ if (cluster.isMaster) {
 
     AWS.config.region = process.env.REGION;
 
-
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
+    // Server credentials
+    // Using two service accounts for Google because if I only used one, I get an error. Apparently two
+    // services can't access the same service account in simultaneous.
+    var serverCredentials = {};
+
     // TODO Put this in options.config
-    var poolData = {
-    UserPoolId : "us-east-2_XVWGKwmzC",
-    ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
+    var cognitoPoolData = {
+        UserPoolId : "us-east-2_XVWGKwmzC",
+        ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
     };
-    const pool_region = 'us-east-2';
-    const userPool = new amazonCognitoIdentity.CognitoUserPool(poolData);
+    //const pool_region = 'us-east-2';
+    const userPool = new amazonCognitoIdentity.CognitoUserPool(cognitoPoolData);
     const cookieMaxAge = 86400000;
 
     var server;
@@ -72,10 +77,9 @@ if (cluster.isMaster) {
     const port = process.env.PORT || 3000;
 
     // Credentials for the Google Service Account
-    // Using two service accounts because if I only used one, I got an error. Apparently two
-    // services can't access the same service account in simultaneous.
-    const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
-    const googleServiceAccount2 = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT2_FILE_PATH};
+
+    //const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
+    //const googleServiceAccount2 = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT2_FILE_PATH};
     // STT configuration
     const languageCode = 'en-US';
     const encoding = 'LINEAR16';
@@ -101,6 +105,77 @@ if (cluster.isMaster) {
 							       phrases: ['yes','no'],
 							       boost: 20.0
 							      }];
+
+
+    async function initVariables() {
+        // Initialize all the necessary variables for the server to run
+        await getServerCredentials();
+        return true;
+    }
+
+        //  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
+    // As it is, it only has encryption in rest, which is default in DynamoDB.
+    function getServerCredentials() {
+        // Only resolved when all the data has been fetched
+        return Promise.all([
+            new Promise((resolve, reject) => {
+                ddb.getItem({
+                    'TableName': process.env.CREDENTIALS_TABLE,
+                    'Key': {'partition': {S: 'server'},
+                            'id': {S: 'google-service-account-key-1'}},
+                }, function(err, data) {
+                    if (err) {
+                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-1]');
+                    } else {
+                        serverCredentials['google-service-account-key-1'] = attr.unwrap(data.Item).json;
+                        resolve();
+                    }
+                });
+            }),
+            new Promise((resolve, reject) => {
+                ddb.getItem({
+                    'TableName': process.env.CREDENTIALS_TABLE,
+                    'Key': {'partition': {S: 'server'},
+                            'id': {S: 'google-service-account-key-2'}},
+                }, function(err, data) {
+                    if (err) {
+                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-2]');
+                    } else {
+                        serverCredentials['google-service-account-key-2'] = attr.unwrap(data.Item).json;
+                        resolve();
+                    }
+                });
+            }),
+            new Promise((resolve, reject) => {
+                ddb.getItem({
+                    'TableName': process.env.CREDENTIALS_TABLE,
+                    'Key': {'partition': {S: 'server'},
+                            'id': {S: 'cognito-user-pool'}},
+                }, function(err, data) {
+                    if (err) {
+                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
+                    } else {
+                        serverCredentials['cognito-user-pool'] = attr.unwrap(data.Item).json;
+                        resolve();
+                    }
+                });
+            }),
+            new Promise((resolve, reject) => {
+                ddb.getItem({
+                    'TableName': process.env.CREDENTIALS_TABLE,
+                    'Key': {'partition': {S: 'server'},
+                            'id': {S: 'cookie-session-secret'}},
+                }, function(err, data) {
+                    if (err) {
+                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
+                    } else {
+                        serverCredentials['cookie-session-secret'] = attr.unwrap(data.Item).json.value;
+                        resolve();
+                    }
+                });
+            })
+        ]);
+    }
 
     function setupServer() {
 
@@ -130,7 +205,7 @@ if (cluster.isMaster) {
                 hashKey: 'id',
                 client: ddb
             }),
-            secret: process.env.SESSIONS_SECRET,
+            secret: serverCredentials['cookie-session-secret'],
             resave: false,
             saveUninitialized: false,
             cookie: {
@@ -758,9 +833,15 @@ if (cluster.isMaster) {
      * Setup Cloud STT Integration
      */
     function setupSTT(){
+
+        const creds = serverCredentials['google-service-account-key-1'];
        //https://github.com/googleapis/gax-nodejs/blob/master/client-libraries.md#creating-the-client-instance
        // Creates a client
-       speechClient = new speech.SpeechClient(googleServiceAccount);
+       speechClient = new speech.SpeechClient({
+            credentials: {client_email: creds.client_email,
+                          private_key: creds.private_key},
+            projectId: creds.project_id
+        });
 
         // Create the initial request object
 	    // When streaming, this is the first call you will
@@ -782,23 +863,31 @@ if (cluster.isMaster) {
      * Setup Cloud STT Integration
      */
     function setupTTS(){
-      // Creates a client
-      ttsClient = new textToSpeech.TextToSpeechClient(googleServiceAccount2);
+
+        const creds = serverCredentials['google-service-account-key-2'];
+
+
+        // Creates a client
+        ttsClient = new textToSpeech.TextToSpeechClient({
+            credentials: {client_email: creds.client_email,
+                          private_key: creds.private_key},
+            projectId: creds.project_id
+        });
 
       // Construct the request
-      requestTTS = {
-        voice: {
-          languageCode: 'en-US',
-          name: 'en-US-Wavenet-G',
-        },
+        requestTTS = {
+            voice: {
+                languageCode: 'en-US',
+                name: 'en-US-Wavenet-G',
+            },
         // TODO It's possible to decrease the sampling rate to make the audio file as small as possible
         // Also possible to increase the speakingRate
-        audioConfig: {
-          audioEncoding: 'MP3', //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
-          pitch: 3.2,
-          speakingRate: 1
-        }
-      };
+            audioConfig: {
+                audioEncoding: 'MP3', //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
+                pitch: 3.2,
+                speakingRate: 1
+            }
+        };
     }
 
      /*
@@ -1017,7 +1106,12 @@ if (cluster.isMaster) {
 
     }
 
-    setupSTT();
-    setupTTS();
-    setupServer();
+    initVariables().then(
+        (result) => {
+            setupSTT();
+            setupTTS();
+            setupServer();
+        }
+    );
+
 }
