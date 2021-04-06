@@ -61,14 +61,8 @@ if (cluster.isMaster) {
     // Using two service accounts for Google because if I only used one, I get an error. Apparently two
     // services can't access the same service account in simultaneous.
     var serverCredentials = {};
+    var userPool;
 
-    // TODO Put this in options.config
-    var cognitoPoolData = {
-        UserPoolId : "us-east-2_XVWGKwmzC",
-        ClientId : "4rh5g79v3qme18vk6rutfpsjup" // App Client id
-    };
-    //const pool_region = 'us-east-2';
-    const userPool = new amazonCognitoIdentity.CognitoUserPool(cognitoPoolData);
     const cookieMaxAge = 86400000;
 
     var server;
@@ -110,6 +104,12 @@ if (cluster.isMaster) {
     async function initVariables() {
         // Initialize all the necessary variables for the server to run
         await getServerCredentials();
+
+        userPool = new amazonCognitoIdentity.CognitoUserPool({
+            UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
+            ClientId : serverCredentials['cognito-user-pool'].client_id // App Client id
+        });
+
         return true;
     }
 
@@ -400,7 +400,7 @@ if (cluster.isMaster) {
                 }
 
                 // TODO register errors
-                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                ddbPutEvent({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
                              status: {S: status},
                              event_type: {S: 'START_MONITORING'},
                              client_timestamp: {S: data.timestamp.toString()},
@@ -414,7 +414,7 @@ if (cluster.isMaster) {
             // When the user clicks "Stop"
             client.on('stop-monitoring', function(data) {
 
-                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                ddbPutEvent({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
                              event_type: {S: 'STOP_MONITORING'},
                              client_timestamp: {S: data.timestamp.toString()},
                              server_timestamp: {S: Date.now().toString()}});
@@ -424,7 +424,7 @@ if (cluster.isMaster) {
 
             client.on('wake-word-detected', function(data) {
 
-                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                ddbPutEvent({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
                              event_type: {S: 'WAKE_WORD_DETECTED'},
                              client_timestamp: {S: data.timestamp.toString()},
                              server_timestamp: {S: Date.now().toString()}});
@@ -434,7 +434,7 @@ if (cluster.isMaster) {
 
             client.on('microphone-error', function(data) {
 
-                ddbPutEvent({email: {S: client.request.session.cognitoData.idToken.payload.email},
+                ddbPutEvent({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
                              event_type: {S: 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
                              client_timestamp: {S: data.timestamp.toString()},
                              server_timestamp: {S: Date.now().toString()}});
@@ -446,7 +446,7 @@ if (cluster.isMaster) {
             client.on('process-order', async function(data) {
                 const eventType = 'PROCESS_ORDER';
                 const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.cognitoData.idToken.payload.email + "-" + clientTimestamp + ".wav";
+                const fileName = client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
@@ -499,7 +499,7 @@ if (cluster.isMaster) {
                         }
 
                         storeProcessingData({
-                            email: client.request.session.cognitoData.idToken.payload.email,
+                            sub: client.request.session.cognitoData.idToken.payload.sub,
                             eventType: eventType,
                             status: status,
                             output: JSON.stringify({
@@ -515,14 +515,14 @@ if (cluster.isMaster) {
                     client.emit('order-processing', JSON.stringify({status: status, output: output}));
 
                     storeProcessingData({
-                        email: client.request.session.cognitoData.idToken.payload.email,
+                        sub: client.request.session.cognitoData.idToken.payload.sub,
                         eventType: eventType,
                         status: status,
                         output: output});
                 }
 
                 storeAudioData({
-                    email: client.request.session.cognitoData.idToken.payload.email,
+                    sub: client.request.session.cognitoData.idToken.payload.sub,
                     eventType: eventType,
                     fileName: fileName,
                     fileBuffer: fileBuffer,
@@ -536,7 +536,7 @@ if (cluster.isMaster) {
                 const sub = client.request.session.cognitoData.idToken.payload.sub;
                 const eventType = 'CONFIRM_ORDER';
                 const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.cognitoData.idToken.payload.email + "-" + clientTimestamp + ".wav";
+                const fileName = client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
                 // Get the dataURL which was sent from the client
                 const dataURL = data.audio.dataURL.split(',').pop();
                 // Convert it to a Buffer
@@ -595,13 +595,13 @@ if (cluster.isMaster) {
                 client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
                 storeProcessingData({
-                    email: client.request.session.cognitoData.idToken.payload.email,
+                    sub: client.request.session.cognitoData.idToken.payload.sub,
                     eventType: eventType,
                     status: status,
                     output: output});
 
                 storeAudioData({
-                    email: client.request.session.cognitoData.idToken.payload.email,
+                    sub: client.request.session.cognitoData.idToken.payload.sub,
                     eventType: eventType,
                     fileName: fileName,
                     fileBuffer: fileBuffer,
@@ -701,14 +701,14 @@ if (cluster.isMaster) {
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
 	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
-	        ddbPutEvent({email: {S: data.email},
+	        ddbPutEvent({sub: {S: data.sub},
 	                    event_type: {S: data.eventType + '-SAVE_AUDIO'},
 	                    file_name: {S: data.fileName},
 	                    client_timestamp: {S: data.clientTimestamp},
 	                    server_timestamp: {S: Date.now().toString()}});
 
 	    }, function(err) {
-	        ddbPutEvent({email: {S: data.email},
+	        ddbPutEvent({sub: {S: data.sub},
 	                     event_type: {S: data.eventType + '-SAVE_AUDIO'},
 	                     file_name: {S: "UPLOAD_ERROR"},
 	                     client_timestamp: {S: data.clientTimestamp},
@@ -719,7 +719,7 @@ if (cluster.isMaster) {
 
     function storeProcessingData(data) {
     	// Put processing result into database
-	    ddbPutEvent({email: {S: data.email},
+	    ddbPutEvent({sub: {S: data.sub},
 	                 event_type: {S: data.eventType + '-PROCESS'},
 	                 status: {S: data.status},
 	                 output: {S: data.output},
