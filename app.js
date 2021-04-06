@@ -859,6 +859,9 @@ if (cluster.isMaster) {
 
     function ddbPut(item, tableName) {
 
+        console.log('------> ddbPut')
+        console.log(item);
+
         return new Promise(function(resolve, reject) {
             ddb.putItem({
                 'TableName': tableName,
