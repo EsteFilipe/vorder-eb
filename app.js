@@ -310,9 +310,14 @@ if (cluster.isMaster) {
                     const sub = req.session.cognitoData.idToken.payload.sub;
 
                     ddbPutOrUpdateCredentials({
-                        'sub': {'S': sub},
-                        'api_key': {'S': apiKey},
-                        'api_secret': {'S': apiSecret}
+                        partition: {'S': 'users'},
+                        id: {'S': sub},
+                        binance_api_key:
+                            {'M': {
+                                'api_key': {'S': apiKey},
+                                'api_secret': {'S': apiSecret}
+                            }
+                        }
                     }).then(function(data){
                         res.send('API Key updated.');
                     }, function(err) {
@@ -395,11 +400,11 @@ if (cluster.isMaster) {
                 }
 
                 // TODO register errors
-                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
-                             'status': {'S': status},
-                             'event_type': {'S': 'START_MONITORING'},
-                             'client_timestamp': {'S': data.timestamp.toString()},
-                             'server_timestamp': {'S': Date.now().toString()}});
+                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
+                             status: {'S': status},
+                             event_type: {'S': 'START_MONITORING'},
+                             client_timestamp: {'S': data.timestamp.toString()},
+                             server_timestamp: {'S': Date.now().toString()}});
 
                 // Putting this in almost every call to avoid the case where a stale
                 // order stays in memory and then is executed by accident 
@@ -409,30 +414,30 @@ if (cluster.isMaster) {
             // When the user clicks "Stop"
             client.on('stop-monitoring', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
-                             'event_type': {'S': 'STOP_MONITORING'},
-                             'client_timestamp': {'S': data.timestamp.toString()},
-                             'server_timestamp': {'S': Date.now().toString()}});
+                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {'S': 'STOP_MONITORING'},
+                             client_timestamp: {'S': data.timestamp.toString()},
+                             server_timestamp: {'S': Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
 
             client.on('wake-word-detected', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
-                             'event_type': {'S': 'WAKE_WORD_DETECTED'},
-                             'client_timestamp': {'S': data.timestamp.toString()},
-                             'server_timestamp': {'S': Date.now().toString()}});
+                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {'S': 'WAKE_WORD_DETECTED'},
+                             client_timestamp: {'S': data.timestamp.toString()},
+                             server_timestamp: {'S': Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
 
             client.on('microphone-error', function(data) {
 
-                ddbPutEvent({'email': {'S': client.request.session.cognitoData.idToken.payload.email},
-                             'event_type': {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
-                             'client_timestamp': {'S': data.timestamp.toString()},
-                             'server_timestamp': {'S': Date.now().toString()}});
+                ddbPutEvent({email: {'S': client.request.session.cognitoData.idToken.payload.email},
+                             event_type: {'S': 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
+                             client_timestamp: {'S': data.timestamp.toString()},
+                             server_timestamp: {'S': Date.now().toString()}});
 
                 client.request.session.order = -1;
             });
@@ -770,18 +775,18 @@ if (cluster.isMaster) {
 	    // Put audio file record into database and upload audio file to S3 bucket
 	    // (Just putting this in the end to return the response ASAP to the client)
 	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
-	        ddbPutEvent({'email': {'S': data.email},
-	                    'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
-	                    'file_name': {'S': data.fileName},
-	                    'client_timestamp': {'S': data.clientTimestamp},
-	                    'server_timestamp': {'S': Date.now().toString()}});
+	        ddbPutEvent({email: {'S': data.email},
+	                    event_type: {'S': data.eventType + '-SAVE_AUDIO'},
+	                    file_name: {'S': data.fileName},
+	                    client_timestamp: {'S': data.clientTimestamp},
+	                    server_timestamp: {'S': Date.now().toString()}});
 
 	    }, function(err) {
-	        ddbPutEvent({'email': {'S': data.email},
-	                     'event_type': {'S': data.eventType + '-SAVE_AUDIO'},
-	                     'file_name': {'S': "UPLOAD_ERROR"},
-	                     'client_timestamp': {'S': data.clientTimestamp},
-	                     'server_timestamp': {'S': Date.now().toString()}});
+	        ddbPutEvent({email: {'S': data.email},
+	                     event_type: {'S': data.eventType + '-SAVE_AUDIO'},
+	                     file_name: {'S': "UPLOAD_ERROR"},
+	                     client_timestamp: {'S': data.clientTimestamp},
+	                     server_timestamp: {'S': Date.now().toString()}});
 	    });
 
     }
@@ -790,11 +795,11 @@ if (cluster.isMaster) {
         console.log("-----> storeProcessingData");
         console.log(data);
     	// Put processing result into database
-	    ddbPutEvent({'email': {'S': data.email},
-	                 'event_type': {'S': data.eventType + '-PROCESS'},
-	                 'status': {'S': data.status},
-	                 'output': {'S': data.output},
-	                 'server_timestamp': {'S': Date.now().toString()}});
+	    ddbPutEvent({email: {'S': data.email},
+	                 event_type: {'S': data.eventType + '-PROCESS'},
+	                 status: {'S': data.status},
+	                 output: {'S': data.output},
+	                 server_timestamp: {'S': Date.now().toString()}});
     }
 
     function processOrderConfirmation(transcription) {
