@@ -120,7 +120,7 @@ if (cluster.isMaster) {
                             id: {S: 'google-service-account-key-1'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-1]');
+                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-1] - ' + err);
                     } else {
                         serverCredentials['google-service-account-key-1'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -134,7 +134,7 @@ if (cluster.isMaster) {
                             id: {S: 'google-service-account-key-2'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-2]');
+                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-2] - ' + err);
                     } else {
                         serverCredentials['google-service-account-key-2'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -148,7 +148,7 @@ if (cluster.isMaster) {
                             id: {S: 'cognito-user-pool'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
+                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool] - ' + err);
                     } else {
                         serverCredentials['cognito-user-pool'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -162,7 +162,7 @@ if (cluster.isMaster) {
                             id: {S: 'cookie-session-secret'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool]');
+                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool] - ' + err);
                     } else {
                         serverCredentials['cookie-session-secret'] = attr.unwrap(data.Item).json.value;
                         resolve();
