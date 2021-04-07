@@ -241,7 +241,7 @@ if (cluster.isMaster) {
         });
 
         app.get('/home', function(req, res) {
-            // TODO CHECK FOR JWT TOKEN VALIDITY?
+            // TODO CHECK FOR JWT TOKEN VALIDITY
             if (!req.session.cognitoData) {
                 res.sendFile(path.join(__dirname + '/views/login.html'));
             } else {
@@ -818,9 +818,9 @@ if (cluster.isMaster) {
         var fileName;
         s3PutResult = await s3Put(data.fileName, data.fileBuffer);
 
-        console.log('------> storeAudioData')
-        console.log(s3PutResult);
-        console.log(data);
+        //console.log('------> storeAudioData')
+        //console.log(s3PutResult);
+        //console.log(data);
 
         if (s3PutResult.status) {
             fileName = data.fileName;
@@ -936,7 +936,7 @@ if (cluster.isMaster) {
         // Processed response to pass to the user
         var eResponse = {status: true, output: ''};
 
-        console.log(orderDetails);
+        //console.log(orderDetails);
 
         if (exchange == 'binance') {
             var binance = new binanceAPI().options({
@@ -974,7 +974,7 @@ if (cluster.isMaster) {
                 }
             }
 
-            console.log(exchangeResponse);
+            //console.log(exchangeResponse);
 
             // Error response objects are of the form {code:<CODE>, msg:<MSG>}
             // Only in the case of error does the response have the fields `code` and `msg`
