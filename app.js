@@ -57,52 +57,47 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-    // Server credentials
-    // Using two service accounts for Google because if I only used one, I get an error. Apparently two
-    // services can't access the same service account in simultaneous.
+    // Server variables
     var serverCredentials = {};
     var userPool;
-
-    const cookieMaxAge = 86400000;
-
     var server;
-    var sessionId, sessionClient, sessionPath, request;
-    var speechClient, requestSTT, ttsClient, requestTTS, mediaTranslationClient, requestMedia;
+    var speechClient, requestSTT, ttsClient, requestTTS;
+    var orderSpeechContexts, confirmationSpeechContexts;
+
+    const cookieMaxAge = process.env.COOKIE_MAX_AGE;
     const port = process.env.PORT || 3000;
 
-    // Credentials for the Google Service Account
-
-    //const googleServiceAccount = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_FILE_PATH};
-    //const googleServiceAccount2 = {keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT2_FILE_PATH};
-    // STT configuration
-    const languageCode = 'en-US';
-    const encoding = 'LINEAR16';
-    const sampleRateHertz = 16000;
+    // Speech configuration
+    const languageCode = process.env.LANGUAGE_CODE;
+    const ttsVoiceName = process.env.TTS_VOICE_NAME;
+    const ttsPitch = process.env.TTS_PICH;
+    const ttsSpeakingRate = process.env.TTS_SPEAKING_RATE;
+    const ttsEncoding = process.env.TTS_ENCODING;
+    const sttEncoding = process.env.STT_ENCODING;
+    const sttSampleRate = process.env.STT_SAMPLE_RATE;
 
     // Currencies
     const coins = {BTC: "Bitcoin", ETH: "Ether"};
     const fiatSymbol = "USDT";
 
-    // Speech Contexts for Google Speech API
-    var orderSpeechContexts, confirmationSpeechContexts;
-
-    fs.readFile('speech_order_expected_sentences.json', (err, data) => {
-	    if (err) throw err;
-	    let phrases = JSON.parse(data);
-	    orderSpeechContexts = [{
-						        phrases: phrases,
-						        boost: 20.0
-						       }];
-	});
-
-    confirmationSpeechContexts = [{
-							       phrases: ['yes','no'],
-							       boost: 20.0
-							      }];
-
-
     async function initVariables() {
-        // Initialize all the necessary variables for the server to run
+
+        // Initialize Google Speech-to-Text API variables
+        fs.readFile(process.env.EXPECTED_SENTENCES_FILE_PATH, (err, data) => {
+            if (err) throw err;
+                let phrases = JSON.parse(data);
+                orderSpeechContexts = [{
+                        phrases: phrases,
+                        boost: 20.0
+                }];
+        });
+
+        confirmationSpeechContexts = [{
+                                       phrases: ['yes','no'],
+                                       boost: 20.0
+                                      }];
+
+        // Initialize credentials
         await getServerCredentials();
 
         userPool = new amazonCognitoIdentity.CognitoUserPool({
@@ -113,7 +108,7 @@ if (cluster.isMaster) {
         return true;
     }
 
-        //  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
+    //  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
     // As it is, it only has encryption in rest, which is default in DynamoDB.
     function getServerCredentials() {
         // Only resolved when all the data has been fetched
@@ -181,12 +176,6 @@ if (cluster.isMaster) {
 
         var app = express();
 
-        // Require authentication to access (from https://stackoverflow.com/questions/23616371/basic-http-authentication-with-node-and-express-4)
-        //app.use(basicAuth({
-        //    users: { dawuon9d39feaAFCEb19bdy332id13: '9f2y4fg274624xn7cn289cADASry9482cvyb' },
-        //    challenge: true // <--- needed to actually show the login dialog!
-        //}));
-
         app.use(cors());
         app.set('view engine', 'ejs');
         app.set('views', __dirname + '/views');
@@ -220,7 +209,7 @@ if (cluster.isMaster) {
         //var AWSXRay = require('aws-xray-sdk');
         //app.use(AWSXRay.express.openSegment('VorderApp'));
 
-        // Move all this stuff into a separate file to hold just the routes, as in
+        // TODO Move all this stuff into a separate file to hold just the routes, as in
         // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
 
         app.get('/', function(req, res) {
@@ -744,8 +733,8 @@ if (cluster.isMaster) {
 	    // that are set in the client
         requestSTT = {
             config: {
-                sampleRateHertz: sampleRateHertz,
-                encoding: encoding,
+                sampleRateHertz: sttSampleRate,
+                encoding: sttEncoding,
                 languageCode: languageCode
             }
         };
@@ -768,15 +757,15 @@ if (cluster.isMaster) {
       // Construct the request
         requestTTS = {
             voice: {
-                languageCode: 'en-US',
-                name: 'en-US-Wavenet-G',
+                languageCode: languageCode,
+                name: ttsVoiceName,
             },
         // TODO It's possible to decrease the sampling rate to make the audio file as small as possible
         // Also possible to increase the speakingRate
             audioConfig: {
-                audioEncoding: 'MP3', //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
-                pitch: 3.2,
-                speakingRate: 1
+                audioEncoding: ttsEncoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
+                pitch: ttsPitch,
+                speakingRate: ttsSpeakingRate
             }
         };
     }
