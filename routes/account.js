@@ -117,7 +117,7 @@ module.exports = function(serverCredentials){
 	        userLogin(email, password).then(function(result) {
 	            req.session.order = -1;
 	            req.session.cognitoData = result;
-	            res.redirect('/home');
+	            res.redirect('/');
 	        }, function(err) {
 	            res.send('Incorrect e-mail and/or password.');
 	            console.log(err);
