@@ -64,17 +64,17 @@ if (cluster.isMaster) {
     var speechClient, requestSTT, ttsClient, requestTTS;
     var orderSpeechContexts, confirmationSpeechContexts;
 
-    const cookieMaxAge = process.env.COOKIE_MAX_AGE;
     const port = process.env.PORT || 3000;
+    const cookieMaxAge = 86400000;
 
     // Speech configuration
-    const languageCode = process.env.LANGUAGE_CODE;
-    const ttsVoiceName = process.env.TTS_VOICE_NAME;
-    const ttsPitch = process.env.TTS_PICH;
-    const ttsSpeakingRate = process.env.TTS_SPEAKING_RATE;
-    const ttsEncoding = process.env.TTS_ENCODING;
-    const sttEncoding = process.env.STT_ENCODING;
-    const sttSampleRate = process.env.STT_SAMPLE_RATE;
+    const languageCode = 'en-US';
+    const ttsVoiceName = 'en-US-Wavenet-G';
+    const ttsPitch = 3.2;
+    const ttsSpeakingRate = 1;
+    const ttsEncoding = 'MP3';
+    const sttEncoding = 'LINEAR16';
+    const sttSampleRate = 16000;
 
     // Currencies
     const coins = {BTC: "Bitcoin", ETH: "Ether"};
