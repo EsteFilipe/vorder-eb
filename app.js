@@ -42,7 +42,6 @@ if (cluster.isMaster) {
         binanceAPI = require('node-binance-api'),
         speech = require('@google-cloud/speech').v1p1beta1,
         textToSpeech = require('@google-cloud/text-to-speech'),
-        amazonCognitoIdentity = require('amazon-cognito-identity-js'),
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
         jwt = require('jsonwebtoken');
@@ -59,7 +58,6 @@ if (cluster.isMaster) {
 
     // Server variables
     var serverCredentials = {};
-    var userPool;
     var speechClient, requestSTT, ttsClient, requestTTS;
     var orderSpeechContexts, confirmationSpeechContexts;
 
@@ -98,11 +96,6 @@ if (cluster.isMaster) {
 
         // Initialize credentials
         await getServerCredentials();
-
-        userPool = new amazonCognitoIdentity.CognitoUserPool({
-            UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
-            ClientId : serverCredentials['cognito-user-pool'].client_id // App Client id
-        });
 
         return true;
     }
@@ -205,6 +198,7 @@ if (cluster.isMaster) {
         app.use(sess);
 
         app.use('/', require('./routes/routes'))
+        app.use('/', require('./routes/account'))
 
         // ROUTES GO HERE
 
@@ -217,15 +211,6 @@ if (cluster.isMaster) {
         // TODO Move all this stuff into a separate file to hold just the routes, as in
         // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
         /*
-        app.get('/', function(req, res) {
-            if (!req.session.cognitoData) {
-                res.sendFile(path.join(__dirname + '/views/login.html'));
-            } else {
-                res.render('index', {
-                    static_path: 'static',
-                });
-            }
-        });
 
         app.post('/auth', function(req, res) {
             var email = req.body.email;
@@ -637,6 +622,7 @@ if (cluster.isMaster) {
         });
     }
 
+    /*
     // TODO perhaps in the future I'll have to use the token received from cognito for something
     // Check https://www.npmjs.com/package/amazon-cognito-identity-js
     // Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
@@ -668,6 +654,7 @@ if (cluster.isMaster) {
         });
 
     }
+    */
 
     async function userLogout (email) {
 
