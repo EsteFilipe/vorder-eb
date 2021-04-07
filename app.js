@@ -60,7 +60,6 @@ if (cluster.isMaster) {
     // Server variables
     var serverCredentials = {};
     var userPool;
-    var server;
     var speechClient, requestSTT, ttsClient, requestTTS;
     var orderSpeechContexts, confirmationSpeechContexts;
 
@@ -207,6 +206,14 @@ if (cluster.isMaster) {
 
         app.use('/', require('./routes/routes'))
 
+        // ROUTES GO HERE
+
+        var server = http.createServer(app);
+
+        server.listen(port, () => {
+            console.log('Running server on port %s', port);
+        });
+
         // TODO Move all this stuff into a separate file to hold just the routes, as in
         // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
         /*
@@ -344,16 +351,11 @@ if (cluster.isMaster) {
             }
         });
 
-        server = http.createServer(app);
         io = socketIo(server);
 
         // Share session variables with socket.io
         io.use(function(socket, next) {
             sess(socket.request, socket.request.res || {}, next);
-        });
-
-        server.listen(port, () => {
-            console.log('Running server on port %s', port);
         });
 
         // Listener, once the client connect to the server socket
