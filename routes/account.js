@@ -1,34 +1,6 @@
 var express = require('express'),
 	amazonCognitoIdentity = require('amazon-cognito-identity-js');
 
-const router = express.Router();
-
-var app = express();
-const serverCredentials = app.locals.serverCredentials;
-
-var userPool = new amazonCognitoIdentity.CognitoUserPool({
-    UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
-    ClientId : serverCredentials['cognito-user-pool'].client_id // App Client id
-});
-
-router.post('/auth', function(req, res) {
-    var email = req.body.email;
-    var password = req.body.password;
-
-    if (email && password) {
-        userLogin(email, password).then(function(result) {
-            req.session.order = -1;
-            req.session.cognitoData = result;
-            res.redirect('/home');
-        }, function(err) {
-            res.send('Incorrect e-mail and/or password.');
-            console.log(err);
-        })
-    } else {
-        res.send('Please enter e-mail and password.');
-    }
-});
-
 /*
 
 router.get('/options', async function(req, res) {
@@ -128,34 +100,64 @@ router.post('/signup', function(req, res) {
 
 */
 
-// TODO perhaps in the future I'll have to use the token received from cognito for something
-// Check https://www.npmjs.com/package/amazon-cognito-identity-js
-// Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
-function userLogin(email, password) {
+module.exports = function(serverCredentials){
 
-    var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
-        Username : email,
-        Password : password,
-    });
+	const router = express.Router();
 
-    var userData = {
-        Username : email,
-        Pool : userPool
-    };
+	const userPool = new amazonCognitoIdentity.CognitoUserPool({
+	    UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
+	    ClientId : serverCredentials['cognito-user-pool'].client_id // App Client id
+	});
 
-    var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
+	router.post('/auth', function(req, res) {
+	    var email = req.body.email;
+	    var password = req.body.password;
 
-    return new Promise((resolve, reject) => {
-        cognitoUser.authenticateUser(authenticationDetails, {
-            onSuccess: (result) => {
-                //console.log('successfully authenticated', result);
-                resolve(result);
-            },
-            onFailure: (err) => {
-                //console.log('error authenticating', err);
-                reject(err);
-            }
-        });
-    });
+	    if (email && password) {
+	        userLogin(email, password).then(function(result) {
+	            req.session.order = -1;
+	            req.session.cognitoData = result;
+	            res.redirect('/home');
+	        }, function(err) {
+	            res.send('Incorrect e-mail and/or password.');
+	            console.log(err);
+	        })
+	    } else {
+	        res.send('Please enter e-mail and password.');
+	    }
+	});
 
+	// TODO perhaps in the future I'll have to use the token received from cognito for something
+	// Check https://www.npmjs.com/package/amazon-cognito-identity-js
+	// Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
+	function userLogin(email, password) {
+
+	    var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
+	        Username : email,
+	        Password : password,
+	    });
+
+	    var userData = {
+	        Username : email,
+	        Pool : userPool
+	    };
+
+	    var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
+
+	    return new Promise((resolve, reject) => {
+	        cognitoUser.authenticateUser(authenticationDetails, {
+	            onSuccess: (result) => {
+	                //console.log('successfully authenticated', result);
+	                resolve(result);
+	            },
+	            onFailure: (err) => {
+	                //console.log('error authenticating', err);
+	                reject(err);
+	            }
+	        });
+	    });
+
+	}
+
+    return router;
 }

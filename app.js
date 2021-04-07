@@ -197,11 +197,9 @@ if (cluster.isMaster) {
 
         app.use(sess);
 
-        // Save the fetched credentials to use in other modules
-        app.locals.serverCredentials = serverCredentials;
 
         app.use('/', require('./routes/routes'))
-        app.use('/', require('./routes/account'))
+        app.use('/', require('./routes/account')(serverCredentials))
 
         // ROUTES GO HERE
 
