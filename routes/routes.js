@@ -3,9 +3,9 @@ const router = express.Router();
 
 router.get('/', (req, res) => {
 	if (!req.session.cognitoData) {
-        res.render('login.ejs', {});
+        res.render('login');
     } else {
-        res.render('index.ejs', {
+        res.render('index', {
             static_path: 'static',
         });
     }

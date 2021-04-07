@@ -205,13 +205,11 @@ if (cluster.isMaster) {
 
         app.use(sess);
 
-        // X-Ray debug logs
-        //var AWSXRay = require('aws-xray-sdk');
-        //app.use(AWSXRay.express.openSegment('VorderApp'));
+        app.use('/', require('./routes/routes'))
 
         // TODO Move all this stuff into a separate file to hold just the routes, as in
         // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
-
+        /*
         app.get('/', function(req, res) {
             if (!req.session.cognitoData) {
                 res.sendFile(path.join(__dirname + '/views/login.html'));
@@ -596,6 +594,7 @@ if (cluster.isMaster) {
 
             });
         });
+        */
     }
 
     // For several Cognito examples, check:
