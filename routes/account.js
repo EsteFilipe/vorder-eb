@@ -1,7 +1,10 @@
-const express = require('express');
+var express = require('express'),
+	amazonCognitoIdentity = require('amazon-cognito-identity-js');
+
 const router = express.Router();
 
-var amazonCognitoIdentity = require('amazon-cognito-identity-js');
+var app = express();
+const serverCredentials = app.locals.serverCredentials;
 
 var userPool = new amazonCognitoIdentity.CognitoUserPool({
     UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
