@@ -695,39 +695,6 @@ if (cluster.isMaster) {
 
     }
 
-    // TODO REFACTOR TO AVOID THE REPETITION
-    function storeAudioData(data){
-	    // Put audio file record into database and upload audio file to S3 bucket
-	    // (Just putting this in the end to return the response ASAP to the client)
-	    s3Put(data.fileName, data.fileBuffer).then(function(data) {
-	        ddbPut({sub: {S: data.sub},
-                        server_timestamp: {S: Date.now().toString()},
-	                    event_type: {S: data.eventType + '-SAVE_AUDIO'},
-	                    file_name: {S: data.fileName},
-	                    client_timestamp: {S: data.clientTimestamp}},
-                        process.env.EVENTS_TABLE);
-
-	    }, function(err) {
-	        ddbPutEvent({sub: {S: data.sub},
-                         server_timestamp: {S: Date.now().toString()},
-	                     event_type: {S: data.eventType + '-SAVE_AUDIO'},
-	                     file_name: {S: "UPLOAD_ERROR"},
-	                     client_timestamp: {S: data.clientTimestamp}},
-                         process.env.EVENTS_TABLE);
-	    });
-
-    }
-
-    function storeProcessingData(data) {
-    	// Put processing result into database
-	    ddbPut({sub: {S: data.sub},
-                server_timestamp: {S: Date.now().toString()},
-	            event_type: {S: data.eventType + '-PROCESS'},
-	            status: {S: data.status},
-	            output: {S: data.output}},
-                process.env.EVENTS_TABLE);
-    }
-
     function processOrderConfirmation(transcription) {
     	const t = transcription.toLowerCase();
 		// If both "yes" and "no" were said
@@ -857,10 +824,41 @@ if (cluster.isMaster) {
         return response[0].audioContent;
     }
 
-    function ddbPut(item, tableName) {
+    async function storeAudioData(data){
 
-        console.log('------> ddbPut')
-        console.log(item);
+        var fileName;
+        s3PutResult = await s3Put(data.fileName, data.fileBuffer);
+
+        console.log('------> storeAudioData')
+        console.log(s3PutResult);
+        console.log(data);
+
+        if (s3PutResult.status) {
+            fileName = data.fileName;
+        }
+        else {
+            fileName = "UPLOAD_ERROR";
+        }
+
+        ddbPut({sub: {S: data.sub},
+                server_timestamp: {S: Date.now().toString()},
+                event_type: {S: data.eventType + '-SAVE_AUDIO'},
+                file_name: {S: fileName},
+                client_timestamp: {S: data.clientTimestamp}},
+               process.env.EVENTS_TABLE)
+    }
+
+    function storeProcessingData(data) {
+        // Put processing result into database
+        ddbPut({sub: {S: data.sub},
+                server_timestamp: {S: Date.now().toString()},
+                event_type: {S: data.eventType + '-PROCESS'},
+                status: {S: data.status},
+                output: {S: data.output}},
+                process.env.EVENTS_TABLE);
+    }
+
+    function ddbPut(item, tableName) {
 
         return new Promise(function(resolve, reject) {
             ddb.putItem({
@@ -890,9 +888,9 @@ if (cluster.isMaster) {
         return new Promise(function(resolve, reject) {
             S3.upload(params, function(err, data) {
                 if (err) {
-                    reject(err);
+                    resolve({status: false, output: err});
                 } else {
-                    resolve(data);
+                    resolve({status: true, output: data});
                 }
             });
         });
