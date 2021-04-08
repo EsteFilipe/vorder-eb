@@ -25,8 +25,6 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
-	/*
-
 	router.get('/signup', function(req, res) {
         res.render('signup');
 	});
@@ -38,12 +36,10 @@ module.exports = function(serverCredentials){
 
 	    if (email && password && repeatPassword) {
 	        if (password == repeatPassword) {
-	        registerUser(email, password).then(function(result) {
+	        userService.registerUser(email, password).then(function(result) {
 	            res.send('Success. Check your e-mail and click the confirmation link.');
 	        }, function(err) {
 	            res.send('Invalid data.');
-	            //console.log('Invalid Sign-up:')
-	            //console.log(err);
 	        })
 	        }
 	        else {
@@ -53,6 +49,8 @@ module.exports = function(serverCredentials){
 	        res.send('Please fill-in all fields.');
 	    }
 	});
+
+	/*
 
 	router.get('/options', async function(req, res) {
 	    // TODO CHECK FOR JWT TOKEN VALIDITY?
