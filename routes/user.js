@@ -1,13 +1,14 @@
-import UserService from '../services/user';
+import 
 
 var attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
-	binanceAPI = require('node-binance-api');
+	binanceAPI = require('node-binance-api'),
+	userService require('../services/user');
 
 module.exports = function(serverCredentials){
 
 	const router = express.Router();
-	const userServiceInstance = new UserService(serverCredentials['cognito-user-pool']);
+	const userServiceInstance = new userService(serverCredentials['cognito-user-pool']);
 
 	router.post('/auth', function(req, res) {
 	    var email = req.body.email;
