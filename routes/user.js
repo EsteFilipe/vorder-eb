@@ -1,19 +1,18 @@
 var attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
-	binanceAPI = require('node-binance-api'),
-	UserService = require('../services/user');
+	binanceAPI = require('node-binance-api');
 
 module.exports = function(serverCredentials){
 
 	const router = express.Router();
-	var userServiceInstance = new UserService(serverCredentials['cognito-user-pool']);
+	const userService = require('../services/user')(serverCredentials['cognito-user-pool']);
 
 	router.post('/auth', function(req, res) {
 	    var email = req.body.email;
 	    var password = req.body.password;
 
 	    if (email && password) {
-	        userServiceInstance.login(email, password).then(function(result) {
+	        userService.login(email, password).then(function(result) {
 	            req.session.order = -1;
 	            req.session.cognitoData = result;
 	            res.redirect('/');

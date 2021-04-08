@@ -65,5 +65,5 @@ module.exports = function (cognitoUserPool) {
 
     */
 
-  return UserService;
+  return new UserService(cognitoUserPool);
 }
