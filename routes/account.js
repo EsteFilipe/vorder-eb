@@ -1,4 +1,5 @@
 var AWS = require('aws-sdk'),
+    attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
 	amazonCognitoIdentity = require('amazon-cognito-identity-js'),
 	binanceAPI = require('node-binance-api');
