@@ -1,5 +1,3 @@
-import 
-
 var attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
 	binanceAPI = require('node-binance-api'),
