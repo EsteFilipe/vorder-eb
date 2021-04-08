@@ -1,58 +1,20 @@
-var AWS = require('aws-sdk'),
-    attr = require('dynamodb-data-types').AttributeValue,
+import UserService from '../services/user';
+
+var attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
-	amazonCognitoIdentity = require('amazon-cognito-identity-js'),
 	binanceAPI = require('node-binance-api');
-
-/*
-
-
-
-router.get('/signup', function(req, res) {
-    res.sendFile(path.join(__dirname + '/views/signup.html'));
-});
-
-router.post('/signup', function(req, res) {
-    var email = req.body.email;
-    var password = req.body.password;
-    var repeatPassword = req.body.repeatPassword;
-
-    if (email && password && repeatPassword) {
-        if (password == repeatPassword) {
-        registerUser(email, password).then(function(result) {
-            res.send('Success. Check your e-mail and click the confirmation link.');
-        }, function(err) {
-            res.send('Invalid data.');
-            //console.log('Invalid Sign-up:')
-            //console.log(err);
-        })
-        }
-        else {
-            res.send("Passwords don't match.");
-        }
-    } else {
-        res.send('Please fill-in all fields.');
-    }
-});
-
-*/
 
 module.exports = function(serverCredentials){
 
 	const router = express.Router();
-	var ddb = new AWS.DynamoDB();
-
-	const userPool = new amazonCognitoIdentity.CognitoUserPool({
-	    UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
-	    ClientId : serverCredentials['cognito-user-pool'].client_id // App Client id
-	});
+	const userServiceInstance = new UserService(serverCredentials['cognito-user-pool']);
 
 	router.post('/auth', function(req, res) {
 	    var email = req.body.email;
 	    var password = req.body.password;
 
 	    if (email && password) {
-	        userLogin(email, password).then(function(result) {
+	        userServiceInstance.login(email, password).then(function(result) {
 	            req.session.order = -1;
 	            req.session.cognitoData = result;
 	            res.redirect('/');
@@ -62,6 +24,35 @@ module.exports = function(serverCredentials){
 	        })
 	    } else {
 	        res.send('Please enter e-mail and password.');
+	    }
+	});
+
+	/*
+
+	router.get('/signup', function(req, res) {
+        res.render('signup');
+	});
+
+	router.post('/signup', function(req, res) {
+	    var email = req.body.email;
+	    var password = req.body.password;
+	    var repeatPassword = req.body.repeatPassword;
+
+	    if (email && password && repeatPassword) {
+	        if (password == repeatPassword) {
+	        registerUser(email, password).then(function(result) {
+	            res.send('Success. Check your e-mail and click the confirmation link.');
+	        }, function(err) {
+	            res.send('Invalid data.');
+	            //console.log('Invalid Sign-up:')
+	            //console.log(err);
+	        })
+	        }
+	        else {
+	            res.send("Passwords don't match.");
+	        }
+	    } else {
+	        res.send('Please fill-in all fields.');
 	    }
 	});
 
@@ -133,37 +124,24 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
-	// TODO perhaps in the future I'll have to use the token received from cognito for something
-	// Check https://www.npmjs.com/package/amazon-cognito-identity-js
-	// Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
-	function userLogin(email, password) {
+    // For several Cognito examples, check:
+    //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
+    function registerUser(email, password){
+        var attributeList = [];
+        attributeList.push(new amazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
 
-	    var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
-	        Username : email,
-	        Password : password,
-	    });
-
-	    var userData = {
-	        Username : email,
-	        Pool : userPool
-	    };
-
-	    var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
-
-	    return new Promise((resolve, reject) => {
-	        cognitoUser.authenticateUser(authenticationDetails, {
-	            onSuccess: (result) => {
-	                //console.log('successfully authenticated', result);
-	                resolve(result);
-	            },
-	            onFailure: (err) => {
-	                //console.log('error authenticating', err);
-	                reject(err);
-	            }
-	        });
-	    });
-
-	}
+        return new Promise((resolve, reject) => {
+            userPool.signUp(email, password, attributeList, null, (err, result) => {
+                if (err) {
+                    //console.log(err.message);
+                    reject(err);
+                    return;
+                }
+                cognitoUser = result.user;
+                resolve(cognitoUser)
+            });
+        });
+    }
 
     function getBinanceAPIKey(sub) {
 
@@ -206,6 +184,8 @@ module.exports = function(serverCredentials){
             return true;
         }
     }
+
+    */
 
     return router;
 }

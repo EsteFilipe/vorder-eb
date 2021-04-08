@@ -39,7 +39,6 @@ if (cluster.isMaster) {
         util = require('util'),
         hash = require('object-hash'),
         spawn = require('await-spawn'),
-        binanceAPI = require('node-binance-api'),
         speech = require('@google-cloud/speech').v1p1beta1,
         textToSpeech = require('@google-cloud/text-to-speech'),
         request = require('request'),
@@ -199,7 +198,7 @@ if (cluster.isMaster) {
 
 
         app.use('/', require('./routes/routes'))
-        app.use('/', require('./routes/account')(serverCredentials))
+        app.use('/', require('./routes/user')(serverCredentials))
 
         // ROUTES GO HERE
 
@@ -207,71 +206,6 @@ if (cluster.isMaster) {
 
         server.listen(port, () => {
             console.log('Running server on port %s', port);
-        });
-
-        // TODO Move all this stuff into a separate file to hold just the routes, as in
-        // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
-        /*
-
-        app.post('/set-api-key', async function(req, res) {
-            var apiKey = req.body.apiKey;
-            var apiSecret = req.body.apiSecret;
-
-            if (!req.session.cognitoData) {
-                return;
-            }
-            else {
-                const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
-
-                if (hasValidAPIKey) {
-                    const sub = req.session.cognitoData.idToken.payload.sub;
-
-                    ddbPut({
-                        partition: {S: 'users'},
-                        id: {S: sub},
-                        binance_api_key:
-                            {M: {
-                                api_key: {S: apiKey},
-                                api_secret: {S: apiSecret}
-                            }
-                        }
-                    }, process.env.CREDENTIALS_TABLE).then(function(data){
-                        res.send('API Key updated.');
-                    }, function(err) {
-                        res.send("There's been an error updating the API Key");
-                    })
-                }
-                else {
-                    res.send("Invalid API key.");
-                }
-            }
-        });
-
-        app.get('/signup', function(req, res) {
-            res.sendFile(path.join(__dirname + '/views/signup.html'));
-        });
-
-        app.post('/signup', function(req, res) {
-            var email = req.body.email;
-            var password = req.body.password;
-            var repeatPassword = req.body.repeatPassword;
-
-            if (email && password && repeatPassword) {
-                if (password == repeatPassword) {
-                registerUser(email, password).then(function(result) {
-                    res.send('Success. Check your e-mail and click the confirmation link.');
-                }, function(err) {
-                    res.send('Invalid data.');
-                    //console.log('Invalid Sign-up:')
-                    //console.log(err);
-                })
-                }
-                else {
-                    res.send("Passwords don't match.");
-                }
-            } else {
-                res.send('Please fill-in all fields.');
-            }
         });
 
         io = socketIo(server);
@@ -517,26 +451,6 @@ if (cluster.isMaster) {
                     fileBuffer: fileBuffer,
                     clientTimestamp: clientTimestamp});
 
-            });
-        });
-        */
-    }
-
-    // For several Cognito examples, check:
-    //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
-    function registerUser(email, password){
-        var attributeList = [];
-        attributeList.push(new amazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
-
-        return new Promise((resolve, reject) => {
-            userPool.signUp(email, password, attributeList, null, (err, result) => {
-                if (err) {
-                    //console.log(err.message);
-                    reject(err);
-                    return;
-                }
-                cognitoUser = result.user;
-                resolve(cognitoUser)
             });
         });
     }
