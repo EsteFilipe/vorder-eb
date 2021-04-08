@@ -5,7 +5,7 @@ module.exports = function (cognitoUserPool) {
 
   var ddb = new AWS.DynamoDB();
 
-  function UserService() {
+  var UserService = function (cognitoUserPool) {
     this.userPool = new amazonCognitoIdentity.CognitoUserPool({
       UserPoolId : cognitoUserPool.user_pool_id,
       ClientId : cognitoUserPool.client_id // App Client id

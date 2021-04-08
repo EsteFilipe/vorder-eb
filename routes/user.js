@@ -123,25 +123,6 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
-    // For several Cognito examples, check:
-    //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
-    function registerUser(email, password){
-        var attributeList = [];
-        attributeList.push(new amazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
-
-        return new Promise((resolve, reject) => {
-            userPool.signUp(email, password, attributeList, null, (err, result) => {
-                if (err) {
-                    //console.log(err.message);
-                    reject(err);
-                    return;
-                }
-                cognitoUser = result.user;
-                resolve(cognitoUser)
-            });
-        });
-    }
-
     function getBinanceAPIKey(sub) {
 
         return new Promise((resolve, reject) => {
