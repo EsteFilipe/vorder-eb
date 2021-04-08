@@ -1,7 +1,7 @@
 var attr = require('dynamodb-data-types').AttributeValue,
 	express = require('express'),
 	binanceAPI = require('node-binance-api'),
-	userService require('../services/user');
+	userService = require('../services/user');
 
 module.exports = function(serverCredentials){
 
