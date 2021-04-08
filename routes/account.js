@@ -1,41 +1,8 @@
 var express = require('express'),
-	amazonCognitoIdentity = require('amazon-cognito-identity-js');
+	amazonCognitoIdentity = require('amazon-cognito-identity-js'),
+	binanceAPI = require('node-binance-api');
 
 /*
-
-router.get('/options', async function(req, res) {
-    // TODO CHECK FOR JWT TOKEN VALIDITY?
-    if (!req.session.cognitoData) {
-        res.sendFile(path.join(__dirname + '/views/login.html'));
-    } else {
-        const sub = req.session.cognitoData.idToken.payload.sub;
-
-        binanceAPIKey = await getBinanceAPIKey(sub);
-        //console.log("--------> binanceAPIKey");
-        //console.log(binanceAPIKey);
-
-        if (binanceAPIKey.status == "API_KEY_DEFINED") {
-            const key = binanceAPIKey.output;
-            const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
-
-            if (hasValidAPIKey) {
-                res.render('options', {
-                    verified: true,
-                });
-            }
-            else {
-                res.render('options', {
-                    verified: false,
-                });
-            }
-        }
-        else {
-             res.render('options', {
-                verified: false,
-            });   
-        }
-    }
-});
 
 router.post('/set-api-key', async function(req, res) {
     var apiKey = req.body.apiKey;
@@ -127,6 +94,40 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
+	router.get('/options', async function(req, res) {
+	    // TODO CHECK FOR JWT TOKEN VALIDITY?
+	    if (!req.session.cognitoData) {
+	        res.sendFile(path.join(__dirname + '/views/login.html'));
+	    } else {
+	        const sub = req.session.cognitoData.idToken.payload.sub;
+
+	        binanceAPIKey = await getBinanceAPIKey(sub);
+	        //console.log("--------> binanceAPIKey");
+	        //console.log(binanceAPIKey);
+
+	        if (binanceAPIKey.status == "API_KEY_DEFINED") {
+	            const key = binanceAPIKey.output;
+	            const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
+
+	            if (hasValidAPIKey) {
+	                res.render('options', {
+	                    verified: true,
+	                });
+	            }
+	            else {
+	                res.render('options', {
+	                    verified: false,
+	                });
+	            }
+	        }
+	        else {
+	             res.render('options', {
+	                verified: false,
+	            });   
+	        }
+	    }
+	});
+
 	// TODO perhaps in the future I'll have to use the token received from cognito for something
 	// Check https://www.npmjs.com/package/amazon-cognito-identity-js
 	// Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
@@ -158,6 +159,48 @@ module.exports = function(serverCredentials){
 	    });
 
 	}
+
+    function getBinanceAPIKey(sub) {
+
+        return new Promise((resolve, reject) => {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {partition: {S: 'users'}, id: {S: sub}},
+            }, function(err, data) {
+                if (err) {
+                    resolve({status:"DB_ERROR", output: err});
+                } else {
+                    if(typeof data.Item !== 'undefined') {
+                        resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item).binance_api_key});
+                    }
+                    // If the user doesn't yet have an API key defined, reject
+                    else {
+                        resolve({status:"API_KEY_UNDEFINED", output: "-"});
+                    }
+                }
+            });
+        });
+    }
+
+    async function validateBinanceAPIKey(apiKey, apiSecret) {
+        const binanceValidate = new binanceAPI().options({
+            APIKEY: apiKey,
+            APISECRET: apiSecret,
+            test: true
+        });
+        // Make an API call just to check if the credentials are valid
+        var exchangeResponse = await binanceValidate.futuresOpenOrders();
+
+        //console.log(exchangeResponse);
+
+        if ("code" in exchangeResponse) {
+            // Invalid API key
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
 
     return router;
 }

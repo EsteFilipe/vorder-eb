@@ -112,7 +112,7 @@ if (cluster.isMaster) {
                             id: {S: 'google-service-account-key-1'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-1] - ' + err);
+                        reject('DB_ERROR: getServerCredentials() [google-service-account-key-1] - ' + err);
                     } else {
                         serverCredentials['google-service-account-key-1'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -126,7 +126,7 @@ if (cluster.isMaster) {
                             id: {S: 'google-service-account-key-2'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [google-service-account-key-2] - ' + err);
+                        reject('DB_ERROR: getServerCredentials() [google-service-account-key-2] - ' + err);
                     } else {
                         serverCredentials['google-service-account-key-2'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -140,7 +140,7 @@ if (cluster.isMaster) {
                             id: {S: 'cognito-user-pool'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool] - ' + err);
+                        reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
                     } else {
                         serverCredentials['cognito-user-pool'] = attr.unwrap(data.Item).json;
                         resolve();
@@ -154,7 +154,7 @@ if (cluster.isMaster) {
                             id: {S: 'cookie-session-secret'}},
                 }, function(err, data) {
                     if (err) {
-                        reject('DB_ERROR: getBinanceAPIKey() [cognito-user-pool] - ' + err);
+                        reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
                     } else {
                         serverCredentials['cookie-session-secret'] = attr.unwrap(data.Item).json.value;
                         resolve();
@@ -212,69 +212,6 @@ if (cluster.isMaster) {
         // TODO Move all this stuff into a separate file to hold just the routes, as in
         // https://www.youtube.com/watch?v=hbaebQFzT9M&list=PLaxxQQak6D_d5lL4zJ2D1fFK_U_24KY6E&index=9&ab_channel=WornOffKeys
         /*
-
-        app.post('/auth', function(req, res) {
-            var email = req.body.email;
-            var password = req.body.password;
-
-            if (email && password) {
-                userLogin(email, password).then(function(result) {
-                    req.session.order = -1;
-                    req.session.cognitoData = result;
-                    res.redirect('/home');
-                }, function(err) {
-                    res.send('Incorrect e-mail and/or password.');
-                    console.log(err);
-                })
-            } else {
-                res.send('Please enter e-mail and password.');
-            }
-        });
-
-        app.get('/home', function(req, res) {
-            // TODO CHECK FOR JWT TOKEN VALIDITY
-            if (!req.session.cognitoData) {
-                res.sendFile(path.join(__dirname + '/views/login.html'));
-            } else {
-                res.render('index', {
-                    static_path: 'static',
-                });
-            }
-        });
-
-        app.get('/options', async function(req, res) {
-            // TODO CHECK FOR JWT TOKEN VALIDITY?
-            if (!req.session.cognitoData) {
-                res.sendFile(path.join(__dirname + '/views/login.html'));
-            } else {
-                const sub = req.session.cognitoData.idToken.payload.sub;
-
-                binanceAPIKey = await getBinanceAPIKey(sub);
-                //console.log("--------> binanceAPIKey");
-                //console.log(binanceAPIKey);
-
-                if (binanceAPIKey.status == "API_KEY_DEFINED") {
-                    const key = binanceAPIKey.output;
-                    const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
-
-                    if (hasValidAPIKey) {
-                        res.render('options', {
-                            verified: true,
-                        });
-                    }
-                    else {
-                        res.render('options', {
-                            verified: false,
-                        });
-                    }
-                }
-                else {
-                     res.render('options', {
-                        verified: false,
-                    });   
-                }
-            }
-        });
 
         app.post('/set-api-key', async function(req, res) {
             var apiKey = req.body.apiKey;
@@ -875,47 +812,6 @@ if (cluster.isMaster) {
 
     }
 
-    async function validateBinanceAPIKey(apiKey, apiSecret) {
-        const binanceValidate = new binanceAPI().options({
-            APIKEY: apiKey,
-            APISECRET: apiSecret,
-            test: true
-        });
-        // Make an API call just to check if the credentials are valid
-        var exchangeResponse = await binanceValidate.futuresOpenOrders();
-
-        //console.log(exchangeResponse);
-
-        if ("code" in exchangeResponse) {
-            // Invalid API key
-            return false;
-        }
-        else {
-            return true;
-        }
-    }
-
-    function getBinanceAPIKey(sub) {
-
-        return new Promise((resolve, reject) => {
-            ddb.getItem({
-                'TableName': process.env.CREDENTIALS_TABLE,
-                'Key': {partition: {S: 'users'}, id: {S: sub}},
-            }, function(err, data) {
-                if (err) {
-                    resolve({status:"DB_ERROR", output: err});
-                } else {
-                    if(typeof data.Item !== 'undefined') {
-                        resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item).binance_api_key});
-                    }
-                    // If the user doesn't yet have an API key defined, reject
-                    else {
-                        resolve({status:"API_KEY_UNDEFINED", output: "-"});
-                    }
-                }
-            });
-        });
-    }
 
     async function placeOrder(exchange, orderDetails, testMode, apiKey, apiSecret) {
 
