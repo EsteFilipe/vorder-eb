@@ -6,39 +6,7 @@ var AWS = require('aws-sdk'),
 
 /*
 
-router.post('/set-api-key', async function(req, res) {
-    var apiKey = req.body.apiKey;
-    var apiSecret = req.body.apiSecret;
 
-    if (!req.session.cognitoData) {
-        return;
-    }
-    else {
-        const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
-
-        if (hasValidAPIKey) {
-            const sub = req.session.cognitoData.idToken.payload.sub;
-
-            ddbPut({
-                partition: {S: 'users'},
-                id: {S: sub},
-                binance_api_key:
-                    {M: {
-                        api_key: {S: apiKey},
-                        api_secret: {S: apiSecret}
-                    }
-                }
-            }, process.env.CREDENTIALS_TABLE).then(function(data){
-                res.send('API Key updated.');
-            }, function(err) {
-                res.send("There's been an error updating the API Key");
-            })
-        }
-        else {
-            res.send("Invalid API key.");
-        }
-    }
-});
 
 router.get('/signup', function(req, res) {
     res.sendFile(path.join(__dirname + '/views/signup.html'));
@@ -127,6 +95,40 @@ module.exports = function(serverCredentials){
 	             res.render('options', {
 	                verified: false,
 	            });   
+	        }
+	    }
+	});
+
+	router.post('/set-api-key', async function(req, res) {
+	    var apiKey = req.body.apiKey;
+	    var apiSecret = req.body.apiSecret;
+
+	    if (!req.session.cognitoData) {
+	        return;
+	    }
+	    else {
+	        const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
+
+	        if (hasValidAPIKey) {
+	            const sub = req.session.cognitoData.idToken.payload.sub;
+
+	            ddbPut({
+	                partition: {S: 'users'},
+	                id: {S: sub},
+	                binance_api_key:
+	                    {M: {
+	                        api_key: {S: apiKey},
+	                        api_secret: {S: apiSecret}
+	                    }
+	                }
+	            }, process.env.CREDENTIALS_TABLE).then(function(data){
+	                res.send('API Key updated.');
+	            }, function(err) {
+	                res.send("There's been an error updating the API Key");
+	            })
+	        }
+	        else {
+	            res.send("Invalid API key.");
 	        }
 	    }
 	});
