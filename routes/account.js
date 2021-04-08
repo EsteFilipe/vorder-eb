@@ -1,4 +1,5 @@
-var express = require('express'),
+var AWS = require('aws-sdk'),
+	express = require('express'),
 	amazonCognitoIdentity = require('amazon-cognito-identity-js'),
 	binanceAPI = require('node-binance-api');
 
@@ -70,6 +71,7 @@ router.post('/signup', function(req, res) {
 module.exports = function(serverCredentials){
 
 	const router = express.Router();
+	var ddb = new AWS.DynamoDB();
 
 	const userPool = new amazonCognitoIdentity.CognitoUserPool({
 	    UserPoolId : serverCredentials['cognito-user-pool'].user_pool_id,
