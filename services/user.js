@@ -1,17 +1,20 @@
 var AWS = require('aws-sdk'),
     amazonCognitoIdentity = require('amazon-cognito-identity-js');
-var ddb = new AWS.DynamoDB();
 
-export default class UserService() {
+module.exports = function (cognitoUserPool) {
 
-  constructor(cognitoUserPool){
+  var ddb = new AWS.DynamoDB();
+
+  var UserService = function() {
     this.userPool = new amazonCognitoIdentity.CognitoUserPool({
       UserPoolId : cognitoUserPool.user_pool_id,
       ClientId : cognitoUserPool.client_id // App Client id
     });
   }
 
-  function login(email, password) {
+  UserService.prototype = {
+
+    login: function(email, password) {
 
       var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
           Username : email,
@@ -39,6 +42,8 @@ export default class UserService() {
               }
           });
       });
-
+    }
   }
+
+  return UserService;
 }
