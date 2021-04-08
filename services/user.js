@@ -5,16 +5,14 @@ module.exports = function (cognitoUserPool) {
 
   var ddb = new AWS.DynamoDB();
 
-  var UserService = function() {
+  function UserService() {
     this.userPool = new amazonCognitoIdentity.CognitoUserPool({
       UserPoolId : cognitoUserPool.user_pool_id,
       ClientId : cognitoUserPool.client_id // App Client id
     });
   }
 
-  UserService.prototype = {
-
-    login: function(email, password) {
+  UserService.prototype.login = function(email, password) {
 
       var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
           Username : email,
@@ -43,7 +41,29 @@ module.exports = function (cognitoUserPool) {
           });
       });
     }
-  }
+
+    /*
+
+    // For several Cognito examples, check:
+    //https://medium.com/@prasadjay/amazon-cognito-user-pools-in-nodejs-as-fast-as-possible-22d586c5c8ec
+    registerUser: function(email, password){
+        var attributeList = [];
+        attributeList.push(new amazonCognitoIdentity.CognitoUserAttribute({Name:"email",Value:email}));
+
+        return new Promise((resolve, reject) => {
+            userPool.signUp(email, password, attributeList, null, (err, result) => {
+                if (err) {
+                    //console.log(err.message);
+                    reject(err);
+                    return;
+                }
+                cognitoUser = result.user;
+                resolve(cognitoUser)
+            });
+        });
+    }
+
+    */
 
   return UserService;
 }
