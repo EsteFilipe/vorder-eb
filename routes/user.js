@@ -101,7 +101,7 @@ module.exports = function(serverCredentials){
 	        if (hasValidAPIKeys) {
 	            const sub = req.session.cognitoData.idToken.payload.sub;
 
-	            const setApiKeys = await storageService.setAPIKeys(sub, 'binance', keys);
+	            const setAPIKeys = await storageService.setAPIKeys(sub, 'binance', keys);
 
 	            if (setAPIKeys.status) {
 					res.send('API Key updated.');
