@@ -1,9 +1,6 @@
-const AWS = require('aws-sdk'),
-    amazonCognitoIdentity = require('amazon-cognito-identity-js');
+const amazonCognitoIdentity = require('amazon-cognito-identity-js');
 
 module.exports = function (cognitoUserPool) {
-
-  var ddb = new AWS.DynamoDB();
 
   var UserService = function () {
     this.userPool = new amazonCognitoIdentity.CognitoUserPool({

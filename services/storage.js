@@ -46,38 +46,16 @@ StorageService.prototype.setAPIKeys = async function(sub, exchange, keys) {
 			}
 	}
 
-	console.log(item);
-
 	try {
 		await ddbPut(item, process.env.CREDENTIALS_TABLE);
 		return {status: true, output: ''};
 	}
 	catch (err) {
-		return {status: false, output: ''};
+		return {status: false, output: err};
 	}
 }
 
-function ddbPut(item, tableName) {
-
-    return new Promise(function(resolve, reject) {
-        ddb.putItem({
-            'TableName': tableName,
-            'Item': item,
-        }, function(err, data) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data);
-            }
-        });
-    });
-
-}
-
-
-/*
-
-async function storeAudioData(data){
+StorageService.prototype.storeAudioData = async function (data){
 
     var fileName;
     s3PutResult = await s3Put(data.fileName, data.fileBuffer);
@@ -93,25 +71,38 @@ async function storeAudioData(data){
         fileName = "UPLOAD_ERROR";
     }
 
-    ddbPut({sub: {S: data.sub},
+    const item = {sub: {S: data.sub},
             server_timestamp: {S: Date.now().toString()},
             event_type: {S: data.eventType + '-SAVE_AUDIO'},
             file_name: {S: fileName},
-            client_timestamp: {S: data.clientTimestamp}},
-           process.env.EVENTS_TABLE)
+            client_timestamp: {S: data.clientTimestamp}};
+
+	try {
+	    await ddbPut(item, process.env.EVENTS_TABLE)
+	    return {status: true, output: ''};
+	}
+	catch (err) {
+		return {status: false, output: err};
+	}
 }
 
-function storeProcessingData(data) {
-    // Put processing result into database
-    ddbPut({sub: {S: data.sub},
+StorageService.prototype.storeProcessingData = function (data) {
+    const item = {sub: {S: data.sub},
             server_timestamp: {S: Date.now().toString()},
             event_type: {S: data.eventType + '-PROCESS'},
             status: {S: data.status},
-            output: {S: data.output}},
-            process.env.EVENTS_TABLE);
+            output: {S: data.output}};
+            
+	try {
+	    await ddbPut(item, process.env.EVENTS_TABLE)
+	    return {status: true, output: ''};
+	}
+	catch (err) {
+		return {status: false, output: err};
+	}
 }
 
-function s3Put(fileName, fileContent) {
+StorageService.prototype.s3Put = function (fileName, fileContent) {
 
     // Setting up S3 upload parameters
     const params = {
@@ -133,6 +124,31 @@ function s3Put(fileName, fileContent) {
 
 }
 
-*/
+StorageService.prototype.ddbPut = async function(item, tableName) {
+	try {
+		await ddbPut(item, tableName);
+		return {status: true, output: ''};
+	}
+	catch (err) {
+		return {status: false, output: err};
+	}
+}
+
+function ddbPut(item, tableName) {
+
+    return new Promise(function(resolve, reject) {
+        ddb.putItem({
+            'TableName': tableName,
+            'Item': item,
+        }, function(err, data) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
+
+}
 
 module.exports = new StorageService();

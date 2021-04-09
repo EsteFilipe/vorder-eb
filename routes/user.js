@@ -57,7 +57,7 @@ module.exports = function(serverCredentials){
 	        res.redirect('/');
 	    } else {
 	        const sub = req.session.cognitoData.idToken.payload.sub;
-	        keys = await storageService.getAPIKeys(sub, 'binance');
+	        const keys = await storageService.getAPIKeys(sub, 'binance');
 
 	        if (keys.status == "API_KEY_DEFINED") {
 	            const hasValidAPIKeys = await exchangeService.validateAPIKeys({
