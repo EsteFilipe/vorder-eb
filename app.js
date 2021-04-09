@@ -221,7 +221,7 @@ if (cluster.isMaster) {
             var orderService = require('./services/order')({client: client, serverCredentials: serverCredentials});
 
             // When the user clicks "Start"
-            client.on('start-monitoring', orderService.startMonitoring(data));
+            client.on('start-monitoring', data => orderService.startMonitoring(data));
 
             /*
 
