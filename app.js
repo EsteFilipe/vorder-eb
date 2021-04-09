@@ -38,9 +38,6 @@ if (cluster.isMaster) {
         http = require('http'),
         util = require('util'),
         hash = require('object-hash'),
-        spawn = require('await-spawn'),
-        speech = require('@google-cloud/speech').v1p1beta1,
-        textToSpeech = require('@google-cloud/text-to-speech'),
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
         jwt = require('jsonwebtoken');
@@ -71,10 +68,6 @@ if (cluster.isMaster) {
     const ttsEncoding = 'MP3';
     const sttEncoding = 'LINEAR16';
     const sttSampleRate = 16000;
-
-    // Currencies
-    const coins = {BTC: "Bitcoin", ETH: "Ether"};
-    const fiatSymbol = "USDT";
 
     async function initVariables() {
 
@@ -218,402 +211,55 @@ if (cluster.isMaster) {
             console.log(`[socket.io] Client connected [id=${client.id}]`);
             client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
 
-            var orderService = require('./services/order')({client: client, serverCredentials: serverCredentials});
+            var orderService = require('./services/order')({
+                client: client,
+                credentials: {
+                    googleCloudServiceAccountKeys: [serverCredentials['google-service-account-key-1'],
+                                                    serverCredentials['google-service-account-key-2']]
+                },
+                options: {
+                    tts: {
+                        languageCode: languageCode,
+                        voiceName: ttsVoiceName,
+                        pitch: ttsPitch,
+                        speakingRate: ttsSpeakingRate,
+                        encoding: ttsEncoding
+                    },
+                    stt: {
+                        languageCode: languageCode,
+                        encoding: sttEncoding,
+                        sampleRate: sttSampleRate
+                        speechContexts: {
+                            order: orderSpeechContexts,
+                            confirmation: confirmationSpeechContexts
+                        }
+                    }
+                }
+            });
 
             // When the user clicks "Start"
             client.on('start-monitoring', data => orderService.startMonitoring(data));
 
-            /*
-
             // When the user clicks "Stop"
-            client.on('stop-monitoring', function(data) {
+            client.on('stop-monitoring', data => orderService.stopMonitoring(data));
 
-                ddbPut({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
-                        server_timestamp: {S: Date.now().toString()},
-                        event_type: {S: 'STOP_MONITORING'},
-                        client_timestamp: {S: data.timestamp.toString()}},
-                        process.env.EVENTS_TABLE);
+            // When porcupine detects a wake-word
+            client.on('wake-word-detected', data => orderService.wakeWordDetected(data));
 
-                client.request.session.order = -1;
-            });
-
-            client.on('wake-word-detected', function(data) {
-
-                ddbPut({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
-                        server_timestamp: {S: Date.now().toString()},
-                        event_type: {S: 'WAKE_WORD_DETECTED'},
-                        client_timestamp: {S: data.timestamp.toString()}},
-                        process.env.EVENTS_TABLE);
-
-                client.request.session.order = -1;
-            });
-
-            client.on('microphone-error', function(data) {
-
-                ddbPut({sub: {S: client.request.session.cognitoData.idToken.payload.sub},
-                        server_timestamp: {S: Date.now().toString()},
-                        event_type: {S: 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
-                        client_timestamp: {S: data.timestamp.toString()}},
-                        process.env.EVENTS_TABLE);
-
-                client.request.session.order = -1;
-            });
+            // When the microhpone fails
+            client.on('microphone-error', data => orderService.microphoneError(data));
 
             // Transcribe, process and validate order
-            client.on('process-order', async function(data) {
-                const eventType = 'PROCESS_ORDER';
-                const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
-                // Get the dataURL which was sent from the client
-                const dataURL = data.audio.dataURL.split(',').pop();
-                // Convert it to a Buffer
-                let fileBuffer = Buffer.from(dataURL, 'base64');
-
-                // Send audio to transcribe and wait for the response
-                const orderTranscription = await speechTranscription(fileBuffer, "PROCESS");
-
-                //console.log(orderTranscription);
-
-                var status, output;
-
-                client.request.session.order = -1;
-
-                if (orderTranscription != "TRANSCRIPTION_ERROR") {
-
-                    // Process the order using python script
-                    const orderProcessingResult = await runPython38Script(process.env.ORDER_PROCESSING_SCRIPT_PATH, orderTranscription);
-                    const orderInfo = JSON.parse(orderProcessingResult);
-
-                    status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
-                    output = JSON.stringify({
-                                transcription: orderTranscription,
-                                processing: orderInfo.output});
-
-                    // Send text result of order processing to client
-                    client.emit('order-processing', JSON.stringify({status: status, output: orderInfo.output}));
-
-                    // Get the order description audio data
-                    if (status == "VALID") {
-
-                        // Save order in session variable
-                        client.request.session.order = orderInfo.output;
-                        
-                        const order = orderInfo.output;
-                        const coinName = coins[order.ticker];
-                        
-                        if (order.type == "limit") {
-                            orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
-                        }
-
-                        else if (order.type == "market") {
-                            orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
-                        }
-
-                        try {
-                            const audioArrayBuffer = await textToAudioBuffer(orderText);
-                            client.emit('stream-audio-confirm-order', audioArrayBuffer);
-                        }
-                        catch (err){
-                            console.log(err);
-                        }
-                    }
-                }
-
-                else {
-                    status = "TRANSCRIPTION_ERROR";
-                    output = "There has been a problem transcribing the audio.";
-
-                    client.emit('order-processing', JSON.stringify({status: status, output: output}));
-                }
-
-                storeProcessingData({
-                        sub: client.request.session.cognitoData.idToken.payload.sub,
-                        eventType: eventType,
-                        status: status,
-                        output: output});
-
-                storeAudioData({
-                    sub: client.request.session.cognitoData.idToken.payload.sub,
-                    eventType: eventType,
-                    fileName: fileName,
-                    fileBuffer: fileBuffer,
-                    clientTimestamp: clientTimestamp});
-
-            });
+            client.on('process-order', data => orderService.processOrder(data));
 
             // Transcribe, process and validate order confirmation
             client.on('confirm-order', async function(data) {
-                const orderDetails = client.request.session.order
-                const sub = client.request.session.cognitoData.idToken.payload.sub;
-                const eventType = 'CONFIRM_ORDER';
-                const clientTimestamp = data.timestamp.toString();
-                const fileName = client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
-                // Get the dataURL which was sent from the client
-                const dataURL = data.audio.dataURL.split(',').pop();
-                // Convert it to a Buffer
-                let fileBuffer = Buffer.from(dataURL, 'base64');
-                // Send audio to transcribe and wait for the response
-                const confirmationTranscription = await speechTranscription(fileBuffer, "CONFIRMATION");
 
-                var status, output;
-
-                if (confirmationTranscription != "TRANSCRIPTION_ERROR") {
-
-                    const confirmationProcessing = processOrderConfirmation(confirmationTranscription);
-
-                    if (confirmationProcessing != "PROCESSING_ERROR") {
-                        if (confirmationProcessing == "YES") {
-                            const binanceAPIKey = await getBinanceAPIKey(sub);
-
-                            if (binanceAPIKey.status == "API_KEY_DEFINED") {
-                                const key = binanceAPIKey.output;
-                               // Pass order to the Binance API.
-                                const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key, key.api_secret);
-                                if (exchangeResponse.status) {
-                                     status = "ORDER_PLACED";
-                                     output = "-";
-                                }
-                                else {
-                                     status = "ORDER_REJECTED";
-                                     output = exchangeResponse.output;
-                                }
-                            }
-                            else {
-                                status = "UNEXPECTED_ERROR";
-                                output = "-";
-                            }
-                        }
-                        else if (confirmationProcessing == "NO") {
-                            status = "ORDER_CANCEL";
-                            output = "-";
-                        }
-                        // Order resolved. Clean it up
-                        client.request.session.order = -1;
-                    }
-                    else {
-                        status = "PROCESSING_ERROR";
-                        output = "There has been a problem processing the confirmation. One of the two happened:" +
-                         "1) Both words 'yes' and 'no' were found;" +
-                         "2) None of the words 'yes' or 'no' were found.";
-                    }
-                }
-
-                else {
-                    status = "TRANSCRIPTION_ERROR";
-                    output = "There has been a problem transcribing the audio.";
-                }
-
-                client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
-
-                storeProcessingData({
-                    sub: client.request.session.cognitoData.idToken.payload.sub,
-                    eventType: eventType,
-                    status: status,
-                    output: output});
-
-                storeAudioData({
-                    sub: client.request.session.cognitoData.idToken.payload.sub,
-                    eventType: eventType,
-                    fileName: fileName,
-                    fileBuffer: fileBuffer,
-                    clientTimestamp: clientTimestamp});
 
             });
 
-            */
+
         });
-
-    }
-
-    function processOrderConfirmation(transcription) {
-    	const t = transcription.toLowerCase();
-		// If both "yes" and "no" were said
-	    if (t.includes("yes") && t.includes("no")) {
-	    	return "PROCESSING_ERROR";
-	    }
-	    else {
-	    	// If only one of "yes" and "no" was said, check which one.
-	        if (t.includes("yes")){
-	        	return "YES";
-	        }
-	        else if (t.includes("no")){
-	        	return "NO";
-	        }
-	        // If nothing from "yes", "no", or "cancel" was said, ask again.
-	    	else {
-	        	return "PROCESSING_ERROR";
-	    	}
-	    }
-    }
-
-    async function runPython38Script (scriptPath, arg) {
-    	const pythonProcess = await spawn('python3.8',[scriptPath, arg]);
-        return pythonProcess.toString();
-    }
-
-    /**
-     * Setup Cloud STT Integration
-     */
-    function setupSTT(){
-
-        const creds = serverCredentials['google-service-account-key-1'];
-       //https://github.com/googleapis/gax-nodejs/blob/master/client-libraries.md#creating-the-client-instance
-       // Creates a client
-       speechClient = new speech.SpeechClient({
-            credentials: {client_email: creds.client_email,
-                          private_key: creds.private_key},
-            projectId: creds.project_id
-        });
-
-        // Create the initial request object
-	    // When streaming, this is the first call you will
-	    // make, a request without the audio stream
-	    // which prepares Dialogflow in receiving audio
-	    // with a certain sampleRateHerz, encoding and languageCode
-	    // this needs to be in line with the audio settings
-	    // that are set in the client
-        requestSTT = {
-            config: {
-                sampleRateHertz: sttSampleRate,
-                encoding: sttEncoding,
-                languageCode: languageCode
-            }
-        };
-    }
-
-    /**
-     * Setup Cloud STT Integration
-     */
-    function setupTTS(){
-
-        const creds = serverCredentials['google-service-account-key-2'];
-
-        // Creates a client
-        ttsClient = new textToSpeech.TextToSpeechClient({
-            credentials: {client_email: creds.client_email,
-                          private_key: creds.private_key},
-            projectId: creds.project_id
-        });
-
-      // Construct the request
-        requestTTS = {
-            voice: {
-                languageCode: languageCode,
-                name: ttsVoiceName,
-            },
-        // TODO It's possible to decrease the sampling rate to make the audio file as small as possible
-        // Also possible to increase the speakingRate
-            audioConfig: {
-                audioEncoding: ttsEncoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
-                pitch: ttsPitch,
-                speakingRate: ttsSpeakingRate
-            }
-        };
-    }
-
-     /*
-      * STT - Transcribe Speech
-      * @param audio file buffer
-      */
-    async function speechTranscription(audio, orderStage){
-
-        if (orderStage === "PROCESS") {
-        	requestSTT.config.speechContexts = orderSpeechContexts;
-
-        }
-        else if (orderStage === "CONFIRMATION") {
-        	requestSTT.config.speechContexts = confirmationSpeechContexts;
-        }
-
-		//console.log(JSON.stringify(requestSTT, null, 4));
-
-        requestSTT.audio = {
-            content: audio
-        };
-
-        const responses = await speechClient.recognize(requestSTT);
-
-        var transcription = "TRANSCRIPTION_ERROR";
-
-       	// TODO when `confidence` < threshold, also return N/A
-        if(responses[0] && responses[0].results[0] && responses[0].results[0].alternatives[0]) {
-        	transcription = responses[0].results[0].alternatives[0].transcript;
-        }
-
-        return transcription;
-    }
-
-     /*
-      * TTS text to an audio buffer
-      * @param text - string written text
-      */
-    async function textToAudioBuffer(text) {
-        requestTTS.input = { text: text }; // text or SSML
-        // Performs the Text-to-Speech request
-        const response = await ttsClient.synthesizeSpeech(requestTTS);
-        return response[0].audioContent;
-    }
-
-
-
-
-    async function placeOrder(exchange, orderDetails, testMode, apiKey, apiSecret) {
-
-        const orderSymbol = orderDetails.ticker + fiatSymbol;
-        // Actual response from the exchange API
-        var exchangeResponse;
-        // Processed response to pass to the user
-        var eResponse = {status: true, output: ''};
-
-        //console.log(orderDetails);
-
-        if (exchange == 'binance') {
-            var binance = new binanceAPI().options({
-                APIKEY: apiKey,
-                APISECRET: apiSecret,
-                test: testMode
-            });
-            // Set leverage value
-            // TODO this doesn't affect the leverage with which the order
-            // is placed. Although, when I do refresh on the page, the set leverage
-            // on binance updates.
-            //await binance.futuresLeverage( 'BTCUSDT', 2 );
-            if (testMode) {
-                if (orderDetails.polarity == 'buy') {
-                    if (orderDetails.type == 'market') {
-                        exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
-                    }
-                    else if (orderDetails.type == 'limit') {
-                        exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
-                    }
-                    else if (orderDetails.type == 'range') {
-                        const x = 0;
-                    }
-                }
-                else if (orderDetails.polarity == 'sell') {
-                    if (orderDetails.type == 'market') {
-                        exchangeResponse = await binance.futuresMarketSell(orderSymbol, orderDetails.size);
-                    }
-                    else if (orderDetails.type == 'limit') {
-                        exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
-                    }
-                    else if (orderDetails.type == 'range') {
-                        const x = 0;
-                    }
-                }
-            }
-
-            //console.log(exchangeResponse);
-
-            // Error response objects are of the form {code:<CODE>, msg:<MSG>}
-            // Only in the case of error does the response have the fields `code` and `msg`
-            if ("code" in exchangeResponse) {
-                eResponse = {status: false, output: exchangeResponse.msg}
-            }
-
-        }
-
-        return eResponse
 
     }
 

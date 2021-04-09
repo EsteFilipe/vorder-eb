@@ -3,9 +3,9 @@
 const binanceAPI = require('node-binance-api');
 
 var ExchangeService = function () {
-    this.name = '';
+    this.fiatSymbol = 'USDT';
+    this.coins = {BTC: "Bitcoin", ETH: "Ether"};
 }
-
 
 ExchangeService.prototype.validateAPIKeys = async function(keys, exchange) {
 
@@ -24,6 +24,62 @@ ExchangeService.prototype.validateAPIKeys = async function(keys, exchange) {
         }
 
     }
+}
+
+ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orderDetails) {
+
+    const orderSymbol = orderDetails.ticker + this.fiatSymbol;
+    // Actual response from the exchange API
+    var exchangeResponse;
+    // Processed response to pass to the user
+    var eResponse = {status: true, output: ''};
+
+    //console.log(orderDetails);
+
+    if (exchange == 'binance') {
+        binance = getExchangeInstance(keys, 'binance', true)
+        // Set leverage value
+        // TODO this doesn't affect the leverage with which the order
+        // is placed. Although, when I do refresh on the page, the set leverage
+        // on binance updates.
+        //await binance.futuresLeverage( 'BTCUSDT', 2 );
+        if (testMode) {
+            if (orderDetails.polarity == 'buy') {
+                if (orderDetails.type == 'market') {
+                    exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
+                }
+                else if (orderDetails.type == 'limit') {
+                    exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
+                }
+                else if (orderDetails.type == 'range') {
+                    const x = 0;
+                }
+            }
+            else if (orderDetails.polarity == 'sell') {
+                if (orderDetails.type == 'market') {
+                    exchangeResponse = await binance.futuresMarketSell(orderSymbol, orderDetails.size);
+                }
+                else if (orderDetails.type == 'limit') {
+                    exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
+                }
+                else if (orderDetails.type == 'range') {
+                    const x = 0;
+                }
+            }
+        }
+
+        //console.log(exchangeResponse);
+
+        // Error response objects are of the form {code:<CODE>, msg:<MSG>}
+        // Only in the case of error does the response have the fields `code` and `msg`
+        if ("code" in exchangeResponse) {
+            eResponse = {status: false, output: exchangeResponse.msg}
+        }
+
+    }
+
+    return eResponse
+
 }
 
 function getExchangeInstance(keys, exchange, test) {
