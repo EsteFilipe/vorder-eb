@@ -27,6 +27,7 @@ ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
 }
 
 function getExchangeInstance(apiKey, exchange, test) {
+    console.log(apiKey);
     var exchangeInstance;
     if (exchange == 'binance') {
         exchangeInstance = new binanceAPI().options({
