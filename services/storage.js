@@ -86,7 +86,7 @@ StorageService.prototype.storeAudioData = async function (data){
 	}
 }
 
-StorageService.prototype.storeProcessingData = function (data) {
+StorageService.prototype.storeProcessingData = async function (data) {
     const item = {sub: {S: data.sub},
             server_timestamp: {S: Date.now().toString()},
             event_type: {S: data.eventType + '-PROCESS'},
