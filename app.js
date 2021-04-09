@@ -43,7 +43,8 @@ if (cluster.isMaster) {
         textToSpeech = require('@google-cloud/text-to-speech'),
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
-        jwt = require('jsonwebtoken');
+        jwt = require('jsonwebtoken'),
+        dynamoose = require('dynamoose');
 
     global.fetch = require('node-fetch');
 
@@ -54,6 +55,11 @@ if (cluster.isMaster) {
 
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
+    dynamoose.setDDB(ddb);
+    dynamoose.setDefaults({
+      create: true // Create table in DB if it does not exist
+      prefix: process.env.PROJECT_NAME + '-', // Default prefix for all DynamoDB tables
+    });
 
     // Server variables
     var serverCredentials = {};

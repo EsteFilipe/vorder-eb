@@ -1,11 +1,11 @@
-var attr = require('dynamodb-data-types').AttributeValue,
-	express = require('express'),
-	binanceAPI = require('node-binance-api');
+const express = require('express');
 
 module.exports = function(serverCredentials){
 
 	const router = express.Router();
 	const userService = require('../services/user')(serverCredentials['cognito-user-pool']);
+	const storageService = require('../services/storage');
+	const exchangeService = require('../services/exchange');
 
 	router.post('/auth', function(req, res) {
 	    var email = req.body.email;
@@ -50,22 +50,21 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
-	/*
 
 	router.get('/options', async function(req, res) {
 	    // TODO CHECK FOR JWT TOKEN VALIDITY?
 	    if (!req.session.cognitoData) {
-	        res.sendFile(path.join(__dirname + '/views/login.html'));
+	        res.redirect('/');
 	    } else {
 	        const sub = req.session.cognitoData.idToken.payload.sub;
 
-	        binanceAPIKey = await getBinanceAPIKey(sub);
+	        binanceAPIKey = await storageService.getAPIKey(sub, 'binance');
 	        //console.log("--------> binanceAPIKey");
 	        //console.log(binanceAPIKey);
 
 	        if (binanceAPIKey.status == "API_KEY_DEFINED") {
 	            const key = binanceAPIKey.output;
-	            const hasValidAPIKey = await validateBinanceAPIKey(key.api_key, key.api_secret);
+	            const hasValidAPIKey = await exchangeService.validateAPIKey({apiKey: key.api_key, apiSecret: key.api_secret}, 'binance');
 
 	            if (hasValidAPIKey) {
 	                res.render('options', {
@@ -85,6 +84,8 @@ module.exports = function(serverCredentials){
 	        }
 	    }
 	});
+
+	/*
 
 	router.post('/set-api-key', async function(req, res) {
 	    var apiKey = req.body.apiKey;
@@ -119,48 +120,6 @@ module.exports = function(serverCredentials){
 	        }
 	    }
 	});
-
-    function getBinanceAPIKey(sub) {
-
-        return new Promise((resolve, reject) => {
-            ddb.getItem({
-                'TableName': process.env.CREDENTIALS_TABLE,
-                'Key': {partition: {S: 'users'}, id: {S: sub}},
-            }, function(err, data) {
-                if (err) {
-                    resolve({status:"DB_ERROR", output: err});
-                } else {
-                    if(typeof data.Item !== 'undefined') {
-                        resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item).binance_api_key});
-                    }
-                    // If the user doesn't yet have an API key defined, reject
-                    else {
-                        resolve({status:"API_KEY_UNDEFINED", output: "-"});
-                    }
-                }
-            });
-        });
-    }
-
-    async function validateBinanceAPIKey(apiKey, apiSecret) {
-        const binanceValidate = new binanceAPI().options({
-            APIKEY: apiKey,
-            APISECRET: apiSecret,
-            test: true
-        });
-        // Make an API call just to check if the credentials are valid
-        var exchangeResponse = await binanceValidate.futuresOpenOrders();
-
-        //console.log(exchangeResponse);
-
-        if ("code" in exchangeResponse) {
-            // Invalid API key
-            return false;
-        }
-        else {
-            return true;
-        }
-    }
 
     */
 
