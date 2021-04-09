@@ -2,14 +2,12 @@
 
 const binanceAPI = require('node-binance-api');
 
-
-
 var ExchangeService = function () {
     this.name = '';
 }
 
 
-UserService.prototype.validateAPIKey = async function(apiKey, exchange) {
+ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
 
     if (exchange == 'binance') {
 
