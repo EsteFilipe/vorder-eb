@@ -60,7 +60,7 @@ module.exports = function(serverCredentials){
 
 	        apiKey = await storageService.getAPIKey(sub, 'binance');
 
-	        if (binanceAPIKey.status == "API_KEY_DEFINED") {
+	        if (apiKey.status == "API_KEY_DEFINED") {
 	            const hasValidAPIKey = await exchangeService.validateAPIKey({
 	            	apiKey: apiKey.output.api_key,
 	            	apiSecret: apiKey.output.api_secret
