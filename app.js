@@ -43,8 +43,7 @@ if (cluster.isMaster) {
         textToSpeech = require('@google-cloud/text-to-speech'),
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
-        jwt = require('jsonwebtoken'),
-        dynamoose = require('dynamoose');
+        jwt = require('jsonwebtoken');
 
     global.fetch = require('node-fetch');
 
@@ -55,11 +54,6 @@ if (cluster.isMaster) {
 
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
-    dynamoose.setDDB(ddb);
-    dynamoose.setDefaults({
-      create: true // Create table in DB if it does not exist
-      prefix: process.env.PROJECT_NAME + '-', // Default prefix for all DynamoDB tables
-    });
 
     // Server variables
     var serverCredentials = {};
@@ -213,6 +207,8 @@ if (cluster.isMaster) {
         server.listen(port, () => {
             console.log('Running server on port %s', port);
         });
+
+        /*
 
         io = socketIo(server);
 
@@ -459,75 +455,8 @@ if (cluster.isMaster) {
 
             });
         });
-    }
 
-    // TODO INTEGRATE (THIS IS FROM https://www.npmjs.com/package/amazon-cognito-identity-js - USE CASE 11)
-    function changeUserPassword (email, oldPassword, newPassword) {
-        // TODO TURN INTO PROMISE
-        var userData = {
-            Username : email,
-            Pool : userPool
-        };
-
-        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
-
-        cognitoUser.changePassword(oldPassword, newPassword, function(err, result) {
-            if (err) {
-                alert(err.message || JSON.stringify(err));
-                return;
-            }
-            //console.log('call result: ' + result);
-        });
-    }
-
-    /*
-    // TODO perhaps in the future I'll have to use the token received from cognito for something
-    // Check https://www.npmjs.com/package/amazon-cognito-identity-js
-    // Use case 4. Authenticating a user and establishing a user session with the Amazon Cognito Identity service.
-    function userLogin(email, password) {
-
-        var authenticationDetails = new amazonCognitoIdentity.AuthenticationDetails({
-            Username : email,
-            Password : password,
-        });
-
-        var userData = {
-            Username : email,
-            Pool : userPool
-        };
-
-        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
-
-        return new Promise((resolve, reject) => {
-            cognitoUser.authenticateUser(authenticationDetails, {
-                onSuccess: (result) => {
-                    //console.log('successfully authenticated', result);
-                    resolve(result);
-                },
-                onFailure: (err) => {
-                    //console.log('error authenticating', err);
-                    reject(err);
-                }
-            });
-        });
-
-    }
-    */
-
-    async function userLogout (email) {
-
-        var userData = {
-            Username : email,
-            Pool : userPool
-        };
-
-        var cognitoUser = new amazonCognitoIdentity.CognitoUser(userData);
-
-        await cognitoUser.signOut();
-
-        req.session.order = -1;
-        req.session.cognitoData = null;
-
+        */
     }
 
     function processOrderConfirmation(transcription) {
@@ -659,6 +588,8 @@ if (cluster.isMaster) {
         return response[0].audioContent;
     }
 
+    /*
+
     async function storeAudioData(data){
 
         var fileName;
@@ -731,6 +662,8 @@ if (cluster.isMaster) {
         });
 
     }
+
+    */
 
 
     async function placeOrder(exchange, orderDetails, testMode, apiKey, apiSecret) {
