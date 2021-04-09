@@ -59,13 +59,13 @@ module.exports = function(serverCredentials){
 	        const sub = req.session.cognitoData.idToken.payload.sub;
 
 	        binanceAPIKey = await storageService.getAPIKey(sub, 'binance');
-	        console.log(binanceAPIKey);
-	        //console.log("--------> binanceAPIKey");
-	        //console.log(binanceAPIKey);
 
 	        if (binanceAPIKey.status == "API_KEY_DEFINED") {
-	            const key = binanceAPIKey.output;
-	            const hasValidAPIKey = await exchangeService.validateAPIKey({apiKey: key.api_key, apiSecret: key.api_secret}, 'binance');
+	            const apiKey = {apiKey: binanceAPIKey.output.api_key, apiSecret: binanceAPIKey.output.api_secret};
+	            const hasValidAPIKey = await exchangeService.validateAPIKey(apiKey, 'binance');
+
+	            console.log('---> hasValidAPIKey')
+	            console.log(hasValidAPIKey)
 
 	            if (hasValidAPIKey) {
 	                res.render('options', {
