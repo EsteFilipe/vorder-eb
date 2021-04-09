@@ -3,7 +3,7 @@ const AWS = require('aws-sdk'),
 	  attr = require('dynamodb-data-types').AttributeValue;
 
 const ddb = new AWS.DynamoDB(),
-	  S3 = new AWS.S3(),
+	  S3 = new AWS.S3();
 
 
 var StorageService = function() {
