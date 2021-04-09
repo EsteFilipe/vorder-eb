@@ -1,7 +1,5 @@
 const AWS = require('aws-sdk'),
     amazonCognitoIdentity = require('amazon-cognito-identity-js');
-const dynamoose = require('dynamoose');
-const User = dynamoose.model('User');
 
 module.exports = function (cognitoUserPool) {
 
