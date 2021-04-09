@@ -33,15 +33,15 @@ StorageService.prototype.getAPIKeys = function(sub, exchange) {
     });
 }
 
-StorageService.prototype.setAPIKeys = async function(sub, exchange, apiKey) {
+StorageService.prototype.setAPIKeys = async function(sub, exchange, keys) {
 	const dbAPIkeyField = exchange + '_api_key';
     const item = {  
     	partition: {S: 'users'},
 		id: {S: sub},
 		[dbAPIkeyField]:
 			{M: {
-				api_key: {S: apiKey.apiKey},
-				api_secret: {S: apiKey.apiSecret}
+				api_key: {S: keys.apiKey},
+				api_secret: {S: keys.apiSecret}
 				}
 			}
 	}
