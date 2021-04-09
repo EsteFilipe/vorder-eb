@@ -22,7 +22,7 @@ StorageService.prototype.getAPIKey = function(sub, exchange) {
                 resolve({status:"DB_ERROR", output: err});
             } else {
                 if(typeof data.Item !== 'undefined') {
-                    resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item)});
+                    resolve({status:'API_KEY_DEFINED', output: attr.unwrap(data.Item)[dbAPIkeyField]});
                 }
                 // If the user doesn't yet have an API key defined, reject
                 else {
