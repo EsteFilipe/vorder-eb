@@ -59,6 +59,7 @@ module.exports = function(serverCredentials){
 	        const sub = req.session.cognitoData.idToken.payload.sub;
 
 	        binanceAPIKey = await storageService.getAPIKey(sub, 'binance');
+	        console.log(binanceAPIKey);
 	        //console.log("--------> binanceAPIKey");
 	        //console.log(binanceAPIKey);
 
