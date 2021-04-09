@@ -6,9 +6,8 @@ const ddb = new AWS.DynamoDB(),
 	  S3 = new AWS.S3(),
 
 
-
 var StorageService = function() {
-
+	this.name = '';
 }
 
 StorageService.prototype.getAPIKey = function(sub, exchange) {
@@ -117,4 +116,3 @@ function s3Put(fileName, fileContent) {
 */
 
 module.exports = new StorageService();
-
