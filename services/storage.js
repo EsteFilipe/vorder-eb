@@ -55,7 +55,6 @@ StorageService.prototype.setAPIKeys = async function(sub, exchange, apiKey) {
 	catch (err) {
 		return {status: false, output: ''};
 	}
-	.
 }
 
 function ddbPut(item, tableName) {
