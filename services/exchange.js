@@ -11,7 +11,7 @@ ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
 
     if (exchange == 'binance') {
 
-        binance = getExchangeInstance(apiKey, 'binance')
+        binance = getExchangeInstance(apiKey, 'binance', true)
         // Make an API call just to check if the credentials are valid
         const exchangeResponse = await binance.futuresOpenOrders();
 
@@ -27,7 +27,6 @@ ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
 }
 
 function getExchangeInstance(apiKey, exchange, test) {
-    console.log(apiKey);
     var exchangeInstance;
     if (exchange == 'binance') {
         exchangeInstance = new binanceAPI().options({
