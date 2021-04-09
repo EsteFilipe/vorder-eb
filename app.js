@@ -200,8 +200,6 @@ if (cluster.isMaster) {
         app.use('/', require('./routes/routes'))
         app.use('/', require('./routes/user')(serverCredentials))
 
-        // ROUTES GO HERE
-
         var server = http.createServer(app);
 
         server.listen(port, () => {
