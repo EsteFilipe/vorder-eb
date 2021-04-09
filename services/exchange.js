@@ -7,11 +7,11 @@ var ExchangeService = function () {
 }
 
 
-ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
+ExchangeService.prototype.validateAPIKeys = async function(keys, exchange) {
 
     if (exchange == 'binance') {
 
-        binance = getExchangeInstance(apiKey, 'binance', true)
+        binance = getExchangeInstance(keys, 'binance', true)
         // Make an API call just to check if the credentials are valid
         const exchangeResponse = await binance.futuresOpenOrders();
 
@@ -26,12 +26,12 @@ ExchangeService.prototype.validateAPIKey = async function(apiKey, exchange) {
     }
 }
 
-function getExchangeInstance(apiKey, exchange, test) {
+function getExchangeInstance(keys, exchange, test) {
     var exchangeInstance;
     if (exchange == 'binance') {
         exchangeInstance = new binanceAPI().options({
-            APIKEY: apiKey.apiKey,
-            APISECRET: apiKey.apiSecret,
+            APIKEY: keys.apiKey,
+            APISECRET: keys.apiSecret,
             test: test
         });
     }

@@ -10,7 +10,7 @@ var StorageService = function() {
 	this.name = '';
 }
 
-StorageService.prototype.getAPIKey = function(sub, exchange) {
+StorageService.prototype.getAPIKeys = function(sub, exchange) {
 	const dbAPIkeyField = exchange + '_api_key';
     return new Promise((resolve, reject) => {
         ddb.getItem({
@@ -33,7 +33,45 @@ StorageService.prototype.getAPIKey = function(sub, exchange) {
     });
 }
 
-StorageService.prototype.setAPIKey = async function(sub, exchange, apiKey) {
+StorageService.prototype.setAPIKeys = async function(sub, exchange, apiKey) {
+	const dbAPIkeyField = exchange + '_api_key';
+    const item = {  
+    	partition: {S: 'users'},
+		id: {S: sub},
+		[dbAPIkeyField]:
+			{M: {
+				api_key: {S: apiKey.apiKey},
+				api_secret: {S: apiKey.apiSecret}
+				}
+			}
+	}
+
+	console.log(item);
+
+	try {
+		await ddbPut(item, process.env.CREDENTIALS_TABLE);
+		return {status: true, output: ''};
+	}
+	catch (err) {
+		return {status: false, output: ''};
+	}
+	.
+}
+
+function ddbPut(item, tableName) {
+
+    return new Promise(function(resolve, reject) {
+        ddb.putItem({
+            'TableName': tableName,
+            'Item': item,
+        }, function(err, data) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
 
 }
 
@@ -72,23 +110,6 @@ function storeProcessingData(data) {
             status: {S: data.status},
             output: {S: data.output}},
             process.env.EVENTS_TABLE);
-}
-
-function ddbPut(item, tableName) {
-
-    return new Promise(function(resolve, reject) {
-        ddb.putItem({
-            'TableName': tableName,
-            'Item': item,
-        }, function(err, data) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data);
-            }
-        });
-    });
-
 }
 
 function s3Put(fileName, fileContent) {

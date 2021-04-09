@@ -57,16 +57,15 @@ module.exports = function(serverCredentials){
 	        res.redirect('/');
 	    } else {
 	        const sub = req.session.cognitoData.idToken.payload.sub;
+	        keys = await storageService.getAPIKeys(sub, 'binance');
 
-	        apiKey = await storageService.getAPIKey(sub, 'binance');
-
-	        if (apiKey.status == "API_KEY_DEFINED") {
-	            const hasValidAPIKey = await exchangeService.validateAPIKey({
-	            	apiKey: apiKey.output.api_key,
-	            	apiSecret: apiKey.output.api_secret
+	        if (keys.status == "API_KEY_DEFINED") {
+	            const hasValidAPIKeys = await exchangeService.validateAPIKeys({
+	            	apiKey: keys.output.api_key,
+	            	apiSecret: keys.output.api_secret
 	            }, 'binance');
 
-	            if (hasValidAPIKey) {
+	            if (hasValidAPIKeys) {
 	                res.render('options', {
 	                    verified: true,
 	                });
@@ -85,7 +84,6 @@ module.exports = function(serverCredentials){
 	    }
 	});
 
-	/*
 
 	router.post('/set-api-key', async function(req, res) {
 	    var apiKey = req.body.apiKey;
@@ -95,33 +93,28 @@ module.exports = function(serverCredentials){
 	        return;
 	    }
 	    else {
-	        const hasValidAPIKey = await validateBinanceAPIKey(apiKey, apiSecret);
 
-	        if (hasValidAPIKey) {
+	    	const keys = {apiKey: apiKey, apiSecret: apiSecret};
+	        const hasValidAPIKeys = await exchangeService.validateAPIKeys(
+	        	keys, 'binance');
+
+	        if (hasValidAPIKeys) {
 	            const sub = req.session.cognitoData.idToken.payload.sub;
 
-	            ddbPut({
-	                partition: {S: 'users'},
-	                id: {S: sub},
-	                binance_api_key:
-	                    {M: {
-	                        api_key: {S: apiKey},
-	                        api_secret: {S: apiSecret}
-	                    }
-	                }
-	            }, process.env.CREDENTIALS_TABLE).then(function(data){
-	                res.send('API Key updated.');
-	            }, function(err) {
-	                res.send("There's been an error updating the API Key");
-	            })
+	            setApiKeys = await storageService.setAPIKeys(sub, 'binance', keys);
+
+	            if (setAPIKeys.status) {
+					res.send('API Key updated.');
+	            }
+	            else {
+	            	res.send("There's been an error updating the API Key");
+	            }
 	        }
 	        else {
 	            res.send("Invalid API key.");
 	        }
 	    }
 	});
-
-    */
 
     return router;
 }
