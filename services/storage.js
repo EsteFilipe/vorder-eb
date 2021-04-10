@@ -16,7 +16,7 @@ StorageService.prototype.getSTTContexts = async function() {
 
     const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + process.env.EXPECTED_SENTENCES_FILE_PATH;
 
-    const orderSpeechContexts = await fs.readFile(expectedSentencesFilePath);
+    const orderSpeechContexts = await fs.readFile(expectedSentencesFilePath, "utf8");
 
     const confirmationSpeechContexts = [{
        phrases: ['yes','no'],
