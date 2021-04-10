@@ -70,7 +70,7 @@ if (cluster.isMaster) {
     const sttEncoding = 'LINEAR16';
     const sttSampleRate = 16000;
 
-    async function initVariables() {
+    async function init() {
 
         // Initialize Google Speech-to-Text API variables
         fs.readFile(process.env.EXPECTED_SENTENCES_FILE_PATH, (err, data) => {
@@ -261,10 +261,8 @@ if (cluster.isMaster) {
 
     }
 
-    initVariables().then(
+    init().then(
         (result) => {
-            setupSTT();
-            setupTTS();
             setupServer();
         }
     );
