@@ -26,6 +26,8 @@ StorageService.prototype.getSTTContexts = async function() {
        boost: 20.0
     }];
 
+    console.log(orderSpeechContexts);
+
     return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
 
 }

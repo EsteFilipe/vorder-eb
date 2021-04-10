@@ -178,19 +178,14 @@ if (cluster.isMaster) {
 
             // When the user clicks "Start"
             client.on('start-monitoring', data => orderService.startMonitoring(data));
-
             // When the user clicks "Stop"
             client.on('stop-monitoring', data => orderService.stopMonitoring(data));
-
             // When porcupine detects a wake-word
             client.on('wake-word-detected', data => orderService.wakeWordDetected(data));
-
             // When the microhpone fails
             client.on('microphone-error', data => orderService.microphoneError(data));
-
             // Transcribe, process and validate order
             client.on('process-order', data => orderService.processOrder(data));
-
             // Transcribe, process and validate order confirmation
             client.on('confirm-order', data => orderService.confirmOrder(data));
 
