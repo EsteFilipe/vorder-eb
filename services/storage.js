@@ -1,6 +1,7 @@
 // PUT HERE ALL THE METHODS TO INTERACT WITH DYNAMODB
 const AWS = require('aws-sdk'),
-	  attr = require('dynamodb-data-types').AttributeValue;
+	  attr = require('dynamodb-data-types').AttributeValue,
+      fs = require('fs');
 
 const ddb = new AWS.DynamoDB(),
 	  S3 = new AWS.S3();
@@ -12,8 +13,9 @@ var StorageService = function() {
 
 StorageService.prototype.getSTTContexts = async function() {
 
+    const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' process.env.EXPECTED_SENTENCES_FILE_PATH
     // Initialize Google Speech-to-Text API variables
-    fs.readFile(process.env.EXPECTED_SENTENCES_FILE_PATH, (err, data) => {
+    fs.readFile(expectedSentencesFilePath, (err, data) => {
         if (err) throw err;
         const phrases = JSON.parse(data);
         const orderSpeechContexts = [{

@@ -34,7 +34,6 @@ if (cluster.isMaster) {
         socketIo = require('socket.io'),
         ss = require('socket.io-stream'),
         path = require('path'),
-        fs = require('fs'),
         http = require('http'),
         util = require('util'),
         hash = require('object-hash'),
