@@ -72,8 +72,11 @@ if (cluster.isMaster) {
 
     async function init() {
 
-        const {orderSpeechContexts, confirmationSpeechContexts} = await storageService.getSTTContexts();
+        const speechContexts = await storageService.getSTTContexts();
 
+        orderSpeechContexts = speechContexts.orderSpeechContexts;
+        confirmationSpeechContexts = speechContexts.confirmationSpeechContexts;
+        
         console.log(orderSpeechContexts)
         console.log(confirmationSpeechContexts)
 
