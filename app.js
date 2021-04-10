@@ -81,7 +81,7 @@ if (cluster.isMaster) {
         console.log(confirmationSpeechContexts)
 
         // Initialize credentials
-        var serverCredentials = await storageService.getServerCredentials();+
+        var serverCredentials = await storageService.getServerCredentials();
 
         console.log(serverCredentials)
 
