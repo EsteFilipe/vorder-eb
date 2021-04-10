@@ -14,7 +14,6 @@ if (cluster.isMaster) {
 
     // Listen for terminating workers
     cluster.on('exit', function (worker) {
-
         // Replace the terminated workers
         console.log('Worker ' + worker.id + ' died :(');
         cluster.fork();
@@ -32,20 +31,10 @@ if (cluster.isMaster) {
         bodyParser = require('body-parser'),
         cors = require('cors'),
         socketIo = require('socket.io'),
-        ss = require('socket.io-stream'),
-        path = require('path'),
         http = require('http'),
-        util = require('util'),
-        hash = require('object-hash'),
-        request = require('request'),
-        jwkToPem = require('jwk-to-pem'),
-        jwt = require('jsonwebtoken'),
         storageService = require('./services/storage');
 
     global.fetch = require('node-fetch');
-
-    // TODO not sure this is needed, since we're serving wasm from nginx, not nodejs. Try commenting out
-    //express.static.mime.define({'application/wasm': ['wasm']});
 
     AWS.config.region = process.env.REGION;
 
@@ -54,8 +43,6 @@ if (cluster.isMaster) {
 
     const port = process.env.PORT || 3000;
     const cookieMaxAge = 86400000;
-
-    // TODO PUT THIS INTO CONFIG FILE
 
     // Speech configuration
     const languageCode = 'en-US';
@@ -76,10 +63,8 @@ if (cluster.isMaster) {
         const speechContexts = await storageService.getSTTContexts();
         orderSpeechContexts = speechContexts.orderSpeechContexts;
         confirmationSpeechContexts = speechContexts.confirmationSpeechContexts;
-
         // Get server credentials
         var serverCredentials = await storageService.getServerCredentials();
-
         // Unpack
         serverCredentials = Object.assign(...serverCredentials);
 
