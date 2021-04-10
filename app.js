@@ -72,22 +72,16 @@ if (cluster.isMaster) {
             orderSpeechContexts,
             confirmationSpeechContexts;
 
+        // Get Speech to Text contexts
         const speechContexts = await storageService.getSTTContexts();
-
         orderSpeechContexts = speechContexts.orderSpeechContexts;
         confirmationSpeechContexts = speechContexts.confirmationSpeechContexts;
 
-        console.log(orderSpeechContexts)
-        console.log(confirmationSpeechContexts)
-
-        // Initialize credentials
+        // Get server credentials
         var serverCredentials = await storageService.getServerCredentials();
-
-        console.log(serverCredentials)
 
         // Unpack
         serverCredentials = Object.assign(...serverCredentials);
-        console.log(serverCredentials)
 
         return {
             serverCredentials: serverCredentials,
