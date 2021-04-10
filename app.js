@@ -54,11 +54,12 @@ if (cluster.isMaster) {
 
     // Server variables
     var serverCredentials = {};
-    var speechClient, requestSTT, ttsClient, requestTTS;
     var orderSpeechContexts, confirmationSpeechContexts;
 
     const port = process.env.PORT || 3000;
     const cookieMaxAge = 86400000;
+
+    // TODO PUT THIS INTO CONFIG FILE
 
     // Speech configuration
     const languageCode = 'en-US';
@@ -92,6 +93,7 @@ if (cluster.isMaster) {
         return true;
     }
 
+    // TODO PUT THIS IN services/storage.js
     //  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
     // As it is, it only has encryption in rest, which is default in DynamoDB.
     function getServerCredentials() {
@@ -220,10 +222,10 @@ if (cluster.isMaster) {
                 options: {
                     tts: {
                         languageCode: languageCode,
+                        encoding: ttsEncoding,
                         voiceName: ttsVoiceName,
                         pitch: ttsPitch,
-                        speakingRate: ttsSpeakingRate,
-                        encoding: ttsEncoding
+                        speakingRate: ttsSpeakingRate
                     },
                     stt: {
                         languageCode: languageCode,
@@ -253,11 +255,7 @@ if (cluster.isMaster) {
             client.on('process-order', data => orderService.processOrder(data));
 
             // Transcribe, process and validate order confirmation
-            client.on('confirm-order', async function(data) {
-
-
-            });
-
+            client.on('confirm-order', data => orderService.confirmOrder(data));
 
         });
 

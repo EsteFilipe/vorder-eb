@@ -12,9 +12,9 @@ module.exports = function (credentials, options) {
         });
 		this.sttRequest = {
             config: {
-                sampleRateHertz: options.sttSampleRate,
-                encoding: options.sttEncoding,
-                languageCode: options.languageCode
+                sampleRateHertz: options.stt.sampleRate,
+                encoding: options.stt.encoding,
+                languageCode: options.stt.languageCode
             }
         };
 
@@ -26,20 +26,20 @@ module.exports = function (credentials, options) {
 
         this.sttRequest = {
             voice: {
-                languageCode: options.languageCode,
-                name: options.ttsVoiceName,
+                languageCode: options.tts.languageCode,
+                name: options.tts.voiceName,
             },
         // TODO It's possible to decrease the sampling rate to make the audio file as small as possible
         // Also possible to increase the speakingRate
             audioConfig: {
-                audioEncoding: options.ttsEncoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
-                pitch: options.ttsPitch,
-                speakingRate: options.ttsSpeakingRate
+                audioEncoding: options.tts.encoding, //'LINEAR16|MP3|AUDIO_ENCODING_UNSPECIFIED/OGG_OPUS'
+                pitch: options.tts.pitch,
+                speakingRate: options.tts.speakingRate
             }
         };
 
-        this.orderSpeechContexts = options.orderSpeechContexts;
-        this.confirmationSpeechContexts = options.confirmationSpeechContexts;
+        this.orderSpeechContexts = options.stt.speechContexts.order;
+        this.confirmationSpeechContexts = options.stt.speechContexts.confirmation;
 	}
 
 

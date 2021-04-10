@@ -160,7 +160,7 @@ module.exports = function (client, credentials, options) {
 	}
 
 	OrderService.prototype.confirmOrder = async function(data) {
-        const orderDetails = this.client.request.session.order
+        const orderDetails = this.client.request.session.order;
         const sub = this.client.request.session.cognitoData.idToken.payload.sub;
         const eventType = 'CONFIRM_ORDER';
         const clientTimestamp = data.timestamp.toString();
@@ -180,12 +180,11 @@ module.exports = function (client, credentials, options) {
 
             if (confirmationProcessing != "PROCESSING_ERROR") {
                 if (confirmationProcessing == "YES") {
-                    const binanceAPIKey = await getBinanceAPIKey(sub);
+                	const keys = await storageService.getAPIKeys(sub, 'binance');
 
-                    if (binanceAPIKey.status == "API_KEY_DEFINED") {
-                        const key = binanceAPIKey.output;
+                    if (keys.status == "API_KEY_DEFINED") {
                        // Pass order to the Binance API.
-                        const exchangeResponse = await placeOrder("binance", orderDetails, true, key.api_key, key.api_secret);
+                        const exchangeResponse = await exchangeService.placeOrder(keys, "binance", true, orderDetails);
                         if (exchangeResponse.status) {
                              status = "ORDER_PLACED";
                              output = "-";
@@ -205,7 +204,7 @@ module.exports = function (client, credentials, options) {
                     output = "-";
                 }
                 // Order resolved. Clean it up
-                client.request.session.order = -1;
+                this.client.request.session.order = -1;
             }
             else {
                 status = "PROCESSING_ERROR";
@@ -220,16 +219,16 @@ module.exports = function (client, credentials, options) {
             output = "There has been a problem transcribing the audio.";
         }
 
-        client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
+        this.client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
         storeProcessingData({
-            sub: client.request.session.cognitoData.idToken.payload.sub,
+            sub: this.client.request.session.cognitoData.idToken.payload.sub,
             eventType: eventType,
             status: status,
             output: output});
 
         storeAudioData({
-            sub: client.request.session.cognitoData.idToken.payload.sub,
+            sub: this.client.request.session.cognitoData.idToken.payload.sub,
             eventType: eventType,
             fileName: fileName,
             fileBuffer: fileBuffer,
