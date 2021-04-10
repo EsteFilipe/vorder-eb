@@ -8,7 +8,7 @@ module.exports = function (client, credentials, options) {
 	var speechService = require('./speech')(credentials.googleCloudServiceAccountKeys, options);
 
 	var OrderService = function() {
-		this.client = dependencies.client;
+		this.client = client;
 	}
 
 	OrderService.prototype.startMonitoring = async function(data) {
