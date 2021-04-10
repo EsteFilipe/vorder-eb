@@ -81,4 +81,6 @@ module.exports = function (credentials, options) {
         return transcription;
     }
 
+    return new SpeechService();
+
 }
