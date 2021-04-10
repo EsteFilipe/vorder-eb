@@ -10,6 +10,86 @@ var StorageService = function() {
 	this.name = '';
 }
 
+StorageService.prototype.getSTTContexts = async function() {
+
+    // Initialize Google Speech-to-Text API variables
+    fs.readFile(process.env.EXPECTED_SENTENCES_FILE_PATH, (err, data) => {
+        if (err) throw err;
+        const phrases = JSON.parse(data);
+        const orderSpeechContexts = [{
+            phrases: phrases,
+            boost: 20.0
+        }];
+        const confirmationSpeechContexts = [{
+           phrases: ['yes','no'],
+           boost: 20.0
+        }];
+
+        return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
+    });
+
+}
+
+//  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
+// As it is, it only has encryption in rest, which is default in DynamoDB.
+StorageService.prototype.getServerCredentials = function() {
+    // Only resolved when all the data has been fetched
+    return Promise.all([
+        new Promise((resolve, reject) => {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {partition: {S: 'server'},
+                        id: {S: 'google-service-account-key-1'}},
+            }, function(err, data) {
+                if (err) {
+                    reject('DB_ERROR: getServerCredentials() [google-service-account-key-1] - ' + err);
+                } else {
+                    resolve({'google-service-account-key-1': attr.unwrap(data.Item).json});
+                }
+            });
+        }),
+        new Promise((resolve, reject) => {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {partition: {S: 'server'},
+                        id: {S: 'google-service-account-key-2'}},
+            }, function(err, data) {
+                if (err) {
+                    reject('DB_ERROR: getServerCredentials() [google-service-account-key-2] - ' + err);
+                } else {
+                    resolve({'google-service-account-key-2': attr.unwrap(data.Item).json});
+                }
+            });
+        }),
+        new Promise((resolve, reject) => {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {partition: {S: 'server'},
+                        id: {S: 'cognito-user-pool'}},
+            }, function(err, data) {
+                if (err) {
+                    reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
+                } else {
+                    resolve({'cognito-user-pool': attr.unwrap(data.Item).json});
+                }
+            });
+        }),
+        new Promise((resolve, reject) => {
+            ddb.getItem({
+                'TableName': process.env.CREDENTIALS_TABLE,
+                'Key': {partition: {S: 'server'},
+                        id: {S: 'cookie-session-secret'}},
+            }, function(err, data) {
+                if (err) {
+                    reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
+                } else {
+                    resolve({'cookie-session-secret': attr.unwrap(data.Item).json.value});
+                }
+            });
+        })
+    ]);
+}
+
 StorageService.prototype.getAPIKeys = function(sub, exchange) {
 	const dbAPIkeyField = exchange + '_api_key';
     return new Promise((resolve, reject) => {

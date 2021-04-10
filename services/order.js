@@ -226,13 +226,13 @@ module.exports = function (client, credentials, options) {
 
         this.client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
-        storeProcessingData({
+        storageService.storeProcessingData({
             sub: this.client.request.session.cognitoData.idToken.payload.sub,
             eventType: eventType,
             status: status,
             output: output});
 
-        storeAudioData({
+        storageService.storeAudioData({
             sub: this.client.request.session.cognitoData.idToken.payload.sub,
             eventType: eventType,
             fileName: fileName,

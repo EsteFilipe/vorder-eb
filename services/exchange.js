@@ -33,8 +33,6 @@ ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orde
     // Processed response to pass to the user
     var eResponse = {status: true, output: ''};
 
-    console.log(keys);
-
     //console.log(orderDetails);
 
     if (exchange == 'binance') {

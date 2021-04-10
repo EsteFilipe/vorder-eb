@@ -40,7 +40,8 @@ if (cluster.isMaster) {
         hash = require('object-hash'),
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
-        jwt = require('jsonwebtoken');
+        jwt = require('jsonwebtoken'),
+        storageServie = require('./services/storage');
 
     global.fetch = require('node-fetch');
 
@@ -53,7 +54,7 @@ if (cluster.isMaster) {
     var S3 = new AWS.S3();
 
     // Server variables
-    var serverCredentials = {};
+    var serverCredentials;
     var orderSpeechContexts, confirmationSpeechContexts;
 
     const port = process.env.PORT || 3000;
@@ -72,90 +73,21 @@ if (cluster.isMaster) {
 
     async function init() {
 
-        // Initialize Google Speech-to-Text API variables
-        fs.readFile(process.env.EXPECTED_SENTENCES_FILE_PATH, (err, data) => {
-            if (err) throw err;
-                let phrases = JSON.parse(data);
-                orderSpeechContexts = [{
-                        phrases: phrases,
-                        boost: 20.0
-                }];
-        });
+        const {orderSpeechContexts, confirmationSpeechContexts} = await storageService.getSTTContexts();
 
-        confirmationSpeechContexts = [{
-                                       phrases: ['yes','no'],
-                                       boost: 20.0
-                                      }];
+        console.log(orderSpeechContexts)
+        console.log(confirmationSpeechContexts)
 
         // Initialize credentials
-        await getServerCredentials();
+        const serverCredentials = await storageService.getServerCredentials();+
+
+        console.log(serverCredentials)
+
+        // Unpack
+        const serverCredentials = Object.assign(...serverCredentials);
+        console.log(serverCredentials)
 
         return true;
-    }
-
-    // TODO PUT THIS IN services/storage.js
-    //  TODO do encryption in transit using https://github.com/aws/aws-dynamodb-encryption-python/tree/master/examples/src
-    // As it is, it only has encryption in rest, which is default in DynamoDB.
-    function getServerCredentials() {
-        // Only resolved when all the data has been fetched
-        return Promise.all([
-            new Promise((resolve, reject) => {
-                ddb.getItem({
-                    'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {partition: {S: 'server'},
-                            id: {S: 'google-service-account-key-1'}},
-                }, function(err, data) {
-                    if (err) {
-                        reject('DB_ERROR: getServerCredentials() [google-service-account-key-1] - ' + err);
-                    } else {
-                        serverCredentials['google-service-account-key-1'] = attr.unwrap(data.Item).json;
-                        resolve();
-                    }
-                });
-            }),
-            new Promise((resolve, reject) => {
-                ddb.getItem({
-                    'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {partition: {S: 'server'},
-                            id: {S: 'google-service-account-key-2'}},
-                }, function(err, data) {
-                    if (err) {
-                        reject('DB_ERROR: getServerCredentials() [google-service-account-key-2] - ' + err);
-                    } else {
-                        serverCredentials['google-service-account-key-2'] = attr.unwrap(data.Item).json;
-                        resolve();
-                    }
-                });
-            }),
-            new Promise((resolve, reject) => {
-                ddb.getItem({
-                    'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {partition: {S: 'server'},
-                            id: {S: 'cognito-user-pool'}},
-                }, function(err, data) {
-                    if (err) {
-                        reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
-                    } else {
-                        serverCredentials['cognito-user-pool'] = attr.unwrap(data.Item).json;
-                        resolve();
-                    }
-                });
-            }),
-            new Promise((resolve, reject) => {
-                ddb.getItem({
-                    'TableName': process.env.CREDENTIALS_TABLE,
-                    'Key': {partition: {S: 'server'},
-                            id: {S: 'cookie-session-secret'}},
-                }, function(err, data) {
-                    if (err) {
-                        reject('DB_ERROR: getServerCredentials() [cognito-user-pool] - ' + err);
-                    } else {
-                        serverCredentials['cookie-session-secret'] = attr.unwrap(data.Item).json.value;
-                        resolve();
-                    }
-                });
-            })
-        ]);
     }
 
     function setupServer() {
