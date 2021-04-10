@@ -1,4 +1,5 @@
 const spawn = require('await-spawn'),
+	  path = require('path'),
 	  storageService = require('./storage'),
 	  exchangeService = require('./exchange');
 
@@ -100,7 +101,7 @@ module.exports = function (client, credentials, options) {
         if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
             // Process the order using python script
-            const orderProcessingResult = await runPython38Script('../scripts/order_processing.py', orderTranscription);
+            const orderProcessingResult = await runPython38Script('order_processing.py', orderTranscription);
             const orderInfo = JSON.parse(orderProcessingResult);
 
             status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
@@ -257,8 +258,10 @@ module.exports = function (client, credentials, options) {
 	    }
     }
 
-    async function runPython38Script (scriptPath, arg) {
-    	const pythonProcess = await spawn('python3.8',[scriptPath, arg]);
+    async function runPython38Script (scriptName, arg) {
+    	const scriptsDir = path.resolve(process.cwd(), '..') + 'scripts/';
+    	console.log(scriptsDir);
+    	const pythonProcess = await spawn('python3.8',[scriptName, arg], {cwd: scriptsDir});
         return pythonProcess.toString();
     }
 
