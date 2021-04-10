@@ -10,6 +10,7 @@ module.exports = function (client, credentials, options) {
 
 	var OrderService = function() {
 		this.client = client;
+		this.coins = {BTC: "Bitcoin", ETH: "Ether"};
 	}
 
 	OrderService.prototype.startMonitoring = async function(data) {
@@ -119,7 +120,7 @@ module.exports = function (client, credentials, options) {
                 this.client.request.session.order = orderInfo.output;
                 
                 const order = orderInfo.output;
-                const coinName = coins[order.ticker];
+                const coinName = this.coins[order.ticker];
                 
                 if (order.type == "limit") {
                     orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
@@ -260,7 +261,6 @@ module.exports = function (client, credentials, options) {
 
     async function runPython38Script (scriptName, arg) {
     	const scriptsDir = path.resolve(process.cwd()) + '/scripts/';
-    	console.log(scriptsDir);
     	const pythonProcess = await spawn('python3.8',[scriptName, arg], {cwd: scriptsDir});
         return pythonProcess.toString();
     }
