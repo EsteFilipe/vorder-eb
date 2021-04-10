@@ -24,7 +24,7 @@ module.exports = function (credentials, options) {
             projectId: credentials[1].project_id
         });
 
-        this.sttRequest = {
+        this.ttsRequest = {
             voice: {
                 languageCode: options.tts.languageCode,
                 name: options.tts.voiceName,
@@ -45,7 +45,7 @@ module.exports = function (credentials, options) {
 
     SpeechService.prototype.textToSpeech = async function (text) {
     	// Cloning object
-    	const request = Object.assign({}, this.requestTTS)
+    	const request = Object.assign({}, this.ttsRequest)
         request.input = { text: text }; // text or SSML
         // Performs the Text-to-Speech request
         const response = await this.ttsClient.synthesizeSpeech(request);
@@ -54,7 +54,7 @@ module.exports = function (credentials, options) {
 
     SpeechService.prototype.speechToText = async function (audio, orderStage) {
     	   // Cloning object
-    	const request = Object.assign({}, this.requestSTT)
+    	const request = Object.assign({}, this.sttRequest)
         if (orderStage === "PROCESS") {
         	request.config.speechContexts = this.orderSpeechContexts;
 
@@ -69,7 +69,7 @@ module.exports = function (credentials, options) {
             content: audio
         };
 
-        const responses = await this.speechClient.recognize(request);
+        const responses = await this.sttClient.recognize(request);
 
         var transcription = "TRANSCRIPTION_ERROR";
 
