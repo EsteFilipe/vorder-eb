@@ -1,7 +1,8 @@
 // PUT HERE ALL THE METHODS TO INTERACT WITH DYNAMODB
 const AWS = require('aws-sdk'),
 	  attr = require('dynamodb-data-types').AttributeValue,
-      fs = require('fs');
+      fs = require('fs'),
+      path = require('path');
 
 const ddb = new AWS.DynamoDB(),
 	  S3 = new AWS.S3();
