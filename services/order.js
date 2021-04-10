@@ -259,7 +259,7 @@ module.exports = function (client, credentials, options) {
     }
 
     async function runPython38Script (scriptName, arg) {
-    	const scriptsDir = path.resolve(process.cwd(), '..') + 'scripts/';
+    	const scriptsDir = path.resolve(process.cwd()) + '/scripts/';
     	console.log(scriptsDir);
     	const pythonProcess = await spawn('python3.8',[scriptName, arg], {cwd: scriptsDir});
         return pythonProcess.toString();
