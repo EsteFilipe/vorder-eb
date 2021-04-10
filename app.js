@@ -213,13 +213,13 @@ if (cluster.isMaster) {
             console.log(`[socket.io] Client connected [id=${client.id}]`);
             client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
 
-            var orderService = require('./services/order')({
-                client: client,
-                credentials: {
+            var orderService = require('./services/order')(
+                client,
+                {
                     googleCloudServiceAccountKeys: [serverCredentials['google-service-account-key-1'],
                                                     serverCredentials['google-service-account-key-2']]
                 },
-                options: {
+                {
                     tts: {
                         languageCode: languageCode,
                         encoding: ttsEncoding,
@@ -237,7 +237,7 @@ if (cluster.isMaster) {
                         }
                     }
                 }
-            });
+            );
 
             // When the user clicks "Start"
             client.on('start-monitoring', data => orderService.startMonitoring(data));
