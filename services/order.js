@@ -186,7 +186,10 @@ module.exports = function (client, credentials, options) {
 
                     if (keys.status == "API_KEY_DEFINED") {
                        // Pass order to the Binance API.
-                        const exchangeResponse = await exchangeService.placeOrder(keys, "binance", true, orderDetails);
+                        const exchangeResponse = await exchangeService.placeOrder({
+	            			apiKey: keys.output.api_key,
+	            			apiSecret: keys.output.api_secret
+	            		}, "binance", true, orderDetails);
                         if (exchangeResponse.status) {
                              status = "ORDER_PLACED";
                              output = "-";
