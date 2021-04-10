@@ -26,8 +26,6 @@ StorageService.prototype.getSTTContexts = async function() {
        boost: 20.0
     }];
 
-    console.log(orderSpeechContexts);
-
     return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
 
 }
@@ -140,7 +138,7 @@ StorageService.prototype.setAPIKeys = async function(sub, exchange, keys) {
 StorageService.prototype.storeAudioData = async function (data){
 
     var fileName;
-    s3PutResult = await s3Put(data.fileName, data.fileBuffer);
+    s3PutResult = await this.s3Put(data.fileName, data.fileBuffer);
 
     //console.log('------> storeAudioData')
     //console.log(s3PutResult);
