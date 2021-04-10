@@ -18,7 +18,7 @@ StorageService.prototype.getSTTContexts = async function() {
     const orderExpectedSentences = await fs.readFile(expectedSentencesFilePath, "utf8");
 
     const orderSpeechContexts = [{
-       phrases: orderExpectedSentences,
+       phrases: JSON.parse(orderExpectedSentences),
        boost: 20.0
     }];
     const confirmationSpeechContexts = [{
