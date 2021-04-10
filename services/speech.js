@@ -40,6 +40,7 @@ module.exports = function (credentials, options) {
 
         this.orderSpeechContexts = options.stt.speechContexts.order;
         this.confirmationSpeechContexts = options.stt.speechContexts.confirmation;
+
 	}
 
 
@@ -63,7 +64,8 @@ module.exports = function (credentials, options) {
         	request.config.speechContexts = this.confirmationSpeechContexts;
         }
 
-		//console.log(JSON.stringify(requestSTT, null, 4));
+        console.log(request.config.speechContexts);
+
 
         request.audio = {
             content: audio
