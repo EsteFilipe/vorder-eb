@@ -1,14 +1,12 @@
 // PUT HERE ALL THE METHODS TO INTERACT WITH DYNAMODB
 const AWS = require('aws-sdk'),
 	  attr = require('dynamodb-data-types').AttributeValue,
-      fs = require('fs'),
+      fs = require('fs').promises,
       path = require('path'),
       util = require('util');
 
 const ddb = new AWS.DynamoDB(),
 	  S3 = new AWS.S3();
-
-const readFile = util.promisify(fs.readFile);
 
 var StorageService = function() {
 	this.name = '';
@@ -18,7 +16,7 @@ StorageService.prototype.getSTTContexts = async function() {
 
     const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + process.env.EXPECTED_SENTENCES_FILE_PATH;
 
-    const orderSpeechContexts = await readFile(expectedSentencesFilePath); 
+    const orderSpeechContexts = await fs.readFile(expectedSentencesFilePath);
 
     const confirmationSpeechContexts = [{
        phrases: ['yes','no'],

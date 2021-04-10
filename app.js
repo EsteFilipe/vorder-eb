@@ -76,12 +76,12 @@ if (cluster.isMaster) {
 
         orderSpeechContexts = speechContexts.orderSpeechContexts;
         confirmationSpeechContexts = speechContexts.confirmationSpeechContexts;
-        
+
         console.log(orderSpeechContexts)
         console.log(confirmationSpeechContexts)
 
         // Initialize credentials
-        const serverCredentials = await storageService.getServerCredentials();+
+        var serverCredentials = await storageService.getServerCredentials();+
 
         console.log(serverCredentials)
 
