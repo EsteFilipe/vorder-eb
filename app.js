@@ -41,7 +41,7 @@ if (cluster.isMaster) {
         request = require('request'),
         jwkToPem = require('jwk-to-pem'),
         jwt = require('jsonwebtoken'),
-        storageServie = require('./services/storage');
+        storageService = require('./services/storage');
 
     global.fetch = require('node-fetch');
 
