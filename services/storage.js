@@ -2,11 +2,13 @@
 const AWS = require('aws-sdk'),
 	  attr = require('dynamodb-data-types').AttributeValue,
       fs = require('fs'),
-      path = require('path');
+      path = require('path'),
+      util = require('util');
 
 const ddb = new AWS.DynamoDB(),
 	  S3 = new AWS.S3();
 
+const readFile = util.promisify(fs.readFile);
 
 var StorageService = function() {
 	this.name = '';
@@ -15,21 +17,15 @@ var StorageService = function() {
 StorageService.prototype.getSTTContexts = async function() {
 
     const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + process.env.EXPECTED_SENTENCES_FILE_PATH;
-    // Initialize Google Speech-to-Text API variables
-    fs.readFile(expectedSentencesFilePath, (err, data) => {
-        if (err) throw err;
-        const phrases = JSON.parse(data);
-        const orderSpeechContexts = [{
-            phrases: phrases,
-            boost: 20.0
-        }];
-        const confirmationSpeechContexts = [{
-           phrases: ['yes','no'],
-           boost: 20.0
-        }];
 
-        return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
-    });
+    const orderSpeechContexts = await readFile(expectedSentencesFilePath); 
+
+    const confirmationSpeechContexts = [{
+       phrases: ['yes','no'],
+       boost: 20.0
+    }];
+
+    return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
 
 }
 
