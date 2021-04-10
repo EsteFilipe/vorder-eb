@@ -14,7 +14,7 @@ var StorageService = function() {
 
 StorageService.prototype.getSTTContexts = async function() {
 
-    const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' process.env.EXPECTED_SENTENCES_FILE_PATH;
+    const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + process.env.EXPECTED_SENTENCES_FILE_PATH;
     // Initialize Google Speech-to-Text API variables
     fs.readFile(expectedSentencesFilePath, (err, data) => {
         if (err) throw err;
