@@ -84,7 +84,7 @@ if (cluster.isMaster) {
         console.log(serverCredentials)
 
         // Unpack
-        const serverCredentials = Object.assign(...serverCredentials);
+        serverCredentials = Object.assign(...serverCredentials);
         console.log(serverCredentials)
 
         return true;
