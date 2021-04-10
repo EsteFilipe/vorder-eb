@@ -79,7 +79,7 @@ module.exports = function (client, credentials, options) {
         this.client.request.session.order = -1;
 	}
 
-	OrderService.prototype.processOrder = function(data) {
+	OrderService.prototype.processOrder = async function(data) {
 		const eventType = 'PROCESS_ORDER';
         const clientTimestamp = data.timestamp.toString();
         const fileName = this.client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
