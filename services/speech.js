@@ -64,9 +64,6 @@ module.exports = function (credentials, options) {
         	request.config.speechContexts = this.confirmationSpeechContexts;
         }
 
-        console.log(request.config.speechContexts);
-
-
         request.audio = {
             content: audio
         };

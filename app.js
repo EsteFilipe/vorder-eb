@@ -45,7 +45,7 @@ if (cluster.isMaster) {
     global.fetch = require('node-fetch');
 
     // TODO not sure this is needed, since we're serving wasm from nginx, not nodejs. Try commenting out
-    express.static.mime.define({'application/wasm': ['wasm']});
+    //express.static.mime.define({'application/wasm': ['wasm']});
 
     AWS.config.region = process.env.REGION;
 
@@ -96,13 +96,10 @@ if (cluster.isMaster) {
     function setupServer(conf) {
 
         var serverCredentials = conf.serverCredentials;
-
         var app = express();
-
         app.use(cors());
         app.set('view engine', 'ejs');
         app.set('views', __dirname + '/views');
-
         app.use(bodyParser.urlencoded({extended : true}));
         app.use(bodyParser.json());
 
@@ -127,8 +124,6 @@ if (cluster.isMaster) {
         });
 
         app.use(sess);
-
-
         app.use('/', require('./routes/routes'))
         app.use('/', require('./routes/user')(serverCredentials))
 
@@ -139,13 +134,11 @@ if (cluster.isMaster) {
         });
 
         io = socketIo(server);
-
         // Share session variables with socket.io
         io.use(function(socket, next) {
             sess(socket.request, socket.request.res || {}, next);
         });
-
-        // Listener, once the client connect to the server socket
+        // Listener, once the client connects to the server socket
         io.on('connect', (client) => {
             console.log(`[socket.io] Client connected [id=${client.id}]`);
             client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
