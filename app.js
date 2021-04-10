@@ -52,10 +52,6 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-    // Server variables
-    var serverCredentials;
-    var orderSpeechContexts, confirmationSpeechContexts;
-
     const port = process.env.PORT || 3000;
     const cookieMaxAge = 86400000;
 
@@ -71,6 +67,10 @@ if (cluster.isMaster) {
     const sttSampleRate = 16000;
 
     async function init() {
+
+        var serverCredentials, 
+            orderSpeechContexts,
+            confirmationSpeechContexts;
 
         const speechContexts = await storageService.getSTTContexts();
 
@@ -89,10 +89,19 @@ if (cluster.isMaster) {
         serverCredentials = Object.assign(...serverCredentials);
         console.log(serverCredentials)
 
-        return true;
+        return {
+            serverCredentials: serverCredentials,
+            stt: {
+                orderSpeechContexts: orderSpeechContexts,
+                confirmationSpeechContexts: confirmationSpeechContexts
+            }
+
+        };
     }
 
-    function setupServer() {
+    function setupServer(conf) {
+
+        var serverCredentials = conf.serverCredentials;
 
         var app = express();
 
@@ -166,8 +175,8 @@ if (cluster.isMaster) {
                         encoding: sttEncoding,
                         sampleRate: sttSampleRate,
                         speechContexts: {
-                            order: orderSpeechContexts,
-                            confirmation: confirmationSpeechContexts
+                            order: conf.stt.orderSpeechContexts,
+                            confirmation: conf.stt.confirmationSpeechContexts
                         }
                     }
                 }
@@ -195,6 +204,6 @@ if (cluster.isMaster) {
 
     }
 
-    init().then( result => { setupServer() });
+    init().then( conf => { setupServer(conf) });
 
 }
