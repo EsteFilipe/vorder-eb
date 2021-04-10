@@ -4,7 +4,6 @@ const binanceAPI = require('node-binance-api');
 
 var ExchangeService = function () {
     this.fiatSymbol = 'USDT';
-    this.coins = {BTC: "Bitcoin", ETH: "Ether"};
 }
 
 ExchangeService.prototype.validateAPIKeys = async function(keys, exchange) {
@@ -43,7 +42,7 @@ ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orde
         // is placed. Although, when I do refresh on the page, the set leverage
         // on binance updates.
         //await binance.futuresLeverage( 'BTCUSDT', 2 );
-        if (testMode) {
+        if (test) {
             if (orderDetails.polarity == 'buy') {
                 if (orderDetails.type == 'market') {
                     exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
