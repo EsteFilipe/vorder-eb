@@ -230,7 +230,7 @@ if (cluster.isMaster) {
                     stt: {
                         languageCode: languageCode,
                         encoding: sttEncoding,
-                        sampleRate: sttSampleRate
+                        sampleRate: sttSampleRate,
                         speechContexts: {
                             order: orderSpeechContexts,
                             confirmation: confirmationSpeechContexts
