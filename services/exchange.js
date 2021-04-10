@@ -33,46 +33,52 @@ ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orde
     // Processed response to pass to the user
     var eResponse = {status: true, output: ''};
 
+    console.log(keys);
+
     //console.log(orderDetails);
 
     if (exchange == 'binance') {
-        binance = getExchangeInstance(keys, 'binance', true)
+        binance = getExchangeInstance(keys, 'binance', test)
         // Set leverage value
         // TODO this doesn't affect the leverage with which the order
         // is placed. Although, when I do refresh on the page, the set leverage
         // on binance updates.
         //await binance.futuresLeverage( 'BTCUSDT', 2 );
-        if (test) {
-            if (orderDetails.polarity == 'buy') {
-                if (orderDetails.type == 'market') {
-                    exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
+        try {
+            if (test) {
+                if (orderDetails.polarity == 'buy') {
+                    if (orderDetails.type == 'market') {
+                        exchangeResponse = await binance.futuresMarketBuy(orderSymbol, orderDetails.size);
+                    }
+                    else if (orderDetails.type == 'limit') {
+                        exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
+                    }
+                    else if (orderDetails.type == 'range') {
+                        // TODO
+                        exchangeResponse = 0;
+                    }
                 }
-                else if (orderDetails.type == 'limit') {
-                    exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
-                }
-                else if (orderDetails.type == 'range') {
-                    const x = 0;
+                else if (orderDetails.polarity == 'sell') {
+                    if (orderDetails.type == 'market') {
+                        exchangeResponse = await binance.futuresMarketSell(orderSymbol, orderDetails.size);
+                    }
+                    else if (orderDetails.type == 'limit') {
+                        exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
+                    }
+                    else if (orderDetails.type == 'range') {
+                        // TODO
+                        exchangeResponse = 0;
+                    }
                 }
             }
-            else if (orderDetails.polarity == 'sell') {
-                if (orderDetails.type == 'market') {
-                    exchangeResponse = await binance.futuresMarketSell(orderSymbol, orderDetails.size);
-                }
-                else if (orderDetails.type == 'limit') {
-                    exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
-                }
-                else if (orderDetails.type == 'range') {
-                    const x = 0;
-                }
+            // Error response objects are of the form {code:<CODE>, msg:<MSG>}
+            // Only in the case of error does the response have the fields `code` and `msg`
+            if ("code" in exchangeResponse) {
+                eResponse = {status: false, output: exchangeResponse.msg}
             }
         }
-
-        //console.log(exchangeResponse);
-
-        // Error response objects are of the form {code:<CODE>, msg:<MSG>}
-        // Only in the case of error does the response have the fields `code` and `msg`
-        if ("code" in exchangeResponse) {
-            eResponse = {status: false, output: exchangeResponse.msg}
+        catch (err) {
+            eResponse = {status: false, output: err}
         }
 
     }
