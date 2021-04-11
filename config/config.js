@@ -7,7 +7,8 @@ var config = {
 		languageCode: 'en-US',
 		stt: {
 			encoding: 'LINEAR16',
-			sampleRate: 16000
+			sampleRate: 16000,
+			contexts: {}
 		},
 		tts: {
 			encoding: 'MP3',
