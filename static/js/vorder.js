@@ -1377,8 +1377,8 @@ Vorder.prototype = {
 var vorder = new Vorder({audioSourceDeviceId: 'default',
                          porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
-                         orderProcessing: {waitStartRecordingSeconds: 0.2, maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 1.0},
-                         orderConfirmation: {waitStartRecordingSeconds: 0.2, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
+                         orderProcessing: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 1.0},
+                         orderConfirmation: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
                          samplingRate: 16000
                         });
 
