@@ -44,6 +44,16 @@ if (cluster.isMaster) {
 
     async function init() {
 
+        // -------------------- TODO REMOVE
+        speechService = require('./services/speech')(           
+            [
+                config.server.credentials['google-service-account-key-1'],
+                config.server.credentials['google-service-account-key-2']
+            ],
+            config.speech
+        )
+        // -------------------- TODO REMOVE
+
         // Get Speech to Text contexts
         const speechContexts = await storageService.getSTTContexts(config.speech.stt.contextFilePaths)
         config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
