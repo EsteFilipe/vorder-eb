@@ -48,9 +48,22 @@ module.exports = function (credentials, config) {
 	}
 
     SpeechService.prototype.createCustomClass = async function () {
-        const request = Object.assign({}, this.sttRequest)
-        request.adaptation = new speechToText.ICustomClass("ordertype", "ORDERTYPE", [{"value": "buy"},{"value": "sell"}])
+        const adaptationClient = new speechToText.AdaptationClient({
+            credentials: {client_email: credentials[0].client_email,
+                          private_key: credentials[0].private_key},
+            projectId: credentials[0].project_id
+        });
 
+
+        const request = {
+            parent: 'v1p1beta1/projects/vorder/locations/en_us/customClasses',
+            customClassId: 'order-type',
+            customClass: [{'value': 'buy'},{'value': 'sell'}]
+        }
+        
+        const response = await adaptationClient.createCustomClass(request)
+
+        console.log(response)
     }
 
 
