@@ -2,12 +2,12 @@ const config = {
 	server: {
 		port: process.env.PORT || 3000,
 		cookieMaxAge: 86400000
-	}
+	},
 	speech: {
 		languageCode: 'en-US',
 		stt: {
 			encoding: 'LINEAR16',
-			sttSampleRate: 16000
+			sampleRate: 16000
 		},
 		tts: {
 			encoding: 'MP3',
