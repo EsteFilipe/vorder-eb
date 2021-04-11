@@ -60,15 +60,13 @@ module.exports = function (credentials, config) {
             customClass: {"items": [{"value": "ionity"}, {"value": "fionity"}]}
         }
 
-        const [response] = await adaptationClient.createCustomClass(request)
+        //const [response] = await adaptationClient.createCustomClass(request)
 
-        console.log(response)
+        //console.log(response)
 
-        /*
         const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
 
         console.log(customClass)
-        */
     }
 
 
