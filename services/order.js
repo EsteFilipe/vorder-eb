@@ -4,9 +4,9 @@ const spawn = require('await-spawn'),
 	  exchangeService = require('./exchange');
 
 
-module.exports = function (client, credentials, options) {
+module.exports = function (client, speechCredentials, speechOptions) {
 
-	var speechService = require('./speech')(credentials.googleCloudServiceAccountKeys, options);
+	var speechService = require('./speech')(speechCredentials, speechOptions);
 
 	var OrderService = function() {
 		this.client = client;

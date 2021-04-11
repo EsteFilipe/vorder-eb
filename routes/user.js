@@ -2,10 +2,10 @@ const express = require('express');
 const storageService = require('../services/storage');
 const exchangeService = require('../services/exchange');
 
-module.exports = function(serverCredentials){
+module.exports = function(cognitoUserPool){
 
 	const router = express.Router();
-	const userService = require('../services/user')(serverCredentials['cognito-user-pool']);
+	const userService = require('../services/user')(cognitoUserPool);
 
 	router.post('/auth', function(req, res) {
 	    var email = req.body.email;

@@ -32,7 +32,8 @@ if (cluster.isMaster) {
         cors = require('cors'),
         socketIo = require('socket.io'),
         http = require('http'),
-        storageService = require('./services/storage');
+        storageService = require('./services/storage'),
+        config = require('./config/config')
 
     global.fetch = require('node-fetch');
 
@@ -41,46 +42,23 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-    const port = process.env.PORT || 3000;
-    const cookieMaxAge = 86400000;
-
-    // Speech configuration
-    const languageCode = 'en-US';
-    const ttsVoiceName = 'en-US-Wavenet-G';
-    const ttsPitch = 3.2;
-    const ttsSpeakingRate = 1;
-    const ttsEncoding = 'MP3';
-    const sttEncoding = 'LINEAR16';
-    const sttSampleRate = 16000;
-
     async function init() {
 
-        var serverCredentials, 
-            orderSpeechContexts,
-            confirmationSpeechContexts;
-
         // Get Speech to Text contexts
-        const speechContexts = await storageService.getSTTContexts();
-        orderSpeechContexts = speechContexts.orderSpeechContexts;
-        confirmationSpeechContexts = speechContexts.confirmationSpeechContexts;
+        const speechContexts = await storageService.getSTTContexts()
+        config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
+        config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
+
         // Get server credentials
-        var serverCredentials = await storageService.getServerCredentials();
+        const serverCredentials = await storageService.getServerCredentials()
         // Unpack
-        serverCredentials = Object.assign(...serverCredentials);
+        config.server.credentials = Object.assign(...serverCredentials)
 
-        return {
-            serverCredentials: serverCredentials,
-            stt: {
-                orderSpeechContexts: orderSpeechContexts,
-                confirmationSpeechContexts: confirmationSpeechContexts
-            }
-
-        };
+        return true
     }
 
-    function setupServer(conf) {
+    function setupServer() {
 
-        var serverCredentials = conf.serverCredentials;
         var app = express();
         app.use(cors());
         app.set('view engine', 'ejs');
@@ -99,7 +77,7 @@ if (cluster.isMaster) {
                 hashKey: 'id',
                 client: ddb
             }),
-            secret: serverCredentials['cookie-session-secret'],
+            secret: config.server.credentials['cookie-session-secret'],
             resave: false,
             saveUninitialized: false,
             cookie: {
@@ -110,7 +88,7 @@ if (cluster.isMaster) {
 
         app.use(sess);
         app.use('/', require('./routes/routes'))
-        app.use('/', require('./routes/user')(serverCredentials))
+        app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']))
 
         var server = http.createServer(app);
 
@@ -129,29 +107,12 @@ if (cluster.isMaster) {
             client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
 
             var orderService = require('./services/order')(
-                client,
-                {
-                    googleCloudServiceAccountKeys: [serverCredentials['google-service-account-key-1'],
-                                                    serverCredentials['google-service-account-key-2']]
-                },
-                {
-                    tts: {
-                        languageCode: languageCode,
-                        encoding: ttsEncoding,
-                        voiceName: ttsVoiceName,
-                        pitch: ttsPitch,
-                        speakingRate: ttsSpeakingRate
-                    },
-                    stt: {
-                        languageCode: languageCode,
-                        encoding: sttEncoding,
-                        sampleRate: sttSampleRate,
-                        speechContexts: {
-                            order: conf.stt.orderSpeechContexts,
-                            confirmation: conf.stt.confirmationSpeechContexts
-                        }
-                    }
-                }
+                client, 
+                [
+                 config.server.credentials['google-service-account-key-1'],
+                 config.server.credentials['google-service-account-key-2']
+                ],
+                config.speech
             );
 
             // When the user clicks "Start"
@@ -171,6 +132,6 @@ if (cluster.isMaster) {
 
     }
 
-    init().then( conf => { setupServer(conf) });
+    init().then( setupServer() );
 
 }
