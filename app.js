@@ -44,6 +44,11 @@ if (cluster.isMaster) {
 
     async function init() {
 
+        // Get server credentials
+        const serverCredentials = await storageService.getServerCredentials()
+        // Unpack
+        config.server.credentials = Object.assign(...serverCredentials)
+
         // -------------------- TODO REMOVE
         speechService = require('./services/speech')(           
             [
@@ -58,11 +63,6 @@ if (cluster.isMaster) {
         const speechContexts = await storageService.getSTTContexts(config.speech.stt.contextFilePaths)
         config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
         config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
-
-        // Get server credentials
-        const serverCredentials = await storageService.getServerCredentials()
-        // Unpack
-        config.server.credentials = Object.assign(...serverCredentials)
 
         return true
     }
