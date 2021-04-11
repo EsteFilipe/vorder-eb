@@ -134,6 +134,6 @@ if (cluster.isMaster) {
 
     }
 
-    init().then( setupServer() );
+    init().then( result => { setupServer() });
 
 }
