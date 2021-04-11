@@ -94,8 +94,8 @@ if (cluster.isMaster) {
 
         var server = http.createServer(app);
 
-        server.listen(port, () => {
-            console.log('Running server on port %s', port);
+        server.listen(config.server.port, () => {
+            console.log('Running server on port %s', config.server.port);
         });
 
         io = socketIo(server);
