@@ -12,8 +12,6 @@ BUY_SELL_WORDS = ["buy", "sell"]
 
 TYPE_WORDS = ["limit", "market"]
 
-WORDS_REPLACE = {"buy": ["by"]}
-
 
 def represents_int(s):
     try:
@@ -298,17 +296,12 @@ def remove_unwanted_chars(text):
 
     return txt
 
-def word_replacement(words)
-    # TODO
-    pass
 
 def parse_order(order):
 
     order = remove_unwanted_chars(order)
 
     words = order.lower().split()
-
-    #words = word_replacement(words)
 
     #print("Tokenized words: {}".format(words))
 
