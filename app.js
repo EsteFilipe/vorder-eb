@@ -45,7 +45,7 @@ if (cluster.isMaster) {
     async function init() {
 
         // Get Speech to Text contexts
-        const speechContexts = await storageService.getSTTContexts()
+        const speechContexts = await storageService.getSTTContexts(config.speech.stt.contextFilePaths)
         config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
         config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
 

@@ -12,9 +12,9 @@ var StorageService = function() {
 	this.name = '';
 }
 
-StorageService.prototype.getSTTContexts = async function() {
+StorageService.prototype.getSTTContexts = async function(contextFilePaths) {
 
-    const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + process.env.EXPECTED_SENTENCES_FILE_PATH;
+    const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + contextFilePaths.order;
     const orderExpectedSentences = await fs.readFile(expectedSentencesFilePath, "utf8");
 
     const orderSpeechContexts = [{
