@@ -1,4 +1,4 @@
-const config = {
+var config = {
 	server: {
 		port: process.env.PORT || 3000,
 		cookieMaxAge: 86400000
