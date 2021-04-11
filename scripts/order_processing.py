@@ -308,7 +308,7 @@ def parse_order(order):
 
     words = order.lower().split()
 
-    words = word_replacement(words)
+    #words = word_replacement(words)
 
     #print("Tokenized words: {}".format(words))
 
