@@ -56,14 +56,17 @@ module.exports = function (credentials, config) {
 
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/en_us/customClasses',
-            customClassId: 'order-type',
-            customClass: [{'value': 'buy'},{'value': 'sell'}]
+            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
+            customClassId: 'order-type'
         }
-        
+
         const response = await adaptationClient.createCustomClass(request)
 
         console.log(response)
+
+        const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
+
+        console.log(customClass)
     }
 
 
