@@ -54,6 +54,8 @@ if (cluster.isMaster) {
         // Unpack
         config.server.credentials = Object.assign(...serverCredentials)
 
+        console.log(config)
+
         return true
     }
 
