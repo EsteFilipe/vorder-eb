@@ -48,12 +48,8 @@ module.exports = function (credentials, config) {
 	}
 
     SpeechService.prototype.createCustomClass = async function () {
-
-        const customClass = new speechToText.CustomClass('order_type', null, [{"value": "buy"}, {"value": "sell"}]);
-
-        //await adaptationClient.close();
-
-        console.log(customClass.toJSON())
+        const request = Object.assign({}, this.sttRequest)
+        request.adaptation = new speechToText.ICustomClass("ordertype", "ORDERTYPE", [{"value": "buy"},{"value": "sell"}])
 
     }
 
