@@ -7,12 +7,6 @@ module.exports = function (credentials, config) {
     // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
 	var SpeechService = function() {
 
-        this.adaptationClient = new speechToText.AdaptationClient({
-            credentials: {client_email: credentials[0].client_email,
-                          private_key: credentials[0].private_key},
-            projectId: credentials[0].project_id
-        });
-
 		this.sttClient = new speechToText.SpeechClient({
             credentials: {client_email: credentials[0].client_email,
                           private_key: credentials[0].private_key},
@@ -52,6 +46,20 @@ module.exports = function (credentials, config) {
         this.confirmationSpeechContexts = config.stt.contexts.confirmation;
 
 	}
+
+    SpeechService.prototype.createCustomClass = async function () {
+        const adaptationClient = new speechToText.AdaptationClient({
+            credentials: {client_email: credentials[0].client_email,
+                          private_key: credentials[0].private_key},
+            projectId: credentials[0].project_id
+        });
+
+        console.log("open")
+
+        await adaptationClient.close();
+
+        console.log('closed')
+    }
 
 
     SpeechService.prototype.textToSpeech = async function (text) {

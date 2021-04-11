@@ -57,6 +57,8 @@ if (cluster.isMaster) {
             ],
             config.speech
         )
+
+        speechService.createCustomClass();
         // -------------------- TODO REMOVE
 
         // Get Speech to Text contexts
