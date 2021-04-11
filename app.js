@@ -83,7 +83,7 @@ if (cluster.isMaster) {
             resave: false,
             saveUninitialized: false,
             cookie: {
-                maxAge: cookieMaxAge,
+                maxAge: config.server.cookieMaxAge,
                 secure: true
             }
         });
