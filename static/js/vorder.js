@@ -4,6 +4,8 @@ elms.forEach(function(elm) {
   window[elm] = document.getElementById(elm);
 });
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * Vorder class containing the state of our orderflow and where we are in it.
  * Includes all the methods necessary to manage the order flow
@@ -1045,23 +1047,27 @@ Vorder.prototype = {
   listenOrder: function() {
     var self = this;
     self.state.stage = "process-order-record";
-    self.captureMicrophone(self.options.orderProcessing.maxRecordingSeconds, 
-                           self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
+    self.captureMicrophone(
+      self.options.orderProcessing.waitStartRecordingSeconds,
+      self.options.orderProcessing.maxRecordingSeconds, 
+      self.options.orderProcessing.maxSilenceSecondsAfterSpeech);
   },
 
   listenConfirmation: function() {
     var self = this;
     self.state.stage = "confirm-order-record";
-    self.captureMicrophone(self.options.orderConfirmation.maxRecordingSeconds,
-                           self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
+    self.captureMicrophone(
+      self.options.orderConfirmation.waitStartRecordingSeconds,
+      self.options.orderConfirmation.maxRecordingSeconds,
+      self.options.orderConfirmation.maxSilenceSecondsAfterSpeech);
   },
 
-  captureMicrophone: function(maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
+  captureMicrophone: function(waitStartRecordingSeconds, maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
     var self = this;
     // When the microphone is ready to capture, the callback is called.
     // Use the chosen deviceId to record
     navigator.mediaDevices.getUserMedia({ audio: { deviceId: self.options.audioSourceDeviceId } }).then(function(microphone) {
-        self.microphoneRecordCallback(microphone, maxRecordingSeconds, maxSilenceSecondsAfterSpeech);
+        self.microphoneRecordCallback(microphone, waitStartRecordingSeconds, maxRecordingSeconds, maxSilenceSecondsAfterSpeech);
         }).catch(function(error) {
         alert('Unable to access your microphone.');
         console.error(error);
@@ -1069,7 +1075,7 @@ Vorder.prototype = {
     });
   },
 
-  microphoneRecordCallback: function(microphone, maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
+  microphoneRecordCallback: async function(microphone, waitStartRecordingSeconds, maxRecordingSeconds, maxSilenceSecondsAfterSpeech) {
     var self = this;
     var globalTimeout, silenceTimeout;
     var secondsToStopGlobal, milisecondsToStopSilence;
@@ -1084,6 +1090,9 @@ Vorder.prototype = {
     Object.keys(self.sounds).forEach(function(key) {
       self.sounds[key].stop(); // stop all playing sounds, if any
     });
+
+    // Without this, the final portion of `sfx_user_speak` is still recorded
+    await delay(waitStartRecordingSeconds * 1000);
 
     self.recorder = RecordRTC(microphone, {
         type: 'audio',
@@ -1368,8 +1377,8 @@ Vorder.prototype = {
 var vorder = new Vorder({audioSourceDeviceId: 'default',
                          porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
-                         orderProcessing: {maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 1.0},
-                         orderConfirmation: {maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
+                         orderProcessing: {waitStartRecordingSeconds: 0.2, maxRecordingSeconds: 10, maxSilenceSecondsAfterSpeech: 1.0},
+                         orderConfirmation: {waitStartRecordingSeconds: 0.2, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
                          samplingRate: 16000
                         });
 
