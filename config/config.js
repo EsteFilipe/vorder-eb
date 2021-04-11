@@ -11,7 +11,7 @@ var config = {
 			contextFilePaths: {
 				order: 'config/speech-expected-sentences.json',
 				confirmation: ''
-			}
+			},
 			contexts: {}
 		},
 		tts: {
