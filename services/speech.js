@@ -5,7 +5,7 @@ const speechToText = require('@google-cloud/speech').v1p1beta1,
 module.exports = function (credentials, config) {
 
     // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
-	var SpeechService = async function() {
+	var SpeechService = function() {
 
         this.adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[0].client_email,
@@ -13,15 +13,6 @@ module.exports = function (credentials, config) {
             projectId: credentials[0].project_id
         });
 
-        console.log("opened")
-
-        await this.adaptationClient.close();
-
-        console.log("closed")
-
-
-        //  ------- UNCOMMENT 
-        /*
 		this.sttClient = new speechToText.SpeechClient({
             credentials: {client_email: credentials[0].client_email,
                           private_key: credentials[0].private_key},
@@ -59,7 +50,6 @@ module.exports = function (credentials, config) {
 
         this.orderSpeechContexts = config.stt.contexts.order;
         this.confirmationSpeechContexts = config.stt.contexts.confirmation;
-        */
 
 	}
 
