@@ -60,7 +60,11 @@ module.exports = function (credentials, config) {
         const request = {
             parent: 'projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
-            customClass: {"items": [{value: "buy"}, {value: "sell"}]}
+            customClass: {
+                customClassId:'order-polarity',
+                name: 'order-polarity',
+                items: [{value: "buy"}, {value: "sell"}]
+            }
         }
 
         /*
@@ -76,8 +80,8 @@ module.exports = function (credentials, config) {
         //console.log(response)
 
         //Error: 7 PERMISSION_DENIED: Permission is denied.
-        const customClass = await adaptationClient.getCustomClass(
-            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        //const customClass = await adaptationClient.getCustomClass(
+        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
     }
