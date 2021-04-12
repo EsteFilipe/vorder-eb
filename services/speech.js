@@ -52,33 +52,36 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createCustomClass = async function () {
 
         const adaptationClient = new speechToText.AdaptationClient({
-            credentials: {client_email: credentials[0].client_email,
-                          private_key: credentials[0].private_key}
+            credentials: {client_email: credentials[1].client_email,
+                          private_key: credentials[1].private_key}
         });
 
+        /*
         const request = {
             parent: 'projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {
+
                 items: [{value: "buy"}, {value: "sell"}]
             }
         }
+        const [response] = await adaptationClient.createCustomClass(request)
+        */
 
-        /*
+    
         const request = {
             parent: 'v1p1beta1/projects/vorder/locations/global/phraseSets',
             phraseSetId: 'test-phrase-set-1',
             phraseSet: {"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}
         }
-        */
 
-        //const [response] = await adaptationClient.createCustomClass(request)
+        const [response] = await adaptationClient.createPhraseSet(request)
 
         //console.log(response)
 
         //Error: 7 PERMISSION_DENIED: Permission is denied.
-        const customClass = await adaptationClient.getCustomClass(
-            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        //const customClass = await adaptationClient.getCustomClass(
+        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
     }
