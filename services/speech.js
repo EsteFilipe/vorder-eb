@@ -70,7 +70,7 @@ module.exports = function (credentials, config) {
         */
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/global/phraseSets',
+            parent: 'projects/vorder/locations/global/phraseSets',
             phraseSetId: 'test-phrase-set-2',
             phraseSet: {"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}
         }
