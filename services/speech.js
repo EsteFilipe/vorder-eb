@@ -57,7 +57,7 @@ module.exports = function (credentials, config) {
         const request = {
             parent: 'projects/vorder/locations/global/customClasses/order-polarity',
             customClassId: 'order-polarity',
-            customClass: {"items": [{value: "buy"}, {value: "sell"}]}
+            customClass: {"items": []}
         }
 
         const [response] = await adaptationClient.createCustomClass(request)
