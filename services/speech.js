@@ -52,8 +52,8 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createCustomClass = async function () {
 
         const adaptationClient = new speechToText.AdaptationClient({
-            credentials: {client_email: credentials[1].client_email,
-                          private_key: credentials[1].private_key}
+            credentials: {client_email: credentials[0].client_email,
+                          private_key: credentials[0].private_key}
         });
 
         const request = {
