@@ -58,14 +58,14 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'projects/1030681041480/locations/global/customClasses',
+            parent: 'projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {
+
                 items: [{value: "buy"}, {value: "sell"}]
             }
         }
-        
-        const [response] = await adaptationClient.createCustomClass(request)
+        //const [response] = await adaptationClient.createCustomClass(request)
 
 
         /*
@@ -81,8 +81,10 @@ module.exports = function (credentials, config) {
         //console.log(response)
 
         //Works, but gives `Error: 5 NOT_FOUND: Resource projects/1030681041480/locations/global/customClasses/order-polarity not found` 
-        //const customClass = await adaptationClient.getCustomClass(
-        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        const phraseSet = await adaptationClient.getPhraseSet(
+            {name: 'projects/vorder/locations/global/phraseSets/test-phrase-set-1'});
+
+        console.log(phraseSet)
 
         //console.log(customClass)
 
