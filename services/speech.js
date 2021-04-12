@@ -52,9 +52,8 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createCustomClass = async function () {
 
         const adaptationClient = new speechToText.AdaptationClient({
-            credentials: {client_email: credentials[0].client_email,
-                          private_key: credentials[0].private_key},
-            projectId: credentials[0].project_id
+            credentials: {client_email: credentials[1].client_email,
+                          private_key: credentials[1].private_key}
         });
 
         const request = {
@@ -70,13 +69,13 @@ module.exports = function (credentials, config) {
         }
         */
 
-        const [response] = await adaptationClient.createCustomClass(request)
+        //const [response] = await adaptationClient.createCustomClass(request)
 
         //console.log(response)
 
         //Error: 7 PERMISSION_DENIED: Permission is denied.
-        //const customClass = await adaptationClient.getCustomClass(
-        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        const customClass = await adaptationClient.getCustomClass(
+            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
     }
