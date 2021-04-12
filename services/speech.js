@@ -47,8 +47,13 @@ module.exports = function (credentials, config) {
 
 	}
 
+
+
     SpeechService.prototype.createCustomClass = async function () {
-        const adaptationClient = new speechToText.AdaptationClient({
+
+        const adaptation = require('@google-cloud/speech').v1p1beta1.AdaptationClient
+
+        const adaptationClient = new adaptation.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
                           private_key: credentials[1].private_key},
             projectId: credentials[1].project_id
