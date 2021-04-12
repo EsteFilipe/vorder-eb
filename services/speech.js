@@ -51,9 +51,7 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createCustomClass = async function () {
 
-        const adaptation = require('@google-cloud/speech').v1p1beta1.AdaptationClient
-
-        const adaptationClient = new adaptation.AdaptationClient({
+        const adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
                           private_key: credentials[1].private_key},
             projectId: credentials[1].project_id
@@ -64,6 +62,11 @@ module.exports = function (credentials, config) {
             customClassId: 'order-polarity',
             customClass: {"items": [{value: "buy"}, {value: "sell"}]}
         }
+
+        console.log(credentials[1].client_email)
+        console.log(credentials[1].private_key)
+        console.log(credentials[1].project_id)
+        console.log(request)
 
         const [response] = await adaptationClient.createCustomClass(request)
 
