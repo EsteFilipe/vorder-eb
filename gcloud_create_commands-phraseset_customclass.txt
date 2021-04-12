@@ -1,0 +1,48 @@
+// Commands for creating and editing Phrase Sets and Custom Classes through Google Cloud Shell
+// I was unable to create anything using the AdaptationClient on node.js (Error: 13 INTERNAL: Internal error encountered.), but could get stuff
+// so I just chose to define my custom classes manually through this method while I don't have a response on how to do it with the nodejs client
+// I'll use the custom classes I create on the request for SpeechClient.recognize()
+
+// These commands are adapted from this https://cloud.google.com/speech-to-text/docs/adaptation-model#improve_transcription_results_using_a_customclass
+
+// Note the account used to impersonate the service account has to have role `Service Account Token Creator`, otherwise it doesn't work. Not even having solely Owner role works
+
+// Opened issue here: https://github.com/googleapis/nodejs-speech/issues/718
+// Stackoverflow question here: https://stackoverflow.com/questions/67058806/google-speech-adaptation-client-node-js-unhandledpromiserejectionwarning-er
+
+// NOTE: THE PYTHON MODULE FOR THIS IS APPARENTLY WORKING, SO I COULD USE IT IF NEEDED:
+//https://github.com/googleapis/python-speech/blob/master/samples/snippets/speech_model_adaptation_beta.py
+
+
+// ------------------------------------------
+
+// Create Phrase Set
+
+curl -X POST -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/phraseSets" -d '{"phraseSetId": "test-phrase-set-1"}'
+
+// Get Phrase Set
+
+curl -X GET -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/phraseSets/test-phrase-set-1"
+
+// Edit Phrase Set
+
+curl -X PATCH -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/phraseSets/test-phrase-set-1?updateMask=phrases" -d '{"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}'
+
+
+// Create Custom Class
+
+curl -X POST -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H
+"Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/customClasses" -d '{"customClassId": "test-custom-class-1"}'
+
+// Get Custom Class
+
+curl -X GET -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/customClasses/test-custom-class-1"
+ 
+
+// Edit Custom Class
+
+curl -X PATCH -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/projects/vorder/locations/global/customClasses/test-custom-class-1?updateMask=items" -d '{"items": [{"value": "ionity"}, {"value": "fionity"}]}'
+
+// Recognize audio using the custom class
+
+curl -H "Authorization: Bearer $(gcloud auth --impersonate-service-account=vorder2@vorder.iam.gserviceaccount.com print-access-token)" -H "Content-Type: application/json; charset=utf-8" "https://speech.googleapis.com/v1p1beta1/speech:recognize" -d '{"config": {"adaptation": {"phraseSets": [{"phrases": [{"value": "${projects/project_id/locations/global/customClasses/test-custom-class-1}", "boost": "10"}]}]}, "languageCode": "en-US"}, "audio": {"uri":"gs://biasing-resources-test-audio/call_me_fionity_and_ionity.wav"}}'
