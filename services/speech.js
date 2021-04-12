@@ -59,11 +59,11 @@ module.exports = function (credentials, config) {
 
         const request = {
             parent: 'projects/vorder/locations/global/customClasses',
-            customClassId: 'order-polarity',
+            customClassId: 'test',
             customClass: {
-                customClassId:'order-polarity',
-                name: 'order-polarity',
-                items: [{value: "buy"}, {value: "sell"}]
+                customClassId:'test',
+                name: 'x',
+                items: [{value: "foo"}, {value: "bar"}]
             }
         }
 
