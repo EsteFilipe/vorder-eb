@@ -76,7 +76,7 @@ module.exports = function (credentials, config) {
         //console.log(response)
 
         const customClass = await adaptationClient.getCustomClass(
-            {name: 'v1p1beta1/projects/vorder/locations/global/customClasses/order-polarity'});
+            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
     }
