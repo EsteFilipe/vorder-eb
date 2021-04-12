@@ -57,19 +57,16 @@ module.exports = function (credentials, config) {
             projectId: credentials[1].project_id
         });
 
-        cusClass = new speechToText.CustomClass();
-
-        /*
         const request = {
-            parent: 'projects/vorder/locations/global/customClasses',
+            parent: 'projects/1030681041480/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {
-
                 items: [{value: "buy"}, {value: "sell"}]
             }
         }
+        
         const [response] = await adaptationClient.createCustomClass(request)
-        */
+
 
         /*
         const request = {
