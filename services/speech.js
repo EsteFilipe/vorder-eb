@@ -58,7 +58,7 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/us-west2/customClasses',
+            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {"items": [{value: "buy"}, {value: "sell"}]}
         }
@@ -71,11 +71,12 @@ module.exports = function (credentials, config) {
         }
         */
 
-        const [response] = await adaptationClient.createCustomClass(request)
+        //const [response] = await adaptationClient.createCustomClass(request)
 
-        console.log(response)
+        //console.log(response)
 
-        //const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
+        const customClass = await adaptationClient.getCustomClass(
+            {name: 'v1p1beta1/projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
     }
