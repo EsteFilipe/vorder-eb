@@ -58,7 +58,7 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'projects/vorder/locations/global/customClasses',
+            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {"items": [{value: "buy"}, {value: "sell"}]}
         }
