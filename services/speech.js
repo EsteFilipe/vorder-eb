@@ -57,6 +57,8 @@ module.exports = function (credentials, config) {
             projectId: credentials[1].project_id
         });
 
+        cusClass = new speechToText.CustomClass();
+
         /*
         const request = {
             parent: 'projects/vorder/locations/global/customClasses',
@@ -81,9 +83,9 @@ module.exports = function (credentials, config) {
 
         //console.log(response)
 
-        //Error: 7 PERMISSION_DENIED: Permission is denied.
-        const customClass = await adaptationClient.getCustomClass(
-            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        //Works, but gives `Error: 5 NOT_FOUND: Resource projects/1030681041480/locations/global/customClasses/order-polarity not found` 
+        //const customClass = await adaptationClient.getCustomClass(
+        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
 
