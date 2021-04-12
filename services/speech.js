@@ -57,6 +57,7 @@ module.exports = function (credentials, config) {
             projectId: credentials[1].project_id
         });
 
+        /*
         const request = {
             parent: 'projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
@@ -66,25 +67,25 @@ module.exports = function (credentials, config) {
             }
         }
         //const [response] = await adaptationClient.createCustomClass(request)
+        */
 
-
-        /*
         const request = {
             parent: 'v1p1beta1/projects/vorder/locations/global/phraseSets',
-            phraseSetId: 'test-phrase-set-1',
+            phraseSetId: 'test-phrase-set-2',
             phraseSet: {"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}
         }
 
         const [response] = await adaptationClient.createPhraseSet(request)
-        */
 
         //console.log(response)
 
         //Works, but gives `Error: 5 NOT_FOUND: Resource projects/1030681041480/locations/global/customClasses/order-polarity not found` 
+        /*
         const phraseSet = await adaptationClient.getPhraseSet(
             {name: 'projects/vorder/locations/global/phraseSets/test-phrase-set-1'});
 
         console.log(phraseSet)
+        */
 
         //console.log(customClass)
 
