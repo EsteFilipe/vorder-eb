@@ -58,7 +58,7 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
+            parent: 'projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
             customClass: {"items": [{value: "buy"}, {value: "sell"}]}
         }
@@ -71,10 +71,11 @@ module.exports = function (credentials, config) {
         }
         */
 
-        //const [response] = await adaptationClient.createCustomClass(request)
+        const [response] = await adaptationClient.createCustomClass(request)
 
         //console.log(response)
 
+        //Error: 7 PERMISSION_DENIED: Permission is denied.
         const customClass = await adaptationClient.getCustomClass(
             {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
