@@ -57,18 +57,18 @@ module.exports = function (credentials, config) {
             projectId: credentials[1].project_id
         });
 
-        /*
+
         const request = {
-            parent: 'projects/vorder/locations/global/customClasses',
+            parent: 'projects/vorder/locations/global',
             customClassId: 'order-polarity',
             customClass: {
-
                 items: [{value: "buy"}, {value: "sell"}]
             }
         }
-        //const [response] = await adaptationClient.createCustomClass(request)
-        */
+        
+        const [response] = await adaptationClient.createCustomClass(request)
 
+        /*
         const request = {
             parent: 'projects/vorder/locations/global/phraseSets',
             phraseSetId: 'test-phrase-set-2',
@@ -76,6 +76,7 @@ module.exports = function (credentials, config) {
         }
 
         const [response] = await adaptationClient.createPhraseSet(request)
+        */
 
         //console.log(response)
 
