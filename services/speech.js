@@ -58,17 +58,12 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
-            customClassId: 'order-polarity',
-            customClass: {"items": [{value: "buy"}, {value: "sell"}]}
+            parent: 'v1p1beta1/projects/vorder/locations/global/phraseSets',
+            phraseSetId: 'test-phrase-set-1',
+            phraseSet: {"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}
         }
 
-        console.log(credentials[1].client_email)
-        console.log(credentials[1].private_key)
-        console.log(credentials[1].project_id)
-        console.log(request)
-
-        const [response] = await adaptationClient.createCustomClass(request)
+        const [response] = await adaptationClient.createPhraseSet(request)
 
         console.log(response)
 
