@@ -68,7 +68,7 @@ module.exports = function (credentials, config) {
         const [response] = await adaptationClient.createCustomClass(request)
         */
 
-    
+        /*
         const request = {
             parent: 'v1p1beta1/projects/vorder/locations/global/phraseSets',
             phraseSetId: 'test-phrase-set-1',
@@ -76,6 +76,7 @@ module.exports = function (credentials, config) {
         }
 
         const [response] = await adaptationClient.createPhraseSet(request)
+        */
 
         //console.log(response)
 
@@ -84,6 +85,9 @@ module.exports = function (credentials, config) {
         //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
+
+        response = await adaptationClient.getProjectId();
+        console.log(response)
     }
 
 
