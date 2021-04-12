@@ -55,18 +55,18 @@ module.exports = function (credentials, config) {
         });
 
         const request = {
-            parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
-            customClassId: 'order-type',
-            customClass: {"items": [{"value": "ionity"}, {"value": "fionity"}]}
+            parent: 'projects/vorder/locations/global/customClasses',
+            customClassId: 'order-polarity',
+            customClass: {"items": [{value: "buy"}, {value: "sell"}]}
         }
 
-        //const [response] = await adaptationClient.createCustomClass(request)
+        const [response] = await adaptationClient.createCustomClass(request)
 
-        //console.log(response)
+        console.log(response)
 
-        const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
+        //const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
 
-        console.log(customClass)
+        //console.log(customClass)
     }
 
 
