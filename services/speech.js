@@ -59,6 +59,8 @@ module.exports = function (credentials, config) {
 
         adaptationClient.initialize()
 
+        console.log(adaptationClient.projectPath('vorder'))
+
         const request = {
             parent: 'v1p1beta1/projects/vorder/locations/global/customClasses',
             customClassId: 'order-polarity',
