@@ -82,13 +82,13 @@ module.exports = function (credentials, config) {
         //console.log(response)
 
         //Error: 7 PERMISSION_DENIED: Permission is denied.
-        //const customClass = await adaptationClient.getCustomClass(
-        //    {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
+        const customClass = await adaptationClient.getCustomClass(
+            {name: 'projects/vorder/locations/global/customClasses/order-polarity'});
 
         //console.log(customClass)
 
-        response = await adaptationClient.getProjectId();
-        console.log(response)
+        //response = await adaptationClient.getProjectId();
+        //console.log(response)
     }
 
 
