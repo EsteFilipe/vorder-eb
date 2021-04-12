@@ -53,7 +53,8 @@ module.exports = function (credentials, config) {
 
         const adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
-                          private_key: credentials[1].private_key}
+                          private_key: credentials[1].private_key},
+            projectId: credentials[1].project_id
         });
 
         /*
