@@ -58,7 +58,7 @@ module.exports = function (credentials, config) {
             parent: 'v1p1beta1/projects/vorder/locations/global/customClasses'
         }
 
-        const [response] = await adaptationClient.listCustomClasses(request)
+        const response = await adaptationClient.locationPath('vorder', 'global')
 
         console.log(response)
 
