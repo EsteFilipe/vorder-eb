@@ -75,7 +75,7 @@ module.exports = function (credentials, config) {
 
         //const [response] = await adaptationClient.createCustomClass(request)
 
-        console.log(response)
+        //console.log(response)
 
         //const customClass = await adaptationClient.getCustomClass('v1p1beta1/projects/vorder/locations/global/customClasses');
 
