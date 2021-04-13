@@ -70,7 +70,8 @@ if (cluster.isMaster) {
                     config.speech
                 )
 
-                const response = await speechService.createAdaptationsFromConfig();
+                await speechService.getCustomClass('dawdwa');
+                //const response = await speechService.createAdaptationsFromConfig();
                 return response
             }
             else {
