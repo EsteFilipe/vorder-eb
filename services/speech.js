@@ -80,8 +80,8 @@ module.exports = function (credentials, config) {
         return response
     }
 
-    SpeechService.prototype.listPhraseSets = async function () {
-        [response] = await this.adaptationClient.listPhraseSets(
+    SpeechService.prototype.listPhraseSet = async function () {
+        [response] = await this.adaptationClient.listPhraseSet(
             {parent:this.parent})
 
         return response

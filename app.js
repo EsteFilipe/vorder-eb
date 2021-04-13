@@ -71,7 +71,9 @@ if (cluster.isMaster) {
                 )
 
                 console.log(JSON.stringify(await speechService.listCustomClasses()))
-                console.log(JSON.stringify(await speechService.listPhraseSets()))
+                console.log(JSON.stringify(await speechService.deleteCustomClass('order-polarity')))
+                console.log(JSON.stringify(await speechService.listCustomClasses()))
+                console.log(JSON.stringify(await speechService.listPhraseSet()))
                 console.log(JSON.stringify(await speechService.getCustomClass('aaaa')))
                 //const response = await speechService.createAdaptationsFromConfig();
                 //return response
