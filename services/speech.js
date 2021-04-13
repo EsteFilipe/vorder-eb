@@ -63,9 +63,8 @@ module.exports = function (credentials, config) {
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
-        [response] = await this.adaptationClient.close()
+        await this.adaptationClient.close()
 
-        return response
     }
 
     function parsePhrase() {
@@ -105,17 +104,27 @@ module.exports = function (credentials, config) {
     }
 
     SpeechService.prototype.getCustomClass = async function (customClassId) {
-        const customClass = await this.adaptationClient.getCustomClass(
-            {name: `${this.parent}/customClasses/${customClassId}`});
-
-        return customClass
+        try {
+            const customClass = await this.adaptationClient.getCustomClass(
+                {name: `${this.parent}/customClasses/${customClassId}`});
+            return customClass
+        }
+        catch(err) {
+            console.log(err)
+            return false
+        }
     }
 
     SpeechService.prototype.getPhraseSet = async function (phraseSetId) {
-        const phraseSet = await this.adaptationClient.getPhraseSet(
-            {name: `${this.parent}/phraseSets/${phraseSetId}`});
-
-        return phraseSet
+        try {
+            const phraseSet = await this.adaptationClient.getPhraseSet(
+                {name: `${this.parent}/phraseSets/${phraseSetId}`});
+            return phraseSet
+        }
+        catch(err) {
+            console.log(err)
+            return false
+        }
     }
 
     SpeechService.prototype.deleteCustomClass = async function (customClassId) {

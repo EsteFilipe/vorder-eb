@@ -70,7 +70,7 @@ if (cluster.isMaster) {
                     config.speech
                 )
 
-                await speechService.getCustomClass('dawdwa');
+                console.log(await speechService.getCustomClass('dawdwa'));
                 //const response = await speechService.createAdaptationsFromConfig();
                 return response
             }
