@@ -7,6 +7,17 @@ module.exports = function (credentials, config) {
     // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
 	var SpeechService = function() {
 
+        // Note: these clients don't start initialized. The first method
+        // to be called with them, initializes them. Also possible to use
+        // initialize() on them beforehand. Also note that, from my experiments
+        // once a client has been initialized with a certain service account,
+        // another client can't use that same 
+        this.adaptationClient = new speechToText.AdaptationClient({
+            credentials: {client_email: credentials[1].client_email,
+                          private_key: credentials[1].private_key},
+            projectId: credentials[1].project_id
+        });
+
 		this.sttClient = new speechToText.SpeechClient({
             credentials: {client_email: credentials[0].client_email,
                           private_key: credentials[0].private_key},
@@ -18,6 +29,14 @@ module.exports = function (credentials, config) {
                           private_key: credentials[1].private_key},
             projectId: credentials[1].project_id
         });
+
+        // TODO DEBUG REMOVE
+
+        this.adaptationClient.initialize()
+        console.log('initialized 1')
+        this.ttsClient.initialize()
+        console.log('initialized 2')
+        // TODO REMOVE
 
 		this.sttRequest = {
             config: {
@@ -48,15 +67,7 @@ module.exports = function (credentials, config) {
 	}
 
 
-
     SpeechService.prototype.createCustomClass = async function () {
-
-        const adaptationClient = new speechToText.AdaptationClient({
-            credentials: {client_email: credentials[0].client_email,
-                          private_key: credentials[0].private_key},
-            projectId: credentials[0].project_id
-        });
-
 
         const request = {
             parent: 'projects/vorder/locations/global',
