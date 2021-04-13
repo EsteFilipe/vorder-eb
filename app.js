@@ -58,7 +58,8 @@ if (cluster.isMaster) {
             config.speech
         )
 
-        speechService.createCustomClass();
+        const customClasses = await speechService.listCustomClasses();
+        console.log(customClasses)
         // -------------------- TODO REMOVE
 
         // Get Speech to Text contexts

@@ -7,11 +7,6 @@ module.exports = function (credentials, config) {
     // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
 	var SpeechService = function() {
 
-        // Note: these clients don't start initialized. The first method
-        // to be called with them, initializes them. Also possible to use
-        // initialize() on them beforehand. Also note that, from my experiments
-        // once a client has been initialized with a certain service account,
-        // another client can't use that same 
         this.adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
                           private_key: credentials[1].private_key},
@@ -29,14 +24,6 @@ module.exports = function (credentials, config) {
                           private_key: credentials[1].private_key},
             projectId: credentials[1].project_id
         });
-
-        // TODO DEBUG REMOVE
-
-        this.adaptationClient.initialize()
-        console.log('initialized 1')
-        this.ttsClient.initialize()
-        console.log('initialized 2')
-        // TODO REMOVE
 
 		this.sttRequest = {
             config: {
@@ -64,51 +51,126 @@ module.exports = function (credentials, config) {
         this.orderSpeechContexts = config.stt.contexts.order;
         this.confirmationSpeechContexts = config.stt.contexts.confirmation;
 
+        this.parent = `projects/${credentials[1].project_id}/locations/global`
+
 	}
 
+    SpeechService.prototype.closeAdaptationClient = async function () {
+        [response] = this.adaptationClient.close()
 
-    SpeechService.prototype.createCustomClass = async function () {
+        return response
+    }
 
-        const req = {
-            parent: 'projects/vorder/locations/global',
-            customClassId: 'order-polarity-2',
+    SpeechService.prototype.listCustomClasses = async function () {
+        [response] = this.adaptationClient.listCustomClasses(
+            {parent:this.parent})
+
+        return response
+    }
+
+    SpeechService.prototype.listPhraseSets = async function () {
+        [response] = this.adaptationClient.listCustomClasses(
+            {parent:this.parent})
+
+        return response
+    }
+
+    SpeechService.prototype.getCustomClass = async function (customClassId) {
+        const customClass = await this.adaptationClient.getCustomClass(
+            {name: `${this.parent}/customClasses/${customClassId}`});
+
+        return customClass
+    }
+
+    SpeechService.prototype.getPhraseSet = async function (phraseSetId) {
+        const phraseSet = await this.adaptationClient.getPhraseSet(
+            {name: `${this.parent}/phraseSets/${phraseSetId}`});
+
+        return phraseSet
+    }
+
+    SpeechService.prototype.deleteCustomClass = async function (customClassId) {
+        const [response] = await this.adaptationClient.deleteCustomClass(
+            {name: `${this.parent}/customClasses/${customClassId}`});
+
+        return response
+    }
+
+    SpeechService.prototype.deletePhraseSet = async function (phraseSetId) {
+        const [response] = await this.adaptationClient.deletePhraseSet(
+            {name: `${this.parent}/phraseSets/${phraseSetId}`});
+
+        return response
+    }
+
+    SpeechService.prototype.createCustomClass = async function (customClassId, items) {
+        /*
+            `items` format:
+            [{value: "foo"}, {value: "bar"}]
+        */
+
+        const request = {
+            parent: this.parent,
+            customClassId: customClassId,
             customClass: {
-                items: [{value: "buy"}, {value: "sell"}]
+                items: items
             }
         }
 
-        const [res] = await this.adaptationClient.createCustomClass(req)
+        const [response] = await this.adaptationClient.createCustomClass(request)
 
-        // Cloning object
-        const request = Object.assign({}, this.ttsRequest)
-        request.input = { text: 'yeah' }; // text or SSML
-        // Performs the Text-to-Speech request
-        const response = await this.ttsClient.synthesizeSpeech(request);
+        return response
+    }
 
+    SpeechService.prototype.createPhraseSet = async function (phraseSetId, phrases) {
         /*
+            `phrases` format:
+            {"phrases": [{"value": "foo", "boost": 10}, {"value": "bar", "boost": 10}]}
+        */
         const request = {
-            parent: 'projects/vorder/locations/global/phraseSets',
-            phraseSetId: 'test-phrase-set-2',
-            phraseSet: {"phrases": [{"value": "ionity", "boost": 10}, {"value": "fionity", "boost": 10}]}
+            parent: this.parent,
+            phraseSetId: phraseSetId,
+            phraseSet: phrases
         }
 
-        const [response] = await adaptationClient.createPhraseSet(request)
-        */
+        const [response] = await this.adaptationClient.createPhraseSet(request)
 
-        //console.log(response)
+        return response
+    }
 
-        //Works, but gives `Error: 5 NOT_FOUND: Resource projects/1030681041480/locations/global/customClasses/order-polarity not found` 
+    SpeechService.prototype.updateCustomClass = async function (customClassId, items) {
         /*
-        const phraseSet = await adaptationClient.getPhraseSet(
-            {name: 'projects/vorder/locations/global/phraseSets/test-phrase-set-1'});
-
-        console.log(phraseSet)
+            `items` format:
+            [{value: "foo"}, {value: "bar"}]
         */
 
-        //console.log(customClass)
 
-        //response = await adaptationClient.getProjectId();
-        //console.log(response)
+        // TODO
+        const request = {
+            name: `${this.parent}/customClass/${customClassId}`
+            updateMask: {items: items}
+        }
+
+        const [response] = await this.adaptationClient.updateCustomClass(request)
+
+        return response
+    }
+
+    SpeechService.prototype.updatePhraseSet = async function (phraseSetId, phrases) {
+        /*
+            `phrases` format:
+            {"phrases": [{"value": "foo", "boost": 10}, {"value": "bar", "boost": 10}]}
+        */
+
+        // TODO
+        const request = {
+            name: `${this.parent}/phraseSets/${phraseSetId}`
+            updateMask: {phrases: phrases}
+        }
+
+        const [response] = await this.adaptationClient.createCustomClass(request)
+
+        return response
     }
 
 
