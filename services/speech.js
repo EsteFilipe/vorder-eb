@@ -77,7 +77,13 @@ module.exports = function (credentials, config) {
             }
         }
 
-        const [response] = await adaptationClient.createCustomClass(request)
+        const [res] = await this.adaptationClient.createCustomClass(request)
+
+        // Cloning object
+        const request = Object.assign({}, this.ttsRequest)
+        request.input = { text: 'yeah' }; // text or SSML
+        // Performs the Text-to-Speech request
+        const response = await this.ttsClient.synthesizeSpeech(request);
 
         /*
         const request = {
