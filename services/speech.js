@@ -148,7 +148,7 @@ module.exports = function (credentials, config) {
         // TODO
         const request = {
             customClass: customClassId,
-            updateMask: {items: {items: items}}
+            updateMask: {items: items}
         }
 
         const [response] = await this.adaptationClient.updateCustomClass(request)
