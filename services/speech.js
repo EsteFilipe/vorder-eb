@@ -56,20 +56,20 @@ module.exports = function (credentials, config) {
 	}
 
     SpeechService.prototype.closeAdaptationClient = async function () {
-        [response] = this.adaptationClient.close()
+        [response] = await this.adaptationClient.close()
 
         return response
     }
 
     SpeechService.prototype.listCustomClasses = async function () {
-        [response] = this.adaptationClient.listCustomClasses(
+        [response] = await this.adaptationClient.listCustomClasses(
             {parent:this.parent})
 
         return response
     }
 
     SpeechService.prototype.listPhraseSets = async function () {
-        [response] = this.adaptationClient.listPhraseSets(
+        [response] = await this.adaptationClient.listPhraseSets(
             {parent:this.parent})
 
         return response
