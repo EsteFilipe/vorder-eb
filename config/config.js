@@ -24,14 +24,12 @@ var config = {
 			// -> New adaptations are only created from `adaptations.payload` if `adaptations.create` is set to true. Otherwise
 			// nothing is done, and the last set adaptations will be used.
 			// -> If `adaptations.override` is true then even if an adaptation with the same name already exists
-			// it will be redifined, else only the adaptations whose name doesn't already exist will be set
+			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			adaptations: {
 				create: true,
 				override: true,
 				payload: {}
 			}
-			createAdaptations: true,
-			overrideAdaptations: true
 		},
 		tts: {
 			encoding: 'MP3',
