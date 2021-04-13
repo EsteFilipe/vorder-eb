@@ -68,6 +68,7 @@ module.exports = function (credentials, config) {
     }
 
     function parsePhrase() {
+        // TODO - replace the custom class tokens by their respective url in this.parent
         const x = 0
     }
 
@@ -110,8 +111,14 @@ module.exports = function (credentials, config) {
             return customClass
         }
         catch(err) {
-            console.log(err)
-            return false
+            // Custom Class not found
+            if (err.code === 5) {
+                return false
+            }
+            // Don't keep going in any other case
+            else {
+                throw new Error(`Unexpected error code from gRPC: ERROR ${err.code}`);
+            }
         }
     }
 
@@ -122,8 +129,14 @@ module.exports = function (credentials, config) {
             return phraseSet
         }
         catch(err) {
-            console.log(err)
-            return false
+            // Phrase not found
+            if (err.code === 5) {
+                return false
+            }
+            // Don't keep going in any other case
+            else {
+                throw new Error(`Unexpected error code from gRPC: ERROR ${err.code}`);
+            }
         }
     }
 
