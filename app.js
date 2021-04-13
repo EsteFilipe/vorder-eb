@@ -59,8 +59,9 @@ if (cluster.isMaster) {
         )
 
         console.log(JSON.stringify(await speechService.listCustomClasses()))
-        const resp = await speechService.deleteCustomClass('order-polarity-2');
+        const resp = await speechService.deleteCustomClass('order-polarity');
         console.log(JSON.stringify(await speechService.listCustomClasses()))
+        console.log(JSON.stringify(await speechService.listPhraseSets()))
         // -------------------- TODO REMOVE
 
         // Get Speech to Text contexts
