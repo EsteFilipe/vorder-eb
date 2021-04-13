@@ -58,8 +58,9 @@ if (cluster.isMaster) {
             config.speech
         )
 
-        const customClasses = await speechService.listCustomClasses();
-        console.log(customClasses)
+        console.log(JSON.stringify(await speechService.listCustomClasses()))
+        const resp = await speechService.updateCustomClass('order-polarity', [{value: "daily"}, {value: "stoic"}]);
+        console.log(JSON.stringify(await speechService.listCustomClasses()))
         // -------------------- TODO REMOVE
 
         // Get Speech to Text contexts
