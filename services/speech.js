@@ -140,12 +140,11 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.updateCustomClass = async function (customClassId, items) {
         /*
-            `items` format:
-            [{value: "foo"}, {value: "bar"}]
+            The documentation for this is confusing (didn't understand what to put in `updateMask`,
+            so haven't implemented it yet). If necessary, just delete class and recreate it
         */
 
-
-        // TODO
+        /*
         const request = {
             customClass: customClassId,
             updateMask: {items: items}
@@ -154,15 +153,16 @@ module.exports = function (credentials, config) {
         const [response] = await this.adaptationClient.updateCustomClass(request)
 
         return response
+        */
     }
 
     SpeechService.prototype.updatePhraseSet = async function (phraseSetId, phrases) {
         /*
-            `phrases` format:
-            {"phrases": [{"value": "foo", "boost": 10}, {"value": "bar", "boost": 10}]}
+            The documentation for this is confusing (didn't understand what to put in `updateMask`,
+            so haven't implemented it yet). If necessary, just delete phrase set and recreate it
         */
 
-        // TODO
+        /*
         const request = {
             phraseSet: phraseSetId,
             updateMask: {phrases: phrases}
@@ -171,6 +171,7 @@ module.exports = function (credentials, config) {
         const [response] = await this.adaptationClient.updatePhraseSet(request)
 
         return response
+        */
     }
 
 

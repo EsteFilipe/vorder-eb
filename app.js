@@ -59,7 +59,7 @@ if (cluster.isMaster) {
         )
 
         console.log(JSON.stringify(await speechService.listCustomClasses()))
-        const resp = await speechService.updateCustomClass('order-polarity', {items: [{value: "daily"}, {value: "stoic"}]});
+        const resp = await speechService.deleteCustomClass('order-polarity-2');
         console.log(JSON.stringify(await speechService.listCustomClasses()))
         // -------------------- TODO REMOVE
 
