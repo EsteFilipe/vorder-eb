@@ -41,6 +41,7 @@ var config = {
 						{
 							name: 'order-type',
 							items: ['market', 'limit', 'range']
+						}
 					],
 					// Note: custom classes are refered to as '${my-custom-class}' and then replaced in services/speech.js
 					// by its respective url location in projects/project_id/locations (...)
