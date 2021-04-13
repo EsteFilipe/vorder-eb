@@ -49,27 +49,37 @@ if (cluster.isMaster) {
         // Unpack
         config.server.credentials = Object.assign(...serverCredentials)
 
-        // -------------------- TODO REMOVE
-        speechService = require('./services/speech')(           
-            [
-                config.server.credentials['google-service-account-key-1'],
-                config.server.credentials['google-service-account-key-2']
-            ],
-            config.speech
-        )
-
-        console.log(JSON.stringify(await speechService.listCustomClasses()))
-        const resp = await speechService.deleteCustomClass('order-polarity');
-        console.log(JSON.stringify(await speechService.listCustomClasses()))
-        console.log(JSON.stringify(await speechService.listPhraseSets()))
-        // -------------------- TODO REMOVE
-
         // Get Speech to Text contexts
-        const speechContexts = await storageService.getSTTContexts(config.speech.stt.contextFilePaths)
-        config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
-        config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
+        if (config.speech.stt.contextFilePaths && config.speech.stt.adaptations) {
+            return {status: false, output: "`contextFilePaths` and `adaptation` can't be both set."}
+        }
+        else {
+            if (config.speech.stt.contextFilePaths) {
+                const speechContexts = await storageService.getSTTContexts(config.speech.stt.contextFilePaths)
+                config.speech.stt.contexts = {}
+                config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
+                config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
+                return {status: true, output: "`contextFilePaths` have been set from " + JSON.stringify(config.speech.stt.contextFilePaths)}
+            }
+            else if (config.speech.stt.adaptations) {
+                const speechService = require('./services/speech')(           
+                    [
+                        config.server.credentials['google-service-account-key-1'],
+                        config.server.credentials['google-service-account-key-2']
+                    ],
+                    config.speech
+                )
 
-        return true
+                console.log(JSON.stringify(await speechService.listCustomClasses())
+                console.log(JSON.stringify(await speechService.listPhraseSets())
+                console.log(JSON.stringify(await speechService.getCustomClass('aaaa'))
+                //const response = await speechService.createAdaptationsFromConfig();
+                //return response
+            }
+            else {
+                return {status: false, output: "At least one of `contextFilePaths` and `adaptation` has to be non-null."}
+            }
+        }
     }
 
     function setupServer() {

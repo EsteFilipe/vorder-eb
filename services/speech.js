@@ -55,6 +55,15 @@ module.exports = function (credentials, config) {
 
 	}
 
+    SpeechService.prototype.createAdaptationsFromConfig = async function () {
+
+        const adaptations = this.config.stt.adaptations;
+        
+        [response] = await this.adaptationClient.close()
+
+        return response
+    }
+
     SpeechService.prototype.closeAdaptationClient = async function () {
         [response] = await this.adaptationClient.close()
 
