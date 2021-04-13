@@ -48,7 +48,7 @@ module.exports = function (credentials, config) {
 
         };
 
-        if(config.speech.stt.contextFilePaths) {
+        if(config.stt.contextFilePaths) {
             this.orderSpeechContexts = config.stt.contexts.order;
             this.confirmationSpeechContexts = config.stt.contexts.confirmation;
         }
@@ -201,7 +201,7 @@ module.exports = function (credentials, config) {
     	const request = Object.assign({}, this.sttRequest)
         // Only use the speechContexts if the files have been defined in the config
         // Else use the Phrase Sets with Custom Classes
-        if(config.speech.stt.contextFilePaths) {
+        if(config.stt.contextFilePaths) {
             if (orderStage === "PROCESS") {
             	request.config.speechContexts = this.orderSpeechContexts;
 
