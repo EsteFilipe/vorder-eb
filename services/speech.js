@@ -147,7 +147,7 @@ module.exports = function (credentials, config) {
 
         // TODO
         const request = {
-            name: `${this.parent}/customClass/${customClassId}`,
+            customClass: customClassId,
             updateMask: {items: items}
         }
 
@@ -164,7 +164,7 @@ module.exports = function (credentials, config) {
 
         // TODO
         const request = {
-            name: `${this.parent}/phraseSets/${phraseSetId}`,
+            phraseSet: phraseSetId,
             updateMask: {phrases: phrases}
         }
 
