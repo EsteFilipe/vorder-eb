@@ -69,7 +69,7 @@ module.exports = function (credentials, config) {
     }
 
     SpeechService.prototype.listPhraseSets = async function () {
-        [response] = this.adaptationClient.listCustomClasses(
+        [response] = this.adaptationClient.listPhraseSets(
             {parent:this.parent})
 
         return response
@@ -147,7 +147,7 @@ module.exports = function (credentials, config) {
 
         // TODO
         const request = {
-            name: `${this.parent}/customClass/${customClassId}`
+            name: `${this.parent}/customClass/${customClassId}`,
             updateMask: {items: items}
         }
 
@@ -164,11 +164,11 @@ module.exports = function (credentials, config) {
 
         // TODO
         const request = {
-            name: `${this.parent}/phraseSets/${phraseSetId}`
+            name: `${this.parent}/phraseSets/${phraseSetId}`,
             updateMask: {phrases: phrases}
         }
 
-        const [response] = await this.adaptationClient.createCustomClass(request)
+        const [response] = await this.adaptationClient.updatePhraseSet(request)
 
         return response
     }
