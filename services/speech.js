@@ -48,9 +48,12 @@ module.exports = function (credentials, config) {
 
         };
 
-        this.orderSpeechContexts = config.stt.contexts.order;
-        this.confirmationSpeechContexts = config.stt.contexts.confirmation;
+        if(config.speech.stt.contextFilePaths) {
+            this.orderSpeechContexts = config.stt.contexts.order;
+            this.confirmationSpeechContexts = config.stt.contexts.confirmation;
+        }
 
+        // Used for Adaptation
         this.parent = `projects/${credentials[1].project_id}/locations/global`
 
 	}
@@ -58,7 +61,7 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
         const adaptations = this.config.stt.adaptations;
-        
+
         [response] = await this.adaptationClient.close()
 
         return response
@@ -194,14 +197,22 @@ module.exports = function (credentials, config) {
     }
 
     SpeechService.prototype.speechToText = async function (audio, orderStage) {
-    	   // Cloning object
+    	// Cloning object
     	const request = Object.assign({}, this.sttRequest)
-        if (orderStage === "PROCESS") {
-        	request.config.speechContexts = this.orderSpeechContexts;
+        // Only use the speechContexts if the files have been defined in the config
+        // Else use the Phrase Sets with Custom Classes
+        if(config.speech.stt.contextFilePaths) {
+            if (orderStage === "PROCESS") {
+            	request.config.speechContexts = this.orderSpeechContexts;
 
+            }
+            else if (orderStage === "CONFIRMATION") {
+            	request.config.speechContexts = this.confirmationSpeechContexts;
+            }
         }
-        else if (orderStage === "CONFIRMATION") {
-        	request.config.speechContexts = this.confirmationSpeechContexts;
+        else {
+            // Use phrase sets
+            const x = 0
         }
 
         request.audio = {
