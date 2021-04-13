@@ -69,7 +69,7 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createCustomClass = async function () {
 
-        const request = {
+        const req = {
             parent: 'projects/vorder/locations/global',
             customClassId: 'order-polarity-2',
             customClass: {
@@ -77,7 +77,7 @@ module.exports = function (credentials, config) {
             }
         }
 
-        const [res] = await this.adaptationClient.createCustomClass(request)
+        const [res] = await this.adaptationClient.createCustomClass(req)
 
         // Cloning object
         const request = Object.assign({}, this.ttsRequest)
