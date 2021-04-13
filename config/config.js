@@ -43,9 +43,12 @@ var config = {
 							items: ['market', 'limit', 'range']
 						}
 					],
-					// Note: custom classes are refered to as '${my-custom-class}' and then replaced in services/speech.js
-					// by its respective url location in projects/project_id/locations (...)
-					// -> For each phrase you can mix up as you please Custom Classes, pre-defined Classes and arbitrary text
+					// Notes: 
+					// -> Custom classes are refered to as '${my-custom-class}' and then replaced in services/speech.js
+					// by their respective url location in the format of 'projects/project_id/locations (...)'
+					// -> Tokens in the format '$CLASS' are pre-built classes, native to Google Speech API, and listed here
+					// https://cloud.google.com/speech-to-text/docs/class-tokens
+					// -> For each phrase in `phrases` you can mix up as you please Custom Classes, pre-defined Classes and arbitrary text
 					phraseSets: [
 						{
 							name: 'order',

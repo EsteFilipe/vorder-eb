@@ -60,12 +60,16 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
-        await createCustomClassesFromArray(this.config.stt.adaptations.configuration.customClasses)
-        await createPhraseSetsFromArray(this.config.stt.adaptations.configuration.phraseSets)
+        await createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses)
+        await createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets)
 
         [response] = await this.adaptationClient.close()
 
         return response
+    }
+
+    function parsePhrase() {
+        const x = 0
     }
 
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {
