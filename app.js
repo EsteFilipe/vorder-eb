@@ -70,10 +70,8 @@ if (cluster.isMaster) {
                     config.speech
                 )
 
-                console.log(JSON.stringify(await speechService.deletePhraseSet('test-phrase-set-1')))
-                console.log(JSON.stringify(await speechService.listPhraseSet()))
-                //const response = await speechService.createAdaptationsFromConfig();
-                //return response
+                const response = await speechService.createAdaptationsFromConfig();
+                return response
             }
             else {
                 return {status: false, output: "At least one of `contextFilePaths` and `adaptation` has to be non-null."}

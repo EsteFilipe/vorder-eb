@@ -21,14 +21,52 @@ var config = {
 			// and https://googleapis.dev/nodejs/speech/latest/v1p1beta1.AdaptationClient.html
 			//
 			// Notes: 
-			// -> New adaptations are only created from `adaptations.payload` if `adaptations.create` is set to true. Otherwise
+			// -> New adaptations are only created from `adaptations.configuration` if `adaptations.create` is set to true. Otherwise
 			// nothing is done, and the last set adaptations will be used.
 			// -> If `adaptations.override` is true then even if an adaptation with the same name already exists
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			adaptations: {
 				create: true,
 				override: true,
-				payload: {}
+				configuration: {
+					customClasses: [
+						{
+							name: 'order-polarity',
+							items: ['buy', 'sell']
+						},
+						{
+							name: 'coins',
+							items: ['bitcoin', 'ether']
+						},
+						{
+							name: 'order-type',
+							items: ['market', 'limit', 'range']
+					],
+					// Note: custom classes are refered to as '${my-custom-class}' and then replaced in services/speech.js
+					// by its respective url location in projects/project_id/locations (...)
+					// -> For each phrase you can mix up as you please Custom Classes, pre-defined Classes and arbitrary text
+					phraseSets: [
+						{
+							name: 'order',
+							phrases: [
+								'${order-polarity}',
+								'${coins}',
+								'${order-type}',
+								'$OOV_CLASS_DIGIT_SEQUENCE',
+								'$OPERAND'
+							],
+							boost: 20
+						},
+						{
+							name: 'confirmation',
+							phrases: [
+								'yes',
+								'no'
+							],
+							boost: 20
+						}
+					]
+				}
 			}
 		},
 		tts: {
