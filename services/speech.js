@@ -62,10 +62,9 @@ module.exports = function (credentials, config) {
 
         console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
-        //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
+        await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
         console.log('Finished creating Custom Classes and Phrase Sets.')
-        console.log('\nList of all Custom Classes:')
         const customClasses = await this.listCustomClasses();
         const phraseSets = await this.listPhraseSet();
 
@@ -85,14 +84,14 @@ module.exports = function (credentials, config) {
 
             output += '\n\n--> CUSTOM CLASSES\n\n\n';
 
-            customClasses.forEach( function(customClass) {
+            customClasses.forEach( (customClass) => {
                 output += `- '${customClass.customClassId}'; `
                 output += 'Items: ' + JSON.stringify(customClass.items) + '\n';
             });
 
             output += '\n\n--> PHRASE SETS\n\n\n';
 
-            phraseSets.forEach( function(phraseSet) {
+            phraseSets.forEach( (phraseSet) => {
                 output += `- '${phraseSet.phraseSetId}'; `;
                 output += 'Phrases: ' + JSON.stringify(phraseSet.phrases) + '\n';
             });
@@ -113,7 +112,7 @@ module.exports = function (credentials, config) {
             // If it doesn't exist, create it
             if (!customClassExists) {
                 await this.createCustomClass(customClassId, items);
-                console.log(`Created custom class '${customClassId}'`)
+                console.log(`Created Custom Class '${customClassId}'`)
             }
             else {
                 // If it exists and `override` is set to true, delete it and create
@@ -123,25 +122,66 @@ module.exports = function (credentials, config) {
                 if (override) {
                     await this.deleteCustomClass(customClassId);
                     await this.createCustomClass(customClassId, items);
-                    console.log(`Overrode custom class '${customClassId}'`)
+                    console.log(`Overrode Custom Class '${customClassId}'`)
                 }
                 // Else, do nothing
                 else {
-                    console.log(`Class '${customClassId}' already exists, doing nothing.`)
+                    console.log(`Custom Class '${customClassId}' already exists, doing nothing because 'override' is false.`)
                 }
             }
         }
     }
 
-    SpeechService.prototype.createPhraseSetsFromArray = async function (phraseSets) {
-        phraseSets.forEach(function(phraseSet){
-            console.log(phraseSet);
-        });
+    SpeechService.prototype. = async function createPhraseSetsFromArray (phraseSets) {
+  
+        for (phraseSet of phraseSets) {
+            // Check if class exists
+            const phraseSetId = phraseSet.phraseSetId;
+            const phrases = phraseSet.phrases;
+            const phraseSetExists = await this.getCustomClass(phraseSetId);
+
+            const phrasesProcessed = parsePhrases(phrases);
+
+            console.log(JSON.stringify(phrasesProcessed, null, 2));
+
+            /*
+            // If it doesn't exist, create it
+            if (!phraseSetExists) {
+                await this.createPhraseSet(phraseSetId, phrasesProcessed);
+                console.log(`Created Phrase Set '${phraseSetId}'`)
+            }
+            else {
+                // If it exists and `override` is set to true, delete it and create
+                // it with the new items.
+                // Note: this could be done with the update method, but I didn't manage
+                // to figure out what should be in `updateMask`
+                if (override) {
+                    await this.deletePhraseSet(phraseSetId);
+                    await this.createPhraseSet(phraseSetId, phrasesProcessed);
+                    console.log(`Overrode Phrase Set '${phraseSetId}'`)
+                }
+                // Else, do nothing
+                else {
+                    console.log(`Phrase Set '${customClassId}' already exists, doing nothing because 'override' is false.`)
+                }
+            }
+            */
+        }
     }
 
-    SpeechService.prototype.parsePhrase = function(phrase) {
-        // TODO - replace the custom class tokens by their respective url
-        const x = 0
+    function parsePhrases(phrases) {
+
+        const replaceCustomClassTokenInPhrase = (phrase) => phrase.replace(/\${(.*?)}/g,
+          (match, offset) => '${' + `${parent}/customClasses/${offset}` + '}');
+
+        var phrasesProcessed = []; 
+        phrases.forEach( (phrase) => {
+            phrasesProcessed = phrasesProcessed.push(
+                {value: replaceCustomClassTokenInPhrase(phrase), boost: phrase.boost})
+        });
+
+        return phrasesProcessed
+
     }
 
     SpeechService.prototype.closeAdaptationClient = async function () {

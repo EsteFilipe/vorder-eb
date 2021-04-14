@@ -57,18 +57,17 @@ var config = {
 						{
 							phraseSetId: 'order',
 							phrases: [
-								'${order-polarity}',
-								'${coins}',
-								'${order-type}',
-								'$OOV_CLASS_DIGIT_SEQUENCE',
-								'$OPERAND'
+								{value: '${order-polarity} yeah bla ${xx}', boost: 20},
+								{value: '${coins}', boost: 20},
+								{value: '${order-type}', boost: 20},
+								{value: '$OOV_CLASS_DIGIT_SEQUENCE oui mademoisele ${order-polarity}', boost: 20},
+								{value: '$OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
 							],
-							boost: 20
 						},
 						{
 							phraseSetId: 'confirmation',
 							phrases: [
-								'${confirmation}'
+								{value: '${confirmation}', boost: 20}
 							],
 							boost: 20
 						}
