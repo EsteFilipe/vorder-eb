@@ -61,7 +61,7 @@ var config = {
 								{value: '${coins}', boost: 20},
 								{value: '${order-type}', boost: 20},
 								{value: '$OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
-								{value: '$OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
+								{value: '$OPERAND', boost: 20},
 							],
 						},
 						{
