@@ -85,18 +85,18 @@ module.exports = function (credentials, config) {
 
             output += '\n--> CUSTOM CLASSES\n\n';
 
-            customClasses.foreach( function(customClass) {
+            customClasses.forEach( function(customClass) {
                 output += `- '${customClass.customClassId}'; `
                 output += 'Items: ' + JSON.stringify(customClass.items, null, 2) + '\n';
             });
 
             output += '\n--> PHRASE SETS\n\n';
 
-            phraseSets.foreach( function(phraseSet) {
+            phraseSets.forEach( function(phraseSet) {
                 output += `- '${phraseSet.phraseSetId}'; `;
                 output += 'Phrases: ' + JSON.stringify(phraseSet.phrases, null, 2) + '\n';
             });
-            
+
             output += '\n---> End of list.\n';
 
             return output
