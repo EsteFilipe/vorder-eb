@@ -80,19 +80,19 @@ module.exports = function (credentials, config) {
     function prettifyListAdaptations(customClasses, phraseSets) {
 
             console.log(customClasses);
-            
-            const output = '---> List of all Custom Classes and Phrase Sets:\n';
+
+            var output = '---> List of all Custom Classes and Phrase Sets:\n';
 
             output += '\n--> CUSTOM CLASSES\n\n';
 
-            for (customClass in customClasses) {
+            customClasses.foreach( function(customClass) {
                 output += `- '${customClass.customClassId}'; `
                 output += 'Items: ' + JSON.stringify(customClass.items, null, 2) + '\n'
-            }
+            });
 
-            output += '\n--> PHRASE SETS';
+            output += '\n--> PHRASE SETS\n\n';
 
-            for (phraseSet in phraseSets) {
+            phraseSets.foreach( function(phraseSet) {
                 output += `- '${phraseSet.phraseSetId}'; `
                 output += 'Phrases: ' + JSON.stringify(phraseSet.phrases, null, 2) + '\n'
             }
