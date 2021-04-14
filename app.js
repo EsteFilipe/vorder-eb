@@ -51,7 +51,8 @@ if (cluster.isMaster) {
 
         // Get Speech to Text contexts
         if (config.speech.stt.contextFilePaths && config.speech.stt.adaptations) {
-            return {status: false, output: "`contextFilePaths` and `adaptation` can't be both set."}
+            return {status: false, 
+                    output: "`contextFilePaths` and `adaptation` can't be both set."}
         }
         else {
             if (config.speech.stt.contextFilePaths) {
@@ -59,27 +60,37 @@ if (cluster.isMaster) {
                 config.speech.stt.contexts = {}
                 config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
                 config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
-                return {status: true, output: "`contextFilePaths` have been set from " + JSON.stringify(config.speech.stt.contextFilePaths)}
+                return {status: true, 
+                        output: "`contextFilePaths` have been set from " + JSON.stringify(config.speech.stt.contextFilePaths)}
             }
             else if (config.speech.stt.adaptations) {
-                const speechService = require('./services/speech')(           
-                    [
-                        config.server.credentials['google-service-account-key-1'],
-                        config.server.credentials['google-service-account-key-2']
-                    ],
-                    config.speech
-                )
+                if (config.speech.stt.adaptations.create) {
+                    const speechService = require('./services/speech')(           
+                        [
+                            config.server.credentials['google-service-account-key-1'],
+                            config.server.credentials['google-service-account-key-2']
+                        ],
+                        config.speech
+                    )
 
-                const response = await speechService.createAdaptationsFromConfig();
-                return response
+                    const response = await speechService.createAdaptationsFromConfig();
+                    return {status: response.status, output: response.output}
+                }
+                else {
+                    return {status: true,
+                            output: "Adaptations have not been set anew - we'll be using the ones previously defined (if any)."}
+                }
             }
             else {
-                return {status: false, output: "At least one of `contextFilePaths` and `adaptation` has to be non-null."}
+                return {status: false, 
+                        output: "At least one of `contextFilePaths` and `adaptation` has to be non-null."}
             }
         }
     }
 
     function setupServer() {
+
+        console.log('Setting up server...')
 
         var app = express();
         app.use(cors());
@@ -151,9 +162,17 @@ if (cluster.isMaster) {
             client.on('confirm-order', data => orderService.confirmOrder(data));
 
         });
-
     }
 
-    init().then( result => { setupServer() });
+    init().then( result => { 
+        if (result.status) {
+            console.log(`init() function success: ${result.output}`)
+            setupServer();
+        }
+        else {
+            console.log(`init() function: error: ${result.output}`)
+            return
+        }
+    });
 
 }

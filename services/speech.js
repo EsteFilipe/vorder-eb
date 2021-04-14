@@ -60,21 +60,50 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
+        console.log('Creating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
-        await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
+        //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
+
+        console.log('Finished.')
+        console.log('\nList of all Custom Classes:')
+        JSON.stringify(await this.listCustomClasses(), null, 2);
+        console.log('-----')
+        console.log('\nList of all Phrase Sets:')
+        JSON.stringify(await this.listPhraseSets(), null, 2);
+        console.log('-----')
 
         await this.adaptationClient.close()
 
     }
 
-    function parsePhrase() {
-        // TODO - replace the custom class tokens by their respective url in this.parent
-        const x = 0
-    }
-
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {
+        const override = config.adaptations.override;
+
         customClasses.forEach(function(customClass){
-            console.log(customClass);
+            // Check if class exists
+            const customClassId = customClass.customClassId;
+            const items = customClass.items;
+            const customClass = this.getCustomClass(customClassId);
+            // If it doesn't exist, create it
+            if (!customClass) {
+                await this.createCustomClass(customClassId, items);
+                console.log(`Created custom class '${customClassId}'`)
+            }
+            else {
+                // If it exists and `override` is set to true, delete it and create
+                // it with the new items.
+                // Note: this could be done with the update method, but I didn't manage
+                // to figure out what should be in `updateMask`
+                if (override) {
+                    await this.deleteCustomClass(customClassId);
+                    await this.createCustomClass(customClassId, items);
+                    console.log(`Overrode custom class '${customClassId}'`)
+                }
+                // Else, do nothing
+                else {
+                    console.log(`Class '${customClassId}' already exists, doing nothing.`)
+                }
+            }
         });
     }
 
@@ -82,6 +111,11 @@ module.exports = function (credentials, config) {
         phraseSets.forEach(function(phraseSet){
             console.log(phraseSet);
         });
+    }
+
+    SpeechService.prototype.parsePhrase = function(phrase) {
+        // TODO - replace the custom class tokens by their respective url
+        const x = 0
     }
 
     SpeechService.prototype.closeAdaptationClient = async function () {

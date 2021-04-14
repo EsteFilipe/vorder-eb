@@ -31,15 +31,15 @@ var config = {
 				configuration: {
 					customClasses: [
 						{
-							name: 'order-polarity',
+							customClassId: 'order-polarity',
 							items: ['buy', 'sell']
 						},
 						{
-							name: 'coins',
+							customClassId: 'coins',
 							items: ['bitcoin', 'ether']
 						},
 						{
-							name: 'order-type',
+							customClassId: 'order-type',
 							items: ['market', 'limit', 'range']
 						}
 					],
@@ -51,7 +51,7 @@ var config = {
 					// -> For each phrase in `phrases` you can mix up as you please Custom Classes, pre-defined Classes and arbitrary text
 					phraseSets: [
 						{
-							name: 'order',
+							phraseSetId: 'order',
 							phrases: [
 								'${order-polarity}',
 								'${coins}',
@@ -62,7 +62,7 @@ var config = {
 							boost: 20
 						},
 						{
-							name: 'confirmation',
+							phraseSetId: 'confirmation',
 							phrases: [
 								'yes',
 								'no'
