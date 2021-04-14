@@ -78,8 +78,6 @@ module.exports = function (credentials, config) {
 
     function prettifyListAdaptations(customClasses, phraseSets) {
 
-            console.log(customClasses);
-
             var output = '\n---> List of all Custom Classes and Phrase Sets:\n';
 
             output += '\n\n--> CUSTOM CLASSES\n\n\n';
@@ -142,9 +140,6 @@ module.exports = function (credentials, config) {
 
             const phrasesProcessed = this.parsePhrases(phrases);
 
-            console.log(JSON.stringify(phrasesProcessed, null, 2));
-
-            /*
             // If it doesn't exist, create it
             if (!phraseSetExists) {
                 await this.createPhraseSet(phraseSetId, phrasesProcessed);
@@ -162,10 +157,9 @@ module.exports = function (credentials, config) {
                 }
                 // Else, do nothing
                 else {
-                    console.log(`Phrase Set '${customClassId}' already exists, doing nothing because 'override' is false.`)
+                    console.log(`Phrase Set '${phraseSetId}' already exists, doing nothing because 'override' is false.`)
                 }
             }
-            */
         }
     }
 

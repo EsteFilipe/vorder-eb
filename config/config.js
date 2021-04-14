@@ -57,10 +57,10 @@ var config = {
 						{
 							phraseSetId: 'order',
 							phrases: [
-								{value: '${order-polarity} yeah bla ${xx}', boost: 20},
+								{value: '${order-polarity}', boost: 20},
 								{value: '${coins}', boost: 20},
 								{value: '${order-type}', boost: 20},
-								{value: '$OOV_CLASS_DIGIT_SEQUENCE oui mademoisele ${order-polarity}', boost: 20},
+								{value: '$OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
 								{value: '$OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
 							],
 						},
