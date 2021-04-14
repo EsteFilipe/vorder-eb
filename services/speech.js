@@ -172,12 +172,13 @@ module.exports = function (credentials, config) {
     function parsePhrases(phrases) {
 
         const replaceCustomClassTokenInPhrase = (p) => p.replace(/\${(.*?)}/g,
-          (match, offset) => '${' + `${parent}/customClasses/${offset}` + '}');
+          (match, offset) => '${' + `${this.parent}/customClasses/${offset}` + '}');
 
         var phrasesProcessed = []; 
         phrases.forEach( (phrase) => {
+            phraseValue = phrase.value;
             phrasesProcessed = phrasesProcessed.push(
-                {value: replaceCustomClassTokenInPhrase(phrase), boost: phrase.boost})
+                {value: replaceCustomClassTokenInPhrase(phraseValue), boost: phrase.boost})
         });
 
         return phrasesProcessed
