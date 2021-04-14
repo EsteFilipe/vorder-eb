@@ -42,6 +42,10 @@ var config = {
 							customClassId: 'order-type',
 							items: [{value: 'market'}, {value: 'limit'}, {value: 'range'}]
 						}
+						{
+							customClassId: 'confirmation',
+							items: [{value: 'yes'}, {value: 'no'}]
+						}
 					],
 					// Notes: 
 					// -> Custom classes are refered to as '${my-custom-class}' and then replaced in services/speech.js
@@ -64,8 +68,7 @@ var config = {
 						{
 							phraseSetId: 'confirmation',
 							phrases: [
-								'yes',
-								'no'
+								'${confirmation}',
 							],
 							boost: 20
 						}

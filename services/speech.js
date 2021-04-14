@@ -66,10 +66,10 @@ module.exports = function (credentials, config) {
 
         console.log('Finished.')
         console.log('\nList of all Custom Classes:')
-        const customClasses = await self.listCustomClasses();
+        const customClasses = await this.listCustomClasses();
         JSON.stringify(customClasses, null, 2);
         console.log('-----')
-        const phraseSets = await self.listPhraseSet();
+        const phraseSets = await this.listPhraseSet();
         console.log('\nList of all Phrase Sets:')
         JSON.stringify(phraseSets, null, 2);
         console.log('-----')
