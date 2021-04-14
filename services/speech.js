@@ -68,6 +68,9 @@ module.exports = function (credentials, config) {
         const customClasses = await this.listCustomClasses();
         const phraseSets = await this.listPhraseSet();
 
+        console.log("HERE");
+        console.log(phraseSets);
+
         const output = prettifyListAdaptations(customClasses, phraseSets);
 
         await this.adaptationClient.close();
