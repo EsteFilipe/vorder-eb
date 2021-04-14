@@ -67,14 +67,16 @@ module.exports = function (credentials, config) {
         console.log('Finished.')
         console.log('\nList of all Custom Classes:')
         const customClasses = await this.listCustomClasses();
-        JSON.stringify(customClasses, null, 2);
+        console.log(JSON.stringify(customClasses, null, 2))
         console.log('-----')
         const phraseSets = await this.listPhraseSet();
         console.log('\nList of all Phrase Sets:')
-        JSON.stringify(phraseSets, null, 2);
+        console.log(JSON.stringify(phraseSets, null, 2))
         console.log('-----')
 
         await this.adaptationClient.close()
+
+        return {status: true, output: ''}
 
     }
 
