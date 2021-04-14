@@ -79,7 +79,7 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {
         const override = config.adaptations.override;
 
-        customClasses.forEach(function(customClass){
+        customClasses.forEach(async function(customClass){
             // Check if class exists
             const customClassId = customClass.customClassId;
             const items = customClass.items;
