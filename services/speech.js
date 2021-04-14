@@ -132,7 +132,7 @@ module.exports = function (credentials, config) {
         }
     }
 
-    SpeechService.prototype. = async function createPhraseSetsFromArray (phraseSets) {
+    SpeechService.prototype.createPhraseSetsFromArray = async function (phraseSets) {
   
         for (phraseSet of phraseSets) {
             // Check if class exists
