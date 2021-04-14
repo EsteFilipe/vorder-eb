@@ -41,7 +41,7 @@ var config = {
 						{
 							customClassId: 'order-type',
 							items: [{value: 'market'}, {value: 'limit'}, {value: 'range'}]
-						}
+						},
 						{
 							customClassId: 'confirmation',
 							items: [{value: 'yes'}, {value: 'no'}]
@@ -68,7 +68,7 @@ var config = {
 						{
 							phraseSetId: 'confirmation',
 							phrases: [
-								'${confirmation}',
+								'${confirmation}'
 							],
 							boost: 20
 						}
