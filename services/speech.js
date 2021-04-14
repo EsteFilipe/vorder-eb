@@ -170,9 +170,10 @@ module.exports = function (credentials, config) {
     }
 
     function parsePhrases(phrases) {
-
+        const parent = this.parent;
+        
         const replaceCustomClassTokenInPhrase = (p) => p.replace(/\${(.*?)}/g,
-          (match, offset) => '${' + `${this.parent}/customClasses/${offset}` + '}');
+          (match, offset) => '${' + `${parent}/customClasses/${offset}` + '}');
 
         var phrasesProcessed = []; 
         phrases.forEach( (phrase) => {
