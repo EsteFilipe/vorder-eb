@@ -176,9 +176,8 @@ module.exports = function (credentials, config) {
 
         var phrasesProcessed = []; 
         phrases.forEach( (phrase) => {
-            phraseValue = phrase.value;
-            phrasesProcessed = phrasesProcessed.push(
-                {value: replaceCustomClassTokenInPhrase(phraseValue), boost: phrase.boost})
+            phraseValue = replaceCustomClassTokenInPhrase(phrase.value);
+            phrasesProcessed.push({value: phraseValue, boost: phrase.boost})
         });
 
         return phrasesProcessed
