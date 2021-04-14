@@ -171,7 +171,7 @@ module.exports = function (credentials, config) {
 
     function parsePhrases(phrases) {
 
-        const replaceCustomClassTokenInPhrase = (phrase) => phrase.replace(/\${(.*?)}/g,
+        const replaceCustomClassTokenInPhrase = (p) => p.replace(/\${(.*?)}/g,
           (match, offset) => '${' + `${parent}/customClasses/${offset}` + '}');
 
         var phrasesProcessed = []; 
