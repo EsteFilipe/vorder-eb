@@ -79,7 +79,7 @@ module.exports = function (credentials, config) {
 
     function prettifyListAdaptations(customClasses, phraseSets) {
 
-            const output = '\n---> List of all Custom Classes and Phrase Sets:\n';
+            var output = '\n---> List of all Custom Classes and Phrase Sets:\n';
 
             output += '--> CUSTOM CLASSES';
 
