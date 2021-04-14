@@ -64,12 +64,13 @@ module.exports = function (credentials, config) {
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
+        var self = this;
         console.log('Finished.')
         console.log('\nList of all Custom Classes:')
-        JSON.stringify(await this.listCustomClasses(), null, 2);
+        JSON.stringify(await self.listCustomClasses(), null, 2);
         console.log('-----')
         console.log('\nList of all Phrase Sets:')
-        JSON.stringify(await this.listPhraseSets(), null, 2);
+        JSON.stringify(await self.listPhraseSets(), null, 2);
         console.log('-----')
 
         await this.adaptationClient.close()
@@ -79,7 +80,7 @@ module.exports = function (credentials, config) {
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {
         const override = config.stt.adaptations.override;
 
-        customClasses.forEach(async function(customClass){
+        for (customClass of customClasses) {
             // Check if class exists
             const customClassId = customClass.customClassId;
             const items = customClass.items;
@@ -104,7 +105,7 @@ module.exports = function (credentials, config) {
                     console.log(`Class '${customClassId}' already exists, doing nothing.`)
                 }
             }
-        }, this); // binding
+        }
     }
 
     SpeechService.prototype.createPhraseSetsFromArray = async function (phraseSets) {

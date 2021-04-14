@@ -32,15 +32,15 @@ var config = {
 					customClasses: [
 						{
 							customClassId: 'order-polarity',
-							items: ['buy', 'sell']
+							items: [{value: 'buy'}, {value: 'sell'}]
 						},
 						{
 							customClassId: 'coins',
-							items: ['bitcoin', 'ether']
+							items: [{value: 'bitcoin'}, {value: 'ether'}]
 						},
 						{
 							customClassId: 'order-type',
-							items: ['market', 'limit', 'range']
+							items: [{value: 'market'}, {value: 'limit'}, {value: 'range'}]
 						}
 					],
 					// Notes: 
