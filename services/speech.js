@@ -68,9 +68,6 @@ module.exports = function (credentials, config) {
         const customClasses = await this.listCustomClasses();
         const phraseSets = await this.listPhraseSet();
 
-        console.log("HERE");
-        console.log(phraseSets);
-
         const output = prettifyListAdaptations(customClasses, phraseSets);
 
         await this.adaptationClient.close();
@@ -143,6 +140,9 @@ module.exports = function (credentials, config) {
             const phraseSetExists = await this.getPhraseSet(phraseSetId);
 
             const phrasesProcessed = this.parsePhrases(phrases);
+
+            console.log('HERE')
+            console.log(phrasesProcessed)
 
             // If it doesn't exist, create it
             if (!phraseSetExists) {
