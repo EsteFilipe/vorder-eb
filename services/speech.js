@@ -81,20 +81,20 @@ module.exports = function (credentials, config) {
 
             console.log(customClasses);
 
-            var output = '---> List of all Custom Classes and Phrase Sets:\n';
+            var output = '\n---> List of all Custom Classes and Phrase Sets:\n';
 
-            output += '\n--> CUSTOM CLASSES\n\n';
+            output += '\n\n--> CUSTOM CLASSES\n\n\n';
 
             customClasses.forEach( function(customClass) {
                 output += `- '${customClass.customClassId}'; `
-                output += 'Items: ' + JSON.stringify(customClass.items, null, 2) + '\n';
+                output += 'Items: ' + JSON.stringify(customClass.items) + '\n';
             });
 
-            output += '\n--> PHRASE SETS\n\n';
+            output += '\n\n--> PHRASE SETS\n\n\n';
 
             phraseSets.forEach( function(phraseSet) {
                 output += `- '${phraseSet.phraseSetId}'; `;
-                output += 'Phrases: ' + JSON.stringify(phraseSet.phrases, null, 2) + '\n';
+                output += 'Phrases: ' + JSON.stringify(phraseSet.phrases) + '\n';
             });
 
             output += '\n---> End of list.\n';
