@@ -83,9 +83,9 @@ module.exports = function (credentials, config) {
             // Check if class exists
             const customClassId = customClass.customClassId;
             const items = customClass.items;
-            const customClass = this.getCustomClass(customClassId);
+            const customClassExists = this.getCustomClass(customClassId);
             // If it doesn't exist, create it
-            if (!customClass) {
+            if (!customClassExists) {
                 await this.createCustomClass(customClassId, items);
                 console.log(`Created custom class '${customClassId}'`)
             }
