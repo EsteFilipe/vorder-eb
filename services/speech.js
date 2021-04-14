@@ -132,12 +132,12 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createPhraseSetsFromArray = async function (phraseSets) {
       const override = config.stt.adaptations.override;
-      
+
         for (phraseSet of phraseSets) {
             // Check if class exists
             const phraseSetId = phraseSet.phraseSetId;
             const phrases = phraseSet.phrases;
-            const phraseSetExists = await this.getCustomClass(phraseSetId);
+            const phraseSetExists = await this.getPhraseSet(phraseSetId);
 
             const phrasesProcessed = this.parsePhrases(phrases);
 
