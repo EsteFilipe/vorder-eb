@@ -140,7 +140,7 @@ module.exports = function (credentials, config) {
             const phrases = phraseSet.phrases;
             const phraseSetExists = await this.getCustomClass(phraseSetId);
 
-            const phrasesProcessed = parsePhrases(phrases);
+            const phrasesProcessed = this.parsePhrases(phrases);
 
             console.log(JSON.stringify(phrasesProcessed, null, 2));
 
@@ -169,11 +169,10 @@ module.exports = function (credentials, config) {
         }
     }
 
-    function parsePhrases(phrases) {
-        const parent = this.parent;
-        
+    SpeechService.prototype.parsePhrases = function (phrases) {
+
         const replaceCustomClassTokenInPhrase = (p) => p.replace(/\${(.*?)}/g,
-          (match, offset) => '${' + `${parent}/customClasses/${offset}` + '}');
+          (match, offset) => '${' + `${this.parent}/customClasses/${offset}` + '}');
 
         var phrasesProcessed = []; 
         phrases.forEach( (phrase) => {
