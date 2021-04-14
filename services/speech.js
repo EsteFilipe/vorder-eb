@@ -60,7 +60,7 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
-        console.log('Creating Custom Classes and Phrase sets from adaptation config...')
+        console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
@@ -77,7 +77,7 @@ module.exports = function (credentials, config) {
     }
 
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {
-        const override = config.adaptations.override;
+        const override = config.stt.adaptations.override;
 
         customClasses.forEach(async function(customClass){
             // Check if class exists
