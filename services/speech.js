@@ -104,7 +104,7 @@ module.exports = function (credentials, config) {
                     console.log(`Class '${customClassId}' already exists, doing nothing.`)
                 }
             }
-        });
+        }, this); // binding
     }
 
     SpeechService.prototype.createPhraseSetsFromArray = async function (phraseSets) {
