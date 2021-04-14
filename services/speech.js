@@ -64,13 +64,14 @@ module.exports = function (credentials, config) {
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
-        var self = this;
         console.log('Finished.')
         console.log('\nList of all Custom Classes:')
-        JSON.stringify(await self.listCustomClasses(), null, 2);
+        const customClasses = await self.listCustomClasses();
+        JSON.stringify(customClasses, null, 2);
         console.log('-----')
+        const phraseSets = await self.listPhraseSet();
         console.log('\nList of all Phrase Sets:')
-        JSON.stringify(await self.listPhraseSets(), null, 2);
+        JSON.stringify(phraseSets, null, 2);
         console.log('-----')
 
         await this.adaptationClient.close()
