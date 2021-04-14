@@ -64,20 +64,39 @@ module.exports = function (credentials, config) {
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         //await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
 
-        console.log('Finished.')
+        console.log('Finished creating Custom Classes and Phrase Sets.')
         console.log('\nList of all Custom Classes:')
         const customClasses = await this.listCustomClasses();
-        console.log(JSON.stringify(customClasses, null, 2))
-        console.log('-----')
         const phraseSets = await this.listPhraseSet();
-        console.log('\nList of all Phrase Sets:')
-        console.log(JSON.stringify(phraseSets, null, 2))
-        console.log('-----')
 
-        await this.adaptationClient.close()
+        const output = prettifyListAdaptations(customClasses, phraseSets);
 
-        return {status: true, output: ''}
+        await this.adaptationClient.close();
 
+        return output
+
+    }
+
+    function prettifyListAdaptations(customClasses, phraseSets) {
+
+            const output = '\n---> List of all Custom Classes and Phrase Sets:\n';
+
+            output += '--> CUSTOM CLASSES';
+
+            for (customClass in customClasses) {
+                output += `- ${customClass.customClassId}`
+                output += 'Items: ' + JSON.stringify(customClass.items, null, 2) + '\n'
+            }
+
+            output += '--> PHRASE SETS';
+
+            for (phraseSet in phraseSets) {
+                output += `- ${phraseSet.phraseSetId}`
+                output += 'Phrases: ' + JSON.stringify(phraseSet.phrases, null, 2) + '\n'
+            }
+            output += '\n---> End of list.\n';
+
+            return output
     }
 
     SpeechService.prototype.createCustomClassesFromArray = async function (customClasses) {

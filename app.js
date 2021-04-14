@@ -73,8 +73,9 @@ if (cluster.isMaster) {
                         config.speech
                     )
 
-                    const response = await speechService.createAdaptationsFromConfig();
-                    return {status: response.status, output: response.output}
+                    const output = await speechService.createAdaptationsFromConfig();
+                    return {status: true, 
+                            output: output}
                 }
                 else {
                     return {status: true,
