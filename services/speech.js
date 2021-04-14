@@ -77,8 +77,6 @@ module.exports = function (credentials, config) {
     }
 
     function prettifyListAdaptations(customClasses, phraseSets) {
-            console.log('-------------------> HERE')
-            console.log(phraseSets)
 
             var output = '\n---> List of all Custom Classes and Phrase Sets:\n';
 
@@ -92,7 +90,7 @@ module.exports = function (credentials, config) {
             output += '\n\n--> PHRASE SETS\n\n\n';
 
             phraseSets.forEach( (phraseSet) => {
-                output += `- '${phraseSet.phraseSetId}'; `;
+                output += `- '${phraseSet.name}'; `;
                 output += 'Phrases: ' + JSON.stringify(phraseSet.phrases) + '\n';
             });
 
@@ -142,9 +140,6 @@ module.exports = function (credentials, config) {
             const phraseSetExists = await this.getPhraseSet(phraseSetId);
 
             const phrasesProcessed = this.parsePhrases(phrases);
-
-            console.log('HERE')
-            console.log(phrasesProcessed)
 
             // If it doesn't exist, create it
             if (!phraseSetExists) {
@@ -281,7 +276,7 @@ module.exports = function (credentials, config) {
         const request = {
             parent: this.parent,
             phraseSetId: phraseSetId,
-            phraseSet: phrases
+            phraseSet: {phrases: phrases}
         }
 
         const [response] = await this.adaptationClient.createPhraseSet(request)
