@@ -8,7 +8,7 @@ var config = {
 		stt: {
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
-			{
+			contextFilePaths: {
 				order: 'config/speech-expected-sentences.json',
 				confirmation: ''
 			},
