@@ -157,7 +157,7 @@ module.exports = function (credentials, config) {
             // Phrase Set
             if (phraseSetId === 'process'){
                 phraseSetId = `process-${this.nProcessPhraseSets}`;
-                phrases = phrases[this.nProcessPhraseSets];
+                phrases = [phrases[this.nProcessPhraseSets]];
                 this.processPhraseSetsNames.push(`${this.parent}/phraseSets/${this.phraseSetId}`)
                 this.nProcessPhraseSets += 1;
             }
