@@ -76,10 +76,6 @@ module.exports = function (credentials, config) {
 
         const output = prettifyListAdaptations(customClasses, phraseSets);
 
-        // TODO REMOVE
-        console.log('----> HERE')
-        console.log(this.processPhraseSetsNames);
-
         await this.adaptationClient.close();
 
         return output
