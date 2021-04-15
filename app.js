@@ -61,7 +61,7 @@ if (cluster.isMaster) {
             config.speech
         )
 
-        if (config.speech.stt.contextFilePaths) {
+        if (config.speech.stt.contextsConf) {
             const speechContexts = await speechService.getSTTContexts()
             config.speech.stt.contexts = {}
             config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
