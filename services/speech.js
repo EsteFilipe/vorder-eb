@@ -60,6 +60,9 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
+        // todo remove
+        await this.deletePhraseSet('order');
+
         console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
@@ -344,9 +347,16 @@ module.exports = function (credentials, config) {
             	request.config.speechContexts = this.confirmationSpeechContexts;
             }
         }
-        else {
-            // Use phrase sets
-            const x = 0
+
+        // TODO TRY WRONG PHRASESET REFERENCE TO SEE IF IT ERRORS OUT
+        else if (config.stt.adaptations) {
+            if (orderStage === "PROCESS") {
+                request.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
+
+            }
+            else if (orderStage === "CONFIRMATION") {
+                request.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
+            }
         }
 
         request.audio = {

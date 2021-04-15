@@ -55,7 +55,7 @@ var config = {
 					// -> For each phrase in `phrases` you can mix up as you please Custom Classes, pre-defined Classes and arbitrary text
 					phraseSets: [
 						{
-							phraseSetId: 'order',
+							phraseSetId: 'process',
 							phrases: [
 								{value: '${order-polarity}', boost: 20},
 								{value: '${coins}', boost: 20},
