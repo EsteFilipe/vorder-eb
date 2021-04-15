@@ -1,4 +1,5 @@
-const spawn = require('await-spawn');
+const spawn = require('await-spawn'),
+	  path = require('path'),
 
 var Utils = function() {
 	this.name = ''

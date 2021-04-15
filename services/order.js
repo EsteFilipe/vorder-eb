@@ -1,5 +1,4 @@
-const path = require('path'),
-	  storageService = require('./storage'),
+const storageService = require('./storage'),
 	  exchangeService = require('./exchange'),
       utils = require('../helpers/utils');
 
