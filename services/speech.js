@@ -52,6 +52,9 @@ module.exports = function (credentials, config) {
             this.orderSpeechContexts = config.stt.contexts.order;
             this.confirmationSpeechContexts = config.stt.contexts.confirmation;
         }
+        else if (config.stt.adaptations) {
+            this.sttRequest.config.adaptation = {};
+        }
 
         // Used for Adaptation
         this.parent = `projects/${credentials[1].project_id}/locations/global`
@@ -348,11 +351,11 @@ module.exports = function (credentials, config) {
         // TODO TRY WRONG PHRASESET REFERENCE TO SEE IF IT ERRORS OUT
         else if (config.stt.adaptations) {
             if (orderStage === "PROCESS") {
-                request.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
 
             }
             else if (orderStage === "CONFIRMATION") {
-                request.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
             }
         }
 
