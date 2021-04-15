@@ -182,7 +182,7 @@ module.exports = function (credentials, config) {
             }
         }
         // todo remove
-        console.log(phraseSetNames);
+        console.log(this.phraseSetNames);
     }
 
     SpeechService.prototype.parsePhrases = function (phrases) {
