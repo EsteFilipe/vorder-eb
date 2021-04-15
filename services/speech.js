@@ -66,6 +66,10 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
+        // todo remove
+        await this.deletePhraseSet('process')
+        await this.deletePhraseSet('confirmation')
+
         console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
@@ -177,6 +181,8 @@ module.exports = function (credentials, config) {
                 }
             }
         }
+        // todo remove
+        console.log(phraseSetNames);
     }
 
     SpeechService.prototype.parsePhrases = function (phrases) {
