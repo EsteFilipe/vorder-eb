@@ -57,6 +57,7 @@ var config = {
 						{
 							phraseSetId: 'process',
 							phrases: [
+<<<<<<< HEAD
 								// Market order combinations
 								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type}', boost: 20},
 								{value: '${order-polarity} $OPERAND ${coins} ${order-type}', boost: 20},
@@ -66,6 +67,8 @@ var config = {
 								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
 								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OPERAND', boost: 20},
 								// Single word classes
+=======
+>>>>>>> parent of 323919f (Added more phraseSets to improve transcription)
 								{value: '${order-polarity}', boost: 20},
 								{value: '${coins}', boost: 20},
 								{value: '${order-type}', boost: 20},
