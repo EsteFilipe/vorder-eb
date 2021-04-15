@@ -57,13 +57,10 @@ module.exports = function (credentials, config) {
             this.confirmationSpeechContexts = config.stt.contexts.confirmation;
         }
         else if (config.stt.adaptations) {
+            this.parent = `projects/${credentials[1].project_id}/locations/global`
             this.sttRequest.config.adaptation = {};
-            this.nProcessPhraseSets = 0;
-            this.processPhraseSetsNames = [];
+            this.phraseSetNames = {process: [], confirmation: []};
         }
-
-        // Used for Adaptation
-        this.parent = `projects/${credentials[1].project_id}/locations/global`
 
 	}
 
@@ -147,43 +144,36 @@ module.exports = function (credentials, config) {
       const override = config.stt.adaptations.override;
 
         for (phraseSet of phraseSets) {
-            // Check if class exists
-            var phraseSetId = phraseSet.phraseSetId;
-            var phrases = phraseSet.phrases;
 
-            // Splitting Phrase Sets for 'order' because I get the error
+            // Splitting Phrase Sets because for order I got the error
             // Error: 3 INVALID_ARGUMENT: Referenced custom class resource: order-polarity duplicates id in inline custom class definition
             // when I try to do a single Phrase Set with all the phrases, so I'm assuming I can't repeat custom classes in the phrases of a 
             // Phrase Set
-            if (phraseSetId === 'process'){
-                phraseSetId = `process-${this.nProcessPhraseSets}`;
-                phrases = [phrases[this.nProcessPhraseSets]];
-                this.processPhraseSetsNames.push(`${this.parent}/phraseSets/${this.phraseSetId}`)
-                this.nProcessPhraseSets += 1;
-            }
+            for (const [i, phrase] of phraseSet.phrases.entries()) {
+                const phraseSetId = `${phraseSet.phraseSetId}-${i}`;
+                this.phraseSetNames[phraseSet.phraseSetId].push(`${this.parent}/phraseSets/${phraseSetId}`);
+                const phraseSetExists = await this.getPhraseSet(phraseSetId);
+                const phrasesProcessed = this.parsePhrases([phrase]);
 
-            const phraseSetExists = await this.getPhraseSet(phraseSetId);
-
-            const phrasesProcessed = this.parsePhrases(phrases);
-
-            // If it doesn't exist, create it
-            if (!phraseSetExists) {
-                await this.createPhraseSet(phraseSetId, phrasesProcessed);
-                console.log(`Created Phrase Set '${phraseSetId}'`)
-            }
-            else {
-                // If it exists and `override` is set to true, delete it and create
-                // it with the new items.
-                // Note: this could be done with the update method, but I didn't manage
-                // to figure out what should be in `updateMask`
-                if (override) {
-                    await this.deletePhraseSet(phraseSetId);
+                // If it doesn't exist, create it
+                if (!phraseSetExists) {
                     await this.createPhraseSet(phraseSetId, phrasesProcessed);
-                    console.log(`Overrode Phrase Set '${phraseSetId}'`)
+                    console.log(`Created Phrase Set '${phraseSetId}'`)
                 }
-                // Else, do nothing
                 else {
-                    console.log(`Phrase Set '${phraseSetId}' already exists, doing nothing because 'override' is false.`)
+                    // If it exists and `override` is set to true, delete it and create
+                    // it with the new items.
+                    // Note: this could be done with the update method, but I didn't manage
+                    // to figure out what should be in `updateMask`
+                    if (override) {
+                        await this.deletePhraseSet(phraseSetId);
+                        await this.createPhraseSet(phraseSetId, phrasesProcessed);
+                        console.log(`Overrode Phrase Set '${phraseSetId}'`)
+                    }
+                    // Else, do nothing
+                    else {
+                        console.log(`Phrase Set '${phraseSetId}' already exists, doing nothing because 'override' is false.`)
+                    }
                 }
             }
         }
@@ -372,11 +362,11 @@ module.exports = function (credentials, config) {
 
         else if (config.stt.adaptations) {
             if (orderStage === "PROCESS") {
-                request.config.adaptation.phraseSetReferences = this.processPhraseSetsNames;
+                request.config.adaptation.phraseSetReferences = this.phraseSetNames.process;
 
             }
             else if (orderStage === "CONFIRMATION") {
-                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`];
+                request.config.adaptation.phraseSetReferences = this.phraseSetNames.confirmation;
             }
         }
 
