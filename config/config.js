@@ -57,6 +57,15 @@ var config = {
 						{
 							phraseSetId: 'process',
 							phrases: [
+								// Market order combinations
+								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type}' , boost: 20},
+								{value: '${order-polarity} $OPERAND ${coins} ${order-type}' , boost: 20},
+								// Limit order combinations
+								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} OOV_CLASS_DIGIT_SEQUENCE' , boost: 20},
+								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} $OPERAND' , boost: 20},
+								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OOV_CLASS_DIGIT_SEQUENCE' , boost: 20},
+								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OPERAND' , boost: 20},
+								// Single word classes
 								{value: '${order-polarity}', boost: 20},
 								{value: '${coins}', boost: 20},
 								{value: '${order-type}', boost: 20},

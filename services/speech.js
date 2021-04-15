@@ -4,9 +4,13 @@ const speechToText = require('@google-cloud/speech').v1p1beta1,
 
 module.exports = function (credentials, config) {
 
-    // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
 	var SpeechService = function() {
-
+        // Note: `credentials[0]`` seems to have less permissions than credentials[1]
+        // For example I found that I wasn't able to use `SpeechClient()`` and 
+        // `TextToSpeechClient()` in simultaneous when using credentials[0]
+        // Also unable to access Custom Classes and Phrase Sets with `credentials[0]`.
+        // Didn't investigate why, but `credentials[0]`` is associated to the default
+        // service account for the `Vorder` Google Cloud Project
         this.adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
                           private_key: credentials[1].private_key},
