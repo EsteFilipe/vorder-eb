@@ -4,18 +4,13 @@ const speechToText = require('@google-cloud/speech').v1p1beta1,
 
 module.exports = function (credentials, config) {
 
-    // TODO THIS IS JUST ASYNC FOR TESTING. PUT IT BACK TO SYNC
 	var SpeechService = function() {
-<<<<<<< HEAD
         // Note: `credentials[0]`` seems to have less permissions than credentials[1]
         // For example I found that I wasn't able to use `SpeechClient()`` and 
         // `TextToSpeechClient()` in simultaneous when using credentials[0]
         // Also unable to access Custom Classes and Phrase Sets with `credentials[0]`.
         // Didn't investigate why, but `credentials[0]` is associated to the default
         // service account for the `Vorder` Google Cloud Project
-=======
-
->>>>>>> parent of 323919f (Added more phraseSets to improve transcription)
         this.adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
                           private_key: credentials[1].private_key},
@@ -61,15 +56,26 @@ module.exports = function (credentials, config) {
             this.orderSpeechContexts = config.stt.contexts.order;
             this.confirmationSpeechContexts = config.stt.contexts.confirmation;
         }
-        else if (config.stt.adaptations) {
-            this.parent = `projects/${credentials[1].project_id}/locations/global`
+        if (config.stt.adaptations) {
             this.sttRequest.config.adaptation = {};
-            this.phraseSetNames = {process: [], confirmation: []};
+            this.parent = `projects/${credentials[1].project_id}/locations/global`
         }
-
 	}
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
+
+        await this.deletePhraseSet('order-0');
+        await this.deletePhraseSet('order-1');
+        await this.deletePhraseSet('order-2');
+        await this.deletePhraseSet('order-3');
+        await this.deletePhraseSet('order-4');
+        await this.deletePhraseSet('order-5');
+        await this.deletePhraseSet('order-6');
+        await this.deletePhraseSet('order-7');
+        await this.deletePhraseSet('order-8');
+        await this.deletePhraseSet('order-9');
+        await this.deletePhraseSet('order-10');
+        await this.deletePhraseSet('confirmation-10');
 
         console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
@@ -145,41 +151,33 @@ module.exports = function (credentials, config) {
       const override = config.stt.adaptations.override;
 
         for (phraseSet of phraseSets) {
+            // Check if class exists
+            const phraseSetId = phraseSet.phraseSetId;
+            const phrases = phraseSet.phrases;
+            const phraseSetExists = await this.getPhraseSet(phraseSetId);
+            const phrasesProcessed = this.parsePhrases(phrases);
 
-            // Splitting Phrase Sets because for order I got the error
-            // Error: 3 INVALID_ARGUMENT: Referenced custom class resource: order-polarity duplicates id in inline custom class definition
-            // when I try to do a single Phrase Set with all the phrases, so I'm assuming I can't repeat custom classes in the phrases of a 
-            // Phrase Set
-            for (const [i, phrase] of phraseSet.phrases.entries()) {
-                const phraseSetId = `${phraseSet.phraseSetId}-${i}`;
-                this.phraseSetNames[phraseSet.phraseSetId].push(`${this.parent}/phraseSets/${phraseSetId}`);
-                const phraseSetExists = await this.getPhraseSet(phraseSetId);
-                const phrasesProcessed = this.parsePhrases([phrase]);
-
-                // If it doesn't exist, create it
-                if (!phraseSetExists) {
+            // If it doesn't exist, create it
+            if (!phraseSetExists) {
+                await this.createPhraseSet(phraseSetId, phrasesProcessed);
+                console.log(`Created Phrase Set '${phraseSetId}'`)
+            }
+            else {
+                // If it exists and `override` is set to true, delete it and create
+                // it with the new items.
+                // Note: this could be done with the update method, but I didn't manage
+                // to figure out what should be in `updateMask`
+                if (override) {
+                    await this.deletePhraseSet(phraseSetId);
                     await this.createPhraseSet(phraseSetId, phrasesProcessed);
-                    console.log(`Created Phrase Set '${phraseSetId}'`)
+                    console.log(`Overrode Phrase Set '${phraseSetId}'`)
                 }
+                // Else, do nothing
                 else {
-                    // If it exists and `override` is set to true, delete it and create
-                    // it with the new items.
-                    // Note: this could be done with the update method, but I didn't manage
-                    // to figure out what should be in `updateMask`
-                    if (override) {
-                        await this.deletePhraseSet(phraseSetId);
-                        await this.createPhraseSet(phraseSetId, phrasesProcessed);
-                        console.log(`Overrode Phrase Set '${phraseSetId}'`)
-                    }
-                    // Else, do nothing
-                    else {
-                        console.log(`Phrase Set '${phraseSetId}' already exists, doing nothing because 'override' is false.`)
-                    }
+                    console.log(`Phrase Set '${phraseSetId}' already exists, doing nothing because 'override' is false.`)
                 }
             }
         }
-        // todo remove
-        console.log(this.phraseSetNames);
     }
 
     SpeechService.prototype.parsePhrases = function (phrases) {
@@ -363,13 +361,13 @@ module.exports = function (credentials, config) {
             }
         }
 
-        else if (config.stt.adaptations) {
+        if (config.stt.adaptations) {
             if (orderStage === "PROCESS") {
-                request.config.adaptation.phraseSetReferences = this.phraseSetNames.process;
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
 
             }
             else if (orderStage === "CONFIRMATION") {
-                request.config.adaptation.phraseSetReferences = this.phraseSetNames.confirmation;
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
             }
         }
 
