@@ -356,7 +356,7 @@ module.exports = function (credentials, config) {
     	const request = Object.assign({}, this.sttRequest)
         // Only use the speechContexts if the files have been defined in the config
         // Else use the Phrase Sets with Custom Classes
-        if(config.stt.contextFilePaths) {
+        if(config.stt.contextsConf) {
             if (orderStage === "PROCESS") {
             	request.config.speechContexts = this.orderSpeechContexts;
 
@@ -377,7 +377,7 @@ module.exports = function (credentials, config) {
         }
 
         console.log('-----> FULL REQUEST CONFIG')
-        console.log(request);
+        console.log(JSON.stringify(request, null, 4));
 
         request.audio = {
             content: audio
