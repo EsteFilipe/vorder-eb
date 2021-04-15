@@ -9,7 +9,7 @@ module.exports = function (credentials, config) {
         // For example I found that I wasn't able to use `SpeechClient()`` and 
         // `TextToSpeechClient()` in simultaneous when using credentials[0]
         // Also unable to access Custom Classes and Phrase Sets with `credentials[0]`.
-        // Didn't investigate why, but `credentials[0]`` is associated to the default
+        // Didn't investigate why, but `credentials[0]` is associated to the default
         // service account for the `Vorder` Google Cloud Project
         this.adaptationClient = new speechToText.AdaptationClient({
             credentials: {client_email: credentials[1].client_email,
@@ -58,6 +58,8 @@ module.exports = function (credentials, config) {
         }
         else if (config.stt.adaptations) {
             this.sttRequest.config.adaptation = {};
+            this.nProcessPhraseSets = 0;
+            this.processPhraseSetsNames = [];
         }
 
         // Used for Adaptation
@@ -76,6 +78,10 @@ module.exports = function (credentials, config) {
         const phraseSets = await this.listPhraseSet();
 
         const output = prettifyListAdaptations(customClasses, phraseSets);
+
+        // TODO REMOVE
+        console.log('----> HERE')
+        console.log(this.processPhraseSetsNames);
 
         await this.adaptationClient.close();
 
@@ -142,8 +148,20 @@ module.exports = function (credentials, config) {
 
         for (phraseSet of phraseSets) {
             // Check if class exists
-            const phraseSetId = phraseSet.phraseSetId;
-            const phrases = phraseSet.phrases;
+            var phraseSetId = phraseSet.phraseSetId;
+            var phrases = phraseSet.phrases;
+
+            // Splitting Phrase Sets for 'order' because I get the error
+            // Error: 3 INVALID_ARGUMENT: Referenced custom class resource: order-polarity duplicates id in inline custom class definition
+            // when I try to do a single Phrase Set with all the phrases, so I'm assuming I can't repeat custom classes in the phrases of a 
+            // Phrase Set
+            if (phraseSetId === 'process'){
+                phraseSetId = `process-${this.nProcessPhraseSets}`;
+                phrases = phrases[this.nProcessPhraseSets];
+                this.processPhraseSetsNames.push(`${this.parent}/phraseSets/${this.phraseSetId}`)
+                this.nProcessPhraseSets += 1;
+            }
+
             const phraseSetExists = await this.getPhraseSet(phraseSetId);
 
             const phrasesProcessed = this.parsePhrases(phrases);
@@ -352,14 +370,13 @@ module.exports = function (credentials, config) {
             }
         }
 
-        // TODO TRY WRONG PHRASESET REFERENCE TO SEE IF IT ERRORS OUT
         else if (config.stt.adaptations) {
             if (orderStage === "PROCESS") {
-                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
+                request.config.adaptation.phraseSetReferences = this.processPhraseSetsNames;
 
             }
             else if (orderStage === "CONFIRMATION") {
-                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`];
             }
         }
 
