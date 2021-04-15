@@ -82,8 +82,6 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
-        await this.deletePhraseSet('confirmation-0');
-
         console.log('\nCreating Custom Classes and Phrase sets from adaptation config...')
         await this.createCustomClassesFromArray(config.stt.adaptations.configuration.customClasses);
         await this.createPhraseSetsFromArray(config.stt.adaptations.configuration.phraseSets);
