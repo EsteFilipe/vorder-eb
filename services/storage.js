@@ -12,6 +12,8 @@ var StorageService = function() {
 	this.name = '';
 }
 
+// Not used anymore. This was to load sentences from a json file, but now I'm
+// using a python script to generate them on the fly
 StorageService.prototype.getSTTContexts = async function(contextFilePaths) {
 
     const expectedSentencesFilePath = path.resolve(process.cwd()) + '/' + contextFilePaths.order;

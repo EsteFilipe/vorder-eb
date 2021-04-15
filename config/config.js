@@ -8,9 +8,8 @@ var config = {
 		stt: {
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
-			contextFilePaths: {
-				order: 'config/speech-expected-sentences.json',
-				confirmation: ''
+			contextsConf: {
+				useBigrams: 'false'
 			},
 			//contextFilePaths: null,
 			// Adaptations to create and use in the speech recognition model

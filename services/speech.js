@@ -1,5 +1,6 @@
 const speechToText = require('@google-cloud/speech').v1p1beta1,
-      textToSpeech = require('@google-cloud/text-to-speech');
+      textToSpeech = require('@google-cloud/text-to-speech'),
+      utils = require('../helpers/utils');
 
 
 module.exports = function (credentials, config) {
@@ -61,6 +62,23 @@ module.exports = function (credentials, config) {
             this.parent = `projects/${credentials[1].project_id}/locations/global`
         }
 	}
+
+    SpeechService.prototype.getSTTContexts = async function () {
+        const orderExpectedSentences = JSON.parse(
+            await utils.runPython38Script('generate_speech_context_sentences.py', this.config.stt.contextsConf.useBigrams)
+        );
+
+        const orderSpeechContexts = [{
+           phrases: orderExpectedSentences,
+           boost: 20.0
+        }];
+        const confirmationSpeechContexts = [{
+           phrases: ['yes','no'],
+           boost: 20.0
+        }];
+
+        return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
+    }
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
 
@@ -359,6 +377,9 @@ module.exports = function (credentials, config) {
                 request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
             }
         }
+
+        console.log('-----> FULL REQUEST CONFIG')
+        console.log(request);
 
         request.audio = {
             content: audio
