@@ -53,13 +53,6 @@ module.exports = function (credentials, config) {
 
         };
 
-        if(config.stt.contextsConf) {
-            this.speechContexts = {
-                process: config.stt.contexts.process,
-                confirmation: config.stt.contexts.confirmation
-            };
-
-        }
         if (config.stt.adaptations) {
             this.sttRequest.config.adaptation = {};
             this.parent = `projects/${credentials[1].project_id}/locations/global`;
@@ -362,7 +355,7 @@ module.exports = function (credentials, config) {
 
         if (orderStage === "PROCESS") {
             if(config.stt.contextsConf) {
-        	   request.config.speechContexts = this.speechContexts.process;
+        	   request.config.speechContexts = config.stt.contexts.process;
             }
             if (config.stt.adaptations) {
                 request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`];
@@ -370,7 +363,7 @@ module.exports = function (credentials, config) {
         }
         else if (orderStage === "CONFIRMATION") {
             if(config.stt.contextsConf) {
-                request.config.speechContexts = this.speechContexts.confirmation;
+                request.config.speechContexts = config.stt.contexts.confirmation;
             }
             if (config.stt.adaptations) {
                 request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`];
