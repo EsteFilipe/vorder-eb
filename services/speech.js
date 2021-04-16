@@ -54,12 +54,15 @@ module.exports = function (credentials, config) {
         };
 
         if(config.stt.contextsConf) {
-            this.speechContexts.process = config.stt.contexts.process;
-            this.speechContexts.confirmation = config.stt.contexts.confirmation;
+            this.speechContexts = {
+                process: config.stt.contexts.process,
+                confirmation: config.stt.contexts.confirmation
+            };
+
         }
         if (config.stt.adaptations) {
             this.sttRequest.config.adaptation = {};
-            this.parent = `projects/${credentials[1].project_id}/locations/global`
+            this.parent = `projects/${credentials[1].project_id}/locations/global`;
         }
 	}
 
