@@ -54,7 +54,7 @@ module.exports = function (credentials, config) {
         };
 
         if(config.stt.contextsConf) {
-            this.speechContexts.order = config.stt.contexts.order;
+            this.speechContexts.process = config.stt.contexts.process;
             this.speechContexts.confirmation = config.stt.contexts.confirmation;
         }
         if (config.stt.adaptations) {
@@ -64,12 +64,12 @@ module.exports = function (credentials, config) {
 	}
 
     SpeechService.prototype.getSTTContexts = async function () {
-        const orderExpectedSentences = JSON.parse(
+        const processExpectedSentences = JSON.parse(
             await utils.runPython38Script('generate_speech_context_sentences.py', config.stt.contextsConf.useBigrams)
         );
 
-        const orderSpeechContexts = [{
-           phrases: orderExpectedSentences,
+        const processSpeechContexts = [{
+           phrases: processExpectedSentences,
            boost: 20.0
         }];
         const confirmationSpeechContexts = [{
@@ -77,7 +77,7 @@ module.exports = function (credentials, config) {
            boost: 20.0
         }];
 
-        return {orderSpeechContexts: orderSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
+        return {processSpeechContexts: processSpeechContexts, confirmationSpeechContexts, confirmationSpeechContexts}
     }
 
     SpeechService.prototype.createAdaptationsFromConfig = async function () {
@@ -359,7 +359,7 @@ module.exports = function (credentials, config) {
 
         if (orderStage === "PROCESS") {
             if(config.stt.contextsConf) {
-        	   request.config.speechContexts = this.speechContexts.order;
+        	   request.config.speechContexts = this.speechContexts.process;
             }
             if (config.stt.adaptations) {
                 request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`];

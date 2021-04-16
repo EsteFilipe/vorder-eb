@@ -64,8 +64,8 @@ if (cluster.isMaster) {
         if (config.speech.stt.contextsConf) {
             const speechContexts = await speechService.getSTTContexts()
             config.speech.stt.contexts = {}
-            config.speech.stt.contexts.order = speechContexts.orderSpeechContexts
-            config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts
+            config.speech.stt.contexts.process = speechContexts.processSpeechContexts;
+            config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts;
             console.log("---> Contexts have been set:" + JSON.stringify(config.speech.stt.contexts, null, 4));
         }
         if (config.speech.stt.adaptations) {
