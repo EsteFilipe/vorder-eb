@@ -53,9 +53,9 @@ module.exports = function (credentials, config) {
 
         };
 
-        if(config.stt.contextFilePaths) {
-            this.orderSpeechContexts = config.stt.contexts.order;
-            this.confirmationSpeechContexts = config.stt.contexts.confirmation;
+        if(config.stt.contextsConf) {
+            this.speechContexts.order = config.stt.contexts.order;
+            this.speechContexts.confirmation = config.stt.contexts.confirmation;
         }
         if (config.stt.adaptations) {
             this.sttRequest.config.adaptation = {};
@@ -356,23 +356,21 @@ module.exports = function (credentials, config) {
     	const request = Object.assign({}, this.sttRequest)
         // Only use the speechContexts if the files have been defined in the config
         // Else use the Phrase Sets with Custom Classes
-        if(config.stt.contextsConf) {
-            if (orderStage === "PROCESS") {
-            	request.config.speechContexts = this.orderSpeechContexts;
 
+        if (orderStage === "PROCESS") {
+            if(config.stt.contextsConf) {
+        	   request.config.speechContexts = this.speechContexts.order;
             }
-            else if (orderStage === "CONFIRMATION") {
-            	request.config.speechContexts = this.confirmationSpeechContexts;
+            if (config.stt.adaptations) {
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`];
             }
         }
-
-        if (config.stt.adaptations) {
-            if (orderStage === "PROCESS") {
-                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/process`]
-
+        else if (orderStage === "CONFIRMATION") {
+            if(config.stt.contextsConf) {
+                request.config.speechContexts = this.speechContexts.confirmation;
             }
-            else if (orderStage === "CONFIRMATION") {
-                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`]
+            if (config.stt.adaptations) {
+                request.config.adaptation.phraseSetReferences = [`${this.parent}/phraseSets/confirmation`];
             }
         }
 
