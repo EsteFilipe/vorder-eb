@@ -66,7 +66,8 @@ if (cluster.isMaster) {
             config.speech.stt.contexts = {}
             config.speech.stt.contexts.process = speechContexts.processSpeechContexts;
             config.speech.stt.contexts.confirmation = speechContexts.confirmationSpeechContexts;
-            console.log("---> Contexts have been set:" + JSON.stringify(config.speech.stt.contexts, null, 4));
+            console.log("---> Contexts have been set:");
+            console.log(JSON.stringify(config.speech.stt.contexts, null, 4));
         }
         if (config.speech.stt.adaptations) {
             if (config.speech.stt.adaptations.create) {
