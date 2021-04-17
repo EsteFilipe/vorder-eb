@@ -121,12 +121,15 @@ module.exports = function (client, speechCredentials, speechOptions) {
                 const order = orderInfo.output;
                 const coinName = this.coins[order.ticker];
                 
-                if (order.type == "limit") {
+                if (order.type == "market") {
+                    orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
+                }                
+                else if (order.type == "limit") {
                     orderText = `${order.polarity} ${order.size} ${coinName} at ${order.price} US Dollars.`;
                 }
-
-                else if (order.type == "market") {
-                    orderText = `${order.polarity} ${order.size} ${coinName} at market price.`;
+                else if (order.type == "range") {
+                    orderText = `${order.polarity} total of ${order.size} ${coinName}, ${order.n_orders} orders equally 
+                        distributed between ${order.price_low} and ${order.price_high} US Dollars.`;
                 }
 
                 try {

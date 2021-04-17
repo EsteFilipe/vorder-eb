@@ -1274,12 +1274,17 @@ Vorder.prototype = {
         const order = od.output;
         var orderText;
 
-        if (order.type == "limit") {
-          orderText = `${order.polarity} ${order.size} ${order.ticker} at ${order.price} US Dollars. Do you want to confirm?`;
+        if (order.type == "market") {
+          orderText = `${order.polarity} ${order.size} ${order.ticker} at market price.`;
         }
 
-        else if (order.type == "market") {
-          orderText = `${order.polarity} ${order.size} ${order.ticker} at market price. Do you want to confirm?`;
+        else if (order.type == "limit") {
+          orderText = `${order.polarity} ${order.size} ${order.ticker} at ${order.price} US Dollars.`;
+        }
+
+          else if (order.type == "range") {
+          orderText = `${order.polarity} ${order.size} ${order.ticker}. 
+          ${order.n_orders} orders between ${order.price_low} and ${order.price_high} US Dollars.`;
         }
 
         headerCenter.innerHTML = orderText;

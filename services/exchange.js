@@ -52,8 +52,9 @@ ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orde
                         exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails.size, orderDetails.price);
                     }
                     else if (orderDetails.type == 'range') {
-                        // TODO
-                        exchangeResponse = 0;
+                        for (const price of orderDetails['range_values']['prices']){
+                            exchangeResponse = await binance.futuresBuy(orderSymbol, orderDetails['range_values']['size'], price);
+                        }
                     }
                 }
                 else if (orderDetails.polarity == 'sell') {
@@ -64,8 +65,9 @@ ExchangeService.prototype.placeOrder = async function(keys, exchange, test, orde
                         exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails.size, orderDetails.price);
                     }
                     else if (orderDetails.type == 'range') {
-                        // TODO
-                        exchangeResponse = 0;
+                        for (const price of orderDetails['range_values']['prices']){
+                            exchangeResponse = await binance.futuresSell(orderSymbol, orderDetails['range_values']['size'], price);
+                        }
                     }
                 }
             }
