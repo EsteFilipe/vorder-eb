@@ -1,16 +1,17 @@
 from word2number import w2n
 from num2words import num2words as n2w
 import more_itertools as mit
+import numpy as np
 import sys
 import json
 import re
 
-COINS = {"Bitcoin": "BTC",
-         "Ether": "ETH"}
+COINS = {"bitcoin": "BTC",
+         "ether": "ETH"}
 
-BUY_SELL_WORDS = ["buy", "sell"]
+POLARITY_WORDS = ["buy", "sell"]
 
-TYPE_WORDS = ["limit", "market"]
+TYPE_WORDS = ["limit", "market", "range"]
 
 
 def represents_int(s):
@@ -59,12 +60,12 @@ def number_word_indexes_in_sequence(seq, consider_and_word):
 
 def order_basic_criteria_check(words):
 
-    if all(("buy" in words, "sell" in words)):
-        return False, "Both 'buy' and 'sell' words were found in the order. Order is incorrect.".format(len(words))
-    elif all(("market" in words, "limit" in words)):
-        return False, "Both 'market' and 'limit' words were found in the order. Order is incorrect.".format(len(words))
-    elif all(("market" not in words, "limit" not in words)):
-        return False, "Order type ('market' or 'limit') not found."
+    if all([w in words for w in POLARITY_WORDS]):
+        return False, "Both 'buy' and 'sell' words were found in the order. Order is incorrect."
+    elif sum([w in words for w in TYPE_WORDS]) > 1:
+        return False, "Only one order type ('market', 'limit', or 'range') per order is allowed. Order is incorrect."
+    elif sum([w in words for w in TYPE_WORDS]) == 0:
+        return False, "Order type ('market', 'limit', or 'range') not found."
     else:
         return True, ""
 
@@ -99,8 +100,17 @@ def bypass_sanitize_numbers(words):
         elif len(words) == 5:
             if all((words[3] == "limit", len(nw_indexes_output) == 2, nw_indexes_output == [1, 4])):
                 return True
+        # Case 3 to bypass sanitation:
+        # - There are 9 words in the sequence (first check to avoid index out of range)
+        # - Word in index 3 is "range", word in index 6 is "low", and word in index 8 is "high"
+        # - There are 4 'number words'
+        # - Those 4 'number words' are in indexes 1, 4, 6, and 8
+        elif len(words) == 9:
+            if all((words[3] == "range", words[5] == "low", words[7] == "high",
+                    len(nw_indexes_output) == 4, nw_indexes_output == [1, 4, 6, 8])):
+                return True
         else:
-            # ---- For all other cases, sanitize, because there's something wrong atypical with the numbers ----
+            # ---- For all other cases, sanitize, because there's something atypical with the numbers ----
             return False
 
 
@@ -149,7 +159,7 @@ def sanitize_numbers_from_google_speech(words):
     # 1. Every time there is either '+' or 'and' it means that she said 'and'
     # 2. If we read the results out loud that are given by the speech api they always make sense
     # so the most elegant solution is to convert the numbers into words, and then convert all the words
-    # that are numbers into digits.
+    # that are 'number words' into digits.
     """
 
     # First, address the exception for the word "million".
@@ -183,13 +193,19 @@ def sanitize_numbers_from_google_speech(words):
     # Group the consecutive number word indexes.
     number_word_indexes = [list(group) for group in mit.consecutive_groups(nw_indexes_output)]
 
-    # Check whether we have a 'market' or 'limit' order
+    # Check whether we have a 'market', 'limit', or 'range' order
     # Already made sure in `order_sanity_check` that one, and only one, of those types is present in the order.
     order_type = ""
     if "market" in words:
         order_type = "market"
     elif "limit" in words:
         order_type = "limit"
+    elif "range" in words:
+        order_type = "range"
+    # It really shouldn't get into the `else` because previous sanity check was already done for this.
+    # If it does, there's something very wrong
+    else:
+        return False, "Unexpected: Order type ('market', 'limit', or 'range') not found."
 
     # Check if the number of groups in `number_word_indexes` makes sense according to the order type
     if order_type == "market":
@@ -198,6 +214,9 @@ def sanitize_numbers_from_google_speech(words):
     elif order_type == "limit":
         if len(number_word_indexes) != 2:
             return False, "Didn't find 2 group of number words for 'limit' order, which means order is wrong. Aborting."
+    elif order_type == "range":
+        if len(number_word_indexes) != 4:
+            return False, "Didn't find 4 group of number words for 'range' order, which means order is wrong. Aborting."
 
     # If all the tests above passed, let's proceed to sanitize the numbers
     # Again reverse the order of the indexes, because we'll have to delete elements in the original list
@@ -297,6 +316,10 @@ def remove_unwanted_chars(text):
     return txt
 
 
+def process_range_order(order):
+    pass
+
+
 def parse_order(order):
 
     order = remove_unwanted_chars(order)
@@ -322,15 +345,36 @@ def parse_order(order):
         else:
             words = sanitation_output
 
-    # If after the order doesn't have either 4 or 5 words, something went wrong. Don't go further
-    if len(words) not in (4, 5):
-        return False, "Order must have either 4 or 5 command words. {} words were received instead.".format(len(words))
+    # If after the order doesn't have either 4, 5 or 9 words, something went wrong. Don't go further
+    if len(words) not in (4, 5, 9):
+        return False, "Order must have either 4, 5 or 9 command words. {} words were received instead.".format(len(words))
 
     # If all the previous succeeded the order is now structured as expected. Let's parse it
     parsed_order = {}
 
+    # -- Parse type
+    if any(words[3] == x for x in TYPE_WORDS):
+        parsed_order["type"] = words[3]
+    else:
+        return False, "Fourth word was not a valid type (market, limit or range)"
+
+    # Check some specifities for each order type to post-sanity-check the processing
+    if parsed_order["type"] == "market":
+        if len(words) != 4:
+            return False, "Order type 'market' must have exactly 4 command words. {} words were received instead.".format(len(words))
+    elif parsed_order["type"] == "limit":
+        if len(words) != 5:
+            return False, "Order type 'limit' must have exactly 5 command words. {} words were received instead.".format(len(words))
+    elif parsed_order["type"] == "range":
+        if len(words) != 9:
+            return False, "Order type 'range' must have exactly 9 command words. {} words were received instead.".format(len(words))
+        if words[5] != 'low':
+            return False, "Range order: word is index 6 was not 'low'."
+        if words[7] != 'high':
+            return False, "Range order: word is index 8 was not 'high'."
+
     # -- Parse buy/sell
-    if any(words[0] == x for x in BUY_SELL_WORDS):
+    if any(words[0] == x for x in POLARITY_WORDS):
         parsed_order["polarity"] = words[0]
     else:
         return False, "First word was not either buy or sell"
@@ -342,36 +386,45 @@ def parse_order(order):
         return False, "Second word was not a number convertible to float (order size). Error message: {}".format(e)
 
     # -- Parse ticker
-    if any(words[2] == x.lower() for x in COINS):
-        # Coin names in COINS have first letter as upper-case, to pass as context to
-        # Google Speech. So let's change the first letter here to upper case as well
-        # to look in the dictionary
-        coin_name = words[2].title()
-        parsed_order["ticker"] = COINS[coin_name]
+    if any(words[2] == x for x in COINS):
+        #coin_name = words[2].title()
+        parsed_order["ticker"] = COINS[words[2]]
     else:
-        return False, "Third word was not a valid ticker"
+        return False, "Third word was not a valid coin (bitcoin or ether)"
 
-    # -- Parse type
-    if any(words[3] == x for x in TYPE_WORDS):
-        parsed_order["type"] = words[3]
-    else:
-        return False, "Fourth word was not a valid type"
-
-    # Only check price if type is limit
-    if words[3] == "limit":
+    # Only check prices if type is limit or range
+    if parsed_order["type"] == "limit":
         # -- Parse price
         try:
             parsed_order["price"] = float(words[4])
         except Exception as e:
-            return False, "Fifth word was not a number convertible to float (order price). Error message: {}".format(e)
+            return False, "Limit order, fifth word was not a number convertible to float (order price). Error message: {}".format(e)
 
-    # Check that the number of words is correct for the corresponding order type:
-    if parsed_order["type"] == "limit":
-        if len(words) != 5:
-            return False, "Order type 'limit' must have exactly 5 command words. {} words were received instead.".format(len(words))
-    elif parsed_order["type"] == "market":
-        if len(words) != 4:
-            return False, "Order type 'market' must have exactly 4 command words. {} words were received instead.".format(len(words))
+    if parsed_order["type"] == "range":
+        # -- Parse number of orders and range prices
+        try:
+            parsed_order["n_orders"] = int(words[4])
+            parsed_order["price_low"] = float(words[6])
+            parsed_order["price_high"] = float(words[8])
+            if parsed_order["price_low"] >= parsed_order["price_high"]:
+                return False, "Range order, high bound must be higher than low bound."
+        except Exception as e:
+            return False, "Range order, there was a problem in number type casting. Error message: {}".format(e)
+        # Calculate effective order prices and sizes for each of the individual limit orders
+        try:
+            parsed_order["range_values"] = {}
+            # The size of each limit order
+            # Note: if the order size is too small, the exchange API will throw an error, but I won't check that here
+            # because the number of decimal places is different for each exchange and coin
+            parsed_order["range_values"]["size"] = '%.3f' % (parsed_order["size"] / parsed_order["n_orders"])
+            # The prices at which each of the orders will be placed at
+            price_range_values = np.linspace(
+                parsed_order["price_low"], parsed_order["price_high"], parsed_order["n_orders"])
+            # Truncate to 2 decimal places
+            price_range_values = ['%.2f' % p for p in price_range_values]
+            parsed_order["range_values"]["prices"] = price_range_values
+        except Exception as e:
+            return False, "Range order, there was a problem calculating order prices. Error message: {}".format(e)
 
     return True, parsed_order
 
@@ -425,6 +478,8 @@ if __name__ == "__main__":
     # to make test cases for the output from parse_order() instead.
     #test_sanitize_numbers_from_google_speech()
     #print(parse_order("buy 0.23 314 bitcoin limit 30 1301"))
+
+    #order_text = "buy 0.1 1 bitcoin range 10 low 30 1301 high 50 1000"
 
     order_text = sys.argv[1]
     status, output = parse_order(order_text)

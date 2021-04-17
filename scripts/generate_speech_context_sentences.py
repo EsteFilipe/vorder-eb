@@ -63,19 +63,26 @@ def get_order_expected_sentences(use_bigrams=False):
     expected_sentences = []
 
     # Market:
+    # e.g. 'buy 0.1 bitcoin market'
     for bs in POLARITY_WORDS:
         for c in COINS:
             for nc in NUMBER_CLASSES:
                 expected_sentences.append("{} {} {} market".format(bs, nc, c))
 
     # Limit:
-
+    # e.g. 'buy 0.1 bitcoin limit 55000'
     for bs in POLARITY_WORDS:
         for c in COINS:
-            for nc in product(NUMBER_CLASSES, repeat=len(NUMBER_CLASSES)):
+            for nc in product(NUMBER_CLASSES, repeat=2):
                 expected_sentences.append("{} {} {} limit {}".format(bs, nc[0], c, nc[1]))
 
-    # TODO ADD RANGE
+    # Range:
+    # e.g. 'buy 0.1 bitcoin range 10 low 55000 high 60000'
+    # -> 10 limit orders in a total of 0.1 btc spread through price range [55000, 60000]
+    for bs in POLARITY_WORDS:
+        for c in COINS:
+            for nc in product(NUMBER_CLASSES, repeat=4):
+                expected_sentences.append("{} {} {} range $OPERAND low {} high {}".format(bs, nc[0], c, nc[1], nc[2], nc[3]))
 
     # Get all the possible bi-grams to improve accuracy as mentioned in
     # https://cloud.google.com/speech-to-text/docs/speech-adaptation

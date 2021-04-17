@@ -1,3 +1,4 @@
 more-itertools==8.7.0
 num2words==0.5.10
 word2number==1.1
+numpy==1.20.2
