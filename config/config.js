@@ -11,17 +11,21 @@ var config = {
 			contextsConf: {
 				useBigrams: 'false'
 			},
-			//contextFilePaths: null,
+			//contextsConf: null,
 			// Adaptations to create and use in the speech recognition model
 			// Adaptations are made up of Phrase Sets and Classes. 
 			// See https://cloud.google.com/speech-to-text/docs/adaptation-model#improve_transcription_results_using_a_customclass
 			// and https://googleapis.dev/nodejs/speech/latest/v1p1beta1.AdaptationClient.html
 			//
 			// Notes: 
+			// -> When both `contextsConf` and `adaptations` are non-null, `adaptations` superseedes according to
+			// https://cloud.google.com/speech-to-text/docs/reference/rest/v1p1beta1/RecognitionConfig
 			// -> New adaptations are only created from `adaptations.configuration` if `adaptations.create` is set to true. Otherwise
 			// nothing is done, and the last set adaptations will be used.
 			// -> If `adaptations.override` is true then even if an adaptation with the same name already exists
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
+			adaptations: null,
+			/*
 			adaptations: {
 				create: true,
 				override: true,
@@ -54,16 +58,15 @@ var config = {
 						{
 							phraseSetId: 'process',
 							phrases: [
-								/*
 								// Market order combinations
-								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type}', boost: 20},
-								{value: '${order-polarity} $OPERAND ${coins} ${order-type}', boost: 20},
+								//{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type}', boost: 20},
+								//{value: '${order-polarity} $OPERAND ${coins} ${order-type}', boost: 20},
 								// Limit order combinations
-								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
-								{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} $OPERAND', boost: 20},
-								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
-								{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OPERAND', boost: 20},
-								*/
+								//{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
+								//{value: '${order-polarity} $OOV_CLASS_DIGIT_SEQUENCE ${coins} ${order-type} $OPERAND', boost: 20},
+								//{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OOV_CLASS_DIGIT_SEQUENCE', boost: 20},
+								//{value: '${order-polarity} $OPERAND ${coins} ${order-type} $OPERAND', boost: 20},
+								
 								// Single word classes
 								{value: '${order-polarity}', boost: 20},
 								{value: '${coins}', boost: 20},
@@ -83,6 +86,7 @@ var config = {
 				}
 			}
 		},
+		*/
 		tts: {
 			encoding: 'MP3',
 			voiceName: 'en-US-Wavenet-G',
