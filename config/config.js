@@ -8,10 +8,10 @@ var config = {
 		stt: {
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
-			contextsConf: {
-				useBigrams: 'false'
-			},
-			//contextFilePaths: null,
+			contextsConf: null,
+			//contextsConf: {
+			//	useBigrams: 'false'
+			//},
 			// Adaptations to create and use in the speech recognition model
 			// Adaptations are made up of Phrase Sets and Classes. 
 			// See https://cloud.google.com/speech-to-text/docs/adaptation-model#improve_transcription_results_using_a_customclass

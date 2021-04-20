@@ -33,7 +33,7 @@ if (cluster.isMaster) {
         socketIo = require('socket.io'),
         http = require('http'),
         storageService = require('./services/storage'),
-        config = require('./config/config')
+        config = require('./config/config');
 
     global.fetch = require('node-fetch');
 
@@ -78,6 +78,11 @@ if (cluster.isMaster) {
                 console.log("Adaptations have not been set anew - we'll be using the ones previously defined (if any).");
             }
         }
+
+        // Test transcription performancce
+        const orderProcessingTest = require('./test/order-processing')(config);
+        orderProcessingTest.test();
+
 
         return {status: true, 
         output: ""}

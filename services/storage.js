@@ -206,6 +206,44 @@ StorageService.prototype.s3Put = function (fileName, fileContent) {
 
 }
 
+StorageService.prototype.s3GetAll = function (bucketName, prefix) {
+
+    var params = {
+      Bucket: bucketName,
+      Prefix: prefix // folder Name
+    };
+
+    return new Promise(function(resolve, reject) {
+
+        S3.listObjectsV2(params, function(err, data) {
+            if (err) {
+                resolve({status: false, output: err});
+            }
+            else {
+                resolve({status: true, output: data});
+            }
+
+
+           allFiles.push(data)
+       }
+    });
+
+
+        S3.upload(params, function(err, data) {
+            if (err) {
+                resolve({status: false, output: err});
+            } else {
+                resolve({status: true, output: data});
+            }
+        });
+    });
+
+
+
+    return allFiles;
+
+}
+
 StorageService.prototype.ddbPut = async function(item, tableName) {
 	try {
 		await ddbPut(item, tableName);
