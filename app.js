@@ -80,8 +80,8 @@ if (cluster.isMaster) {
         }
 
         // Test transcription performancce
-        //const orderProcessingTest = require('./test/order-processing')(config);
-        //orderProcessingTest.test();
+        const orderProcessingTest = require('./test/order-processing')(config);
+        orderProcessingTest.test();
 
 
         return {status: true, 
