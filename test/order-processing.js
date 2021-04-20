@@ -27,23 +27,24 @@ module.exports = function(config) {
 
 	OrderProcessingTest.prototype.test = async function () {
 
-	    // Download all files
+	    // List all files in bucket folder
 	    const s3List = await storageService.s3ListAll('vorder-data', 'test/voice-orders/');
-
 	    const filesInfo = s3List.output.Contents;
 	    // Remove first element, because it's just info about the parent folder
 	    filesInfo.shift()
 
-	    for (const f of filesInfo)
+	    // Iterate through each file
+	    for (const f of filesInfo) {
 	    	const fileKey = f.Key;
 	    	console.log(fileKey);
+	    }
 
 	    /*
 	    // Process files
 	    const pFiles = await processFiles(files)
 
 	    for (f of pFiles) {
-		    // Iterate through each file. Obtain result and compare against expected
+
 
 		    // Send audio to transcribe and wait for the response
 			const orderTranscription = await speechService.speechToText(fileBuffer, "PROCESS");
