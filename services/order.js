@@ -86,6 +86,8 @@ module.exports = function (client, speechCredentials, speechOptions) {
         const fileName = this.client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
         // Get the dataURL which was sent from the client
         const dataURL = data.audio.dataURL.split(',').pop();
+        console.log('-----> DEBUG');
+        console.log(dataURL);
         // Convert it to a Buffer
         let fileBuffer = Buffer.from(dataURL, 'base64');
 

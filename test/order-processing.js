@@ -1,15 +1,8 @@
 const storageService = require('../services/storage'),
 	  utils = require('../helpers/utils');
 
-function downloadFile(fileKey) {
-
-}
 
 function processFileName(fileName) {
-	const x = 0;
-}
-
-async function processFile() {
 	const x = 0;
 }
 
@@ -39,6 +32,7 @@ module.exports = function(config) {
 	    	var fileName = fileKey.split("/"); 
 	    	fileName = fileName[fileName.length - 1];
 
+	 		// Get expected order result from the file name
 	    	const expectedOrderResult = processFileName(fileName);
 	    	console.log(fileName);
 
