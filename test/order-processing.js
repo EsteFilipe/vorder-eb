@@ -21,7 +21,7 @@ module.exports = function(config) {
 		this.name = ''
 	}
 
-	OrderProcessingTest.prototype.test = function () {
+	OrderProcessingTest.prototype.test = async function () {
 
 	    // Download all files
 	    const files = await storageService.s3GetAll('vorder-data', 'test/voice-orders/');
