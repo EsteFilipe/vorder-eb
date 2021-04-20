@@ -38,6 +38,9 @@ module.exports = function(config) {
 	    	const fileKey = f.Key;
 	    	var fileName = fileKey.split("/"); 
 	    	fileName = fileName[fileName.length - 1];
+
+	    	const expectedOrderInfo = processFileName(fileName);
+
 	    	console.log(fileName);
 	    	const fileData = await storageService.s3Get('vorder-data', fileKey);
 	    	console.log(fileData);
