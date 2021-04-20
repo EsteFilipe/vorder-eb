@@ -38,9 +38,8 @@ module.exports = function(config) {
 
 	    	// Download audio file
 	    	const fileData = await storageService.s3Get('vorder-data', fileKey);
-	    	const fileBuffer = fileData.Body;
 	    	// Transcribe and process transcription
-			const orderTranscription = await speechService.speechToText(fileBuffer, "PROCESS");
+			const orderTranscription = await speechService.speechToText(fileData.output.Body, "PROCESS");
 	    	const orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
             const orderInfo = JSON.parse(orderProcessingResult);
             const orderResult = orderInfo.output;

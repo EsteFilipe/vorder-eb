@@ -377,6 +377,8 @@ module.exports = function (credentials, config) {
             content: audio
         };
 
+        console.log(audio);
+
         const responses = await this.sttClient.recognize(request);
 
         var transcription = "TRANSCRIPTION_ERROR";
