@@ -214,7 +214,6 @@ StorageService.prototype.s3GetAll = function (bucketName, prefix) {
     };
 
     return new Promise(function(resolve, reject) {
-
         S3.listObjectsV2(params, function(err, data) {
             if (err) {
                 resolve({status: false, output: err});
@@ -222,25 +221,8 @@ StorageService.prototype.s3GetAll = function (bucketName, prefix) {
             else {
                 resolve({status: true, output: data});
             }
-
-
-           allFiles.push(data)
-       }
-    });
-
-
-        S3.upload(params, function(err, data) {
-            if (err) {
-                resolve({status: false, output: err});
-            } else {
-                resolve({status: true, output: data});
-            }
         });
     });
-
-
-
-    return allFiles;
 
 }
 
