@@ -39,34 +39,20 @@ module.exports = function(config) {
 	    	var fileName = fileKey.split("/"); 
 	    	fileName = fileName[fileName.length - 1];
 
-	    	const expectedOrderInfo = processFileName(fileName);
-
+	    	const expectedOrderResult = processFileName(fileName);
 	    	console.log(fileName);
+
+	    	// Download audio file
 	    	const fileData = await storageService.s3Get('vorder-data', fileKey);
-	    	console.log(fileData);
-	    }
-
-	    /*
-	    // Process files
-	    const pFiles = await processFiles(files)
-
-	    for (f of pFiles) {
-
-
-		    // Send audio to transcribe and wait for the response
+	    	const fileBuffer = fileData.Body;
+	    	// Transcribe and process transcription
 			const orderTranscription = await speechService.speechToText(fileBuffer, "PROCESS");
-
-		    // Process the order using python script
-		    const orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
-
-
-		    // TODO compare against expected
-		    status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
-		    output = JSON.stringify({
-		        transcription: orderTranscription,
-		        processing: orderInfo.output});
-		}
-		*/
+	    	const orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
+            const orderInfo = JSON.parse(orderProcessingResult);
+            const orderResult = orderInfo.output;
+            console.log(orderResult);
+            // Compare obtained to expected
+	    }
 
 	}
 
