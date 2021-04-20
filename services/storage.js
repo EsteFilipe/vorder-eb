@@ -206,7 +206,7 @@ StorageService.prototype.s3Put = function (fileName, fileContent) {
 
 }
 
-StorageService.prototype.s3GetAll = function (bucketName, prefix) {
+StorageService.prototype.s3ListAll = function (bucketName, prefix) {
 
     var params = {
       Bucket: bucketName,
@@ -219,6 +219,27 @@ StorageService.prototype.s3GetAll = function (bucketName, prefix) {
                 resolve({status: false, output: err});
             }
             else {
+                resolve({status: true, output: data});
+            }
+        });
+    });
+
+}
+
+StorageService.prototype.s3Get = function (bucketName, fileKey) {
+
+    // Setting up S3 upload parameters
+    const params = {
+        Bucket: bucketName,
+        Key: fileKey
+    };
+
+    // Uploading files to the bucket
+    return new Promise(function(resolve, reject) {
+        S3.getObject(params, function(err, data) {
+            if (err) {
+                resolve({status: false, output: err});
+            } else {
                 resolve({status: true, output: data});
             }
         });

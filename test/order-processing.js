@@ -1,11 +1,15 @@
 const storageService = require('../services/storage'),
 	  utils = require('../helpers/utils');
 
+function downloadFile(fileKey) {
+
+}
+
 function processFileName(fileName) {
 	const x = 0;
 }
 
-async function processFiles() {
+async function processFile() {
 	const x = 0;
 }
 
@@ -24,9 +28,15 @@ module.exports = function(config) {
 	OrderProcessingTest.prototype.test = async function () {
 
 	    // Download all files
-	    const files = await storageService.s3GetAll('vorder-data', 'test/voice-orders/');
+	    const s3List = await storageService.s3ListAll('vorder-data', 'test/voice-orders/');
 
-	    console.log(JSON.stringify(files));
+	    const filesInfo = s3List.output.Contents;
+	    // Remove first element, because it's just info about the parent folder
+	    filesInfo.shift()
+
+	    for (const f of filesInfo)
+	    	const fileKey = f.Key;
+	    	console.log(fileKey);
 
 	    /*
 	    // Process files
