@@ -36,7 +36,11 @@ module.exports = function(config) {
 	    // Iterate through each file
 	    for (const f of filesInfo) {
 	    	const fileKey = f.Key;
-	    	console.log(fileKey);
+	    	var fileName = fileKey.split("/"); 
+	    	fileName = fileName[fileName.length - 1];
+	    	console.log(fileName);
+	    	const fileData = await storageService.s3Get('vorder-data', fileKey);
+	    	console.log(fileData);
 	    }
 
 	    /*
