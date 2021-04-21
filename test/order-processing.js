@@ -51,7 +51,7 @@ function processFileName(fileName) {
 }
 
 function calculatePerformanceMetrics(data) {
-	console.log(JSON.stringify(data))
+	console.log(JSON.stringify(data, null, 4))
 }
 
 module.exports = function(config) {
@@ -97,6 +97,7 @@ module.exports = function(config) {
 
             results.push({
             	orderFileDetails: orderFileDetails,
+            	orderTranscription: orderTranscription,
             	orderProcessingResult: orderProcessingResult
             });
 
