@@ -79,9 +79,9 @@ if (cluster.isMaster) {
             }
         }
 
-        // Test transcription performancce
+        // Test transcription performance
         const orderProcessingTest = require('./test/order-processing')(config);
-        orderProcessingTest.test();
+        const o = await orderProcessingTest.test();
 
 
         return {status: true, 
