@@ -51,7 +51,16 @@ function processFileName(fileName) {
 }
 
 function calculatePerformanceMetrics(data) {
-	console.log(JSON.stringify(data, null, 4))
+	for (const d of data) {
+		const expected = d.orderFileDetails.orderResult;
+		const obtained = d.orderProcessingResult;
+		if (JSON.stringify(expected) === JSON.stringify(obtained)) {
+			console.log('TRUE')
+		}
+		else {
+			console.log('FALSE')
+		}
+	}
 }
 
 module.exports = function(config) {
@@ -107,6 +116,7 @@ module.exports = function(config) {
         calculatePerformanceMetrics(results);
 
 	    // TODO CALCULATE ACCURACY AND TEST WITH DIFFERENT SETTINGS
+	    return 0;
 
 	}
 
