@@ -101,6 +101,12 @@ module.exports = function(config) {
 
             console.log('---> orderResult')
             console.log(orderResult);
+            if (orderFileDetails.orderResult === orderResult) {
+            	console.log('TRUE')
+            }
+            else {
+            	console.log('FALSE')
+            }
             // Compare obtained to expected
 	    }
 
