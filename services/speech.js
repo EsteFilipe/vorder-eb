@@ -370,14 +370,9 @@ module.exports = function (credentials, config) {
             }
         }
 
-        console.log('-----> FULL REQUEST CONFIG')
-        console.log(JSON.stringify(request, null, 4));
-
         request.audio = {
             content: audio
         };
-
-        console.log(audio);
 
         const responses = await this.sttClient.recognize(request);
 
