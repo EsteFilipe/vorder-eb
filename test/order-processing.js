@@ -54,6 +54,10 @@ function calculatePerformanceMetrics(data) {
 	for (const d of data) {
 		const expected = d.orderFileDetails.orderResult;
 		const obtained = d.orderProcessingResult;
+		console.log('-> Expected')
+		console.log(expected)
+		console.log('-> Obtained')
+		console.log(obtained)
 		if (JSON.stringify(expected) === JSON.stringify(obtained)) {
 			console.log('TRUE')
 		}
