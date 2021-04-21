@@ -1,4 +1,5 @@
-const storageService = require('../services/storage'),
+const _ = require('lodash'),
+	  storageService = require('../services/storage'),
 	  utils = require('../helpers/utils');
 
 
@@ -58,7 +59,7 @@ function calculatePerformanceMetrics(data) {
 		console.log(expected)
 		console.log('-> Obtained')
 		console.log(obtained)
-		if (JSON.stringify(expected) === JSON.stringify(obtained)) {
+		if (_.isEqual(expected, obtained)) {
 			console.log('TRUE')
 		}
 		else {
