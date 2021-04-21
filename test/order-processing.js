@@ -52,7 +52,8 @@ function processFileName(fileName) {
 }
 
 async function calculatePerformanceMetrics(data) {
-	var performanceMetrics = await utils.runPython38Script('performance_metrics.py', data);
+	console.log('Running python script `performance_metrics.py`')
+	var performanceMetrics = await utils.runPython38Script('performance_metrics.py', JSON.stringify(data);
 	performanceMetrics = JSON.parse(performanceMetrics);
 
 	if (performance.status) {
