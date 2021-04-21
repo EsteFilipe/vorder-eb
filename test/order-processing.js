@@ -52,7 +52,7 @@ function processFileName(fileName) {
 }
 
 async function calculatePerformanceMetrics(data) {
-	var performanceMetrics = await utils.runPython38Script('order_processing.py', orderTranscription);
+	var performanceMetrics = await utils.runPython38Script('performance_metrics.py', data);
 	performanceMetrics = JSON.parse(performanceMetrics);
 
 	if (performance.status) {
