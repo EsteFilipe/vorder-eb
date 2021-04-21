@@ -68,6 +68,7 @@ module.exports = function(config) {
 
 	OrderProcessingTest.prototype.test = async function () {
 
+		console.log('Calculating order speech processing performance metrics...')
 	    // List all files in bucket folder
 	    const s3List = await storageService.s3ListAll('vorder-data', 'test/voice-orders/');
 	    const filesInfo = s3List.output.Contents;
@@ -89,7 +90,7 @@ module.exports = function(config) {
 	    	// Transcribe and process transcription
 			const orderTranscription = await speechService.speechToText(fileData.output.Body, "PROCESS");
 	    	var orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
-            orderProcessingResult = JSON.parse(orderProcessingResult);
+            orderProcessingResult = JSON.parse(orderProcessingResult).output;
             // If order is 'range', remove the `range_values` field, because we don't need it for the comparison
             if (orderProcessingResult.type == 'range') {
             	delete orderProcessingResult.range_values;
