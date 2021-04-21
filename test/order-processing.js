@@ -28,18 +28,18 @@ function processFileName(fileName) {
 
 	var orderResult = {
 		polarity: order[0],
-		size: order[1],
+		size: Number(order[1]),
 		ticker: ticker,
 		type: order[3]
 	}
 
 	if (orderResult.type == 'limit') {
-		orderResult.price = order[4];
+		orderResult.price = Number(order[4]);
 	}
 	else if (orderResult.type == 'range') {
-		orderResult.n_orders = order[4];
-		orderResult.price_low = order[6];
-		orderResult.price_high = order[8];
+		orderResult.n_orders = Number(order[4]);
+		orderResult.price_low = Number(order[6]);
+		orderResult.price_high = Number(order[8]);
 	}
 
 	return {
