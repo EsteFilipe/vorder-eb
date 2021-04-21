@@ -74,6 +74,8 @@ module.exports = function(config) {
 	    // Remove first element, because it's just info about the parent folder
 	    filesInfo.shift()
 
+	    var results = [];
+
 	    // Iterate through each file
 	    for (const f of filesInfo) {
 	    	const fileKey = f.Key;
@@ -107,7 +109,7 @@ module.exports = function(config) {
             else {
             	console.log('FALSE')
             }
-            // Compare obtained to expected
+            // Compare obtained to expecte
 	    }
 
 	    // TODO CALCULATE ACCURACY AND TEST WITH DIFFERENT SETTINGS
