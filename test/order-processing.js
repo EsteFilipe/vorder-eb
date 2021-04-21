@@ -51,7 +51,7 @@ function processFileName(fileName) {
 	}
 }
 
-function calculatePerformanceMetrics(data) {
+async function calculatePerformanceMetrics(data) {
 	var performanceMetrics = await utils.runPython38Script('order_processing.py', orderTranscription);
 	performanceMetrics = JSON.parse(performanceMetrics);
 
@@ -61,6 +61,8 @@ function calculatePerformanceMetrics(data) {
 	else {
 		console.log("There's been an error calculating the performance metrics.")
 	}
+
+	return 0;
 }
 
 module.exports = function(config) {
