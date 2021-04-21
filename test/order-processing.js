@@ -96,7 +96,7 @@ module.exports = function(config) {
             }
 
             results.push({
-            	orderFileDetails: orderFileDetails
+            	orderFileDetails: orderFileDetails,
             	orderProcessingResult: orderProcessingResult
             });
 
