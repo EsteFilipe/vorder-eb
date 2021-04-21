@@ -32,7 +32,7 @@ function processFileName(fileName) {
 		type: order[3]
 	}
 
-	else if (orderResult.type == 'limit') {
+	if (orderResult.type == 'limit') {
 		orderResult.price = order[4];
 	}
 	else if (orderResult.type == 'range') {
