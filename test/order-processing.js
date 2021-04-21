@@ -51,7 +51,7 @@ function processFileName(fileName) {
 }
 
 function calculatePerformanceMetrics(data) {
-	const x = 0;
+	console.log(JSON.stringify(data))
 }
 
 module.exports = function(config) {
@@ -82,35 +82,27 @@ module.exports = function(config) {
 	    	var fileName = fileKey.split("/"); 
 	    	fileName = fileName[fileName.length - 1];
 
-	 		// Get expected order result from the file name
-	    	const orderFileDetails = processFileName(fileName);
-
-	    	console.log('---> orderFileDetails')
-	    	console.log(orderFileDetails);
-
 	    	// Download audio file
 	    	const fileData = await storageService.s3Get('vorder-data', fileKey);
+	 		// Get expected order result from the file name
+	    	const orderFileDetails = processFileName(fileName);
 	    	// Transcribe and process transcription
 			const orderTranscription = await speechService.speechToText(fileData.output.Body, "PROCESS");
-	    	const orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
-            const orderInfo = JSON.parse(orderProcessingResult);
-            var orderResult = orderInfo.output;
-
+	    	var orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
+            orderProcessingResult = JSON.parse(orderProcessingResult);
             // If order is 'range', remove the `range_values` field, because we don't need it for the comparison
-            if (orderResult.type == 'range') {
-            	delete orderResult.range_values;
+            if (orderProcessingResult.type == 'range') {
+            	delete orderProcessingResult.range_values;
             }
 
-            console.log('---> orderResult')
-            console.log(orderResult);
-            if (orderFileDetails.orderResult === orderResult) {
-            	console.log('TRUE')
-            }
-            else {
-            	console.log('FALSE')
-            }
-            // Compare obtained to expecte
+            results.push({
+            	orderFileDetails: orderFileDetails
+            	orderProcessingResult: orderProcessingResult
+            });
+
 	    }
+
+        calculatePerformanceMetrics(results);
 
 	    // TODO CALCULATE ACCURACY AND TEST WITH DIFFERENT SETTINGS
 
