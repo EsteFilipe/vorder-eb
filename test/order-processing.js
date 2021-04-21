@@ -6,15 +6,16 @@ function processFileName(fileName) {
 	const components = fileName.split('_');
 
 	// Process metadata
-	const voiceName = fileName[0];
-	var speakingRate = fileName[1];
+	const voiceName = components[0];
+	var speakingRate = components[1];
 	speakingRate = speakingRate.split('-')
 	speakingRate = speakingRate[speakingRate.length - 1];
-	var pitch = fileName[2];
+	var pitch = components[2];
 	pitch = pitch.split('-')
 	pitch = pitch[pitch.length - 1];
 	// Process order details
-	var order = fileName[0].substr(0, fileName[0].lastIndexOf('.'));
+	var order = components[components.length - 1]
+	order = order.substr(0, order.lastIndexOf('.'));
 	order = order.split('-')
 
 	var ticker;
@@ -25,7 +26,7 @@ function processFileName(fileName) {
 		ticker = 'ETH';
 	}
 
-	orderResult = {
+	var orderResult = {
 		polarity: order[0],
 		size: order[1],
 		ticker: ticker,
