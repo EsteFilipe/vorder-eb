@@ -56,7 +56,7 @@ async function calculatePerformanceMetrics(data) {
 	var performanceMetrics = await utils.runPython38Script('performance_metrics.py', JSON.stringify(data));
 	performanceMetrics = JSON.parse(performanceMetrics);
 
-	if (performance.status) {
+	if (performanceMetrics.status) {
 		console.log(performanceMetrics.output)
 	}
 	else {
