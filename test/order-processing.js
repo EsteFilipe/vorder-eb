@@ -51,19 +51,15 @@ function processFileName(fileName) {
 	}
 }
 
-async function calculatePerformanceMetrics(data) {
+async function calculateAccuracy(sttConfig, results) {
 	console.log('Running python script `performance_metrics.py`')
-	var performanceMetrics = await utils.runPython38Script('performance_metrics.py', JSON.stringify(data));
-	performanceMetrics = JSON.parse(performanceMetrics);
+	console.log({config: sttConfig, results: results})
+	// This script prints a log file to logs/ with configuration and full metrics
+	var accuracy = await utils.runPython38Script(
+		'performance_metrics.py', JSON.stringify({config: sttConfig, results: results}));
+	accuracy = JSON.parse(accuracy);
 
-	if (performanceMetrics.status) {
-		console.log(performanceMetrics.output)
-	}
-	else {
-		console.log("There's been an error calculating the performance metrics.")
-	}
-
-	return 0;
+	return accuracy;
 }
 
 module.exports = function(config) {
@@ -116,9 +112,11 @@ module.exports = function(config) {
 
 	    }
 
-        calculatePerformanceMetrics(results);
+        const accuracy = calculateAccuracy(config.speech.stt, results);
 
-	    // TODO CALCULATE ACCURACY AND TEST WITH DIFFERENT SETTINGS
+        console.log('---> Accuracy results:')
+        console.log(JSON.stringify(accuracy, null, 4))
+
 	    return 0;
 
 	}
