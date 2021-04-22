@@ -5,6 +5,7 @@ import numpy as np
 import datetime
 import os
 import pprint
+import errno
 
 pd.set_option('display.max_columns', None)  # or 1000
 pd.set_option('display.max_rows', None)  # or 1000
@@ -77,22 +78,30 @@ def calculate_accuracy(results):
 
 
 def write_log(config, accuracy, wrong_cases):
-    logs_path = os.path.dirname(os.path.abspath(__file__)) + '/../logs/'
+    logs_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/../logs')
     file_name = "accuracy_{}.txt".format(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"))
-    file_path = logs_path + file_name
+    file_path = logs_path + '/' + file_name
+
+    # Create log folder if it doesn't already exist
+    if not os.path.exists(logs_path):
+        try:
+            os.makedirs(logs_path)
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
     output_config = pprint.pformat(config)
     output_accuracy = accuracy.to_csv()
     output_wrong_cases = pprint.pformat(wrong_cases)
 
     with open(file_path, 'w+') as file:
-        file.write("----> CONFIG")
+        file.write("----> CONFIG\n")
         file.write(output_config)
         file.write("\n---------------------------------------")
-        file.write("\n----> ACCURACY")
+        file.write("\n----> ACCURACY\n")
         file.write(output_accuracy)
         file.write("\n---------------------------------------")
-        file.write("\n----> WRONG CASES")
+        file.write("\n----> WRONG CASES\n")
         file.write(output_wrong_cases)
 
 
