@@ -53,13 +53,17 @@ function processFileName(fileName) {
 
 async function calculateAccuracy(sttConfig, results) {
 	console.log('Running python script `performance_metrics.py`')
-	console.log(JSON.stringify({config: sttConfig, results: results}))
+
+	//console.log(JSON.stringify({config: sttConfig, results: results}))
+	
 	// This script prints a log file to logs/ with configuration and full metrics
 	var accuracy = await utils.runPython38Script(
 		'performance_metrics.py', JSON.stringify({config: sttConfig, results: results}));
-	accuracy = JSON.parse(accuracy);
+	
+	console.log('---> here');
+	console.log(accuracy);
 
-	return accuracy;
+	return JSON.parse(accuracy)
 }
 
 module.exports = function(config) {

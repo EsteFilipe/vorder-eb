@@ -95,14 +95,15 @@ def write_log(config, accuracy, wrong_cases):
     output_wrong_cases = pprint.pformat(wrong_cases)
 
     with open(file_path, 'w+') as file:
-        file.write("----> CONFIG\n")
+        file.write("----> CONFIG\n\n")
         file.write(output_config)
-        file.write("\n---------------------------------------")
-        file.write("\n----> ACCURACY\n")
+        file.write("\n\n---------------------------------------\n\n")
+        file.write("----> ACCURACY\n\n")
         file.write(output_accuracy)
-        file.write("\n---------------------------------------")
-        file.write("\n----> WRONG CASES\n")
+        file.write("\n\n---------------------------------------\n\n")
+        file.write("----> WRONG CASES\n\n")
         file.write(output_wrong_cases)
+        file.write("\n\n---------------------------------------\n\n")
 
 
 if __name__ == "__main__":
