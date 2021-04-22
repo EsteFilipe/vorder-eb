@@ -102,8 +102,8 @@ if __name__ == "__main__":
 
     data = json.loads(sys.argv[1])
 
-    rslts = data['results']
     conf = data['config']
+    rslts = data['results']
 
     acc, wc = calculate_accuracy(rslts)
 
