@@ -86,7 +86,7 @@ module.exports = function (credentials, config) {
         const customClasses = await this.listCustomClasses();
         const phraseSets = await this.listPhraseSet();
 
-        const output = prettifyListAdaptations(customClasses, phraseSets);
+        const output = this.prettifyListAdaptations(customClasses, phraseSets);
 
         await this.adaptationClient.close();
 
@@ -94,7 +94,7 @@ module.exports = function (credentials, config) {
 
     }
 
-    function prettifyListAdaptations(customClasses, phraseSets) {
+    SpeechService.prototype.prettifyListAdaptations = function (customClasses, phraseSets) {
 
             var output = '\n---> List of all Custom Classes and Phrase Sets:\n';
 

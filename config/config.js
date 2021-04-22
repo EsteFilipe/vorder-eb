@@ -6,6 +6,7 @@ var config = {
 	speech: {
 		languageCode: 'en-US',
 		stt: {
+			testAccuracy: false,
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
 			contextsConf: null,
@@ -25,7 +26,7 @@ var config = {
 			// -> If `adaptations.override` is true then even if an adaptation with the same name already exists
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			adaptations: {
-				create: true,
+				create: false,
 				override: true,
 				configuration: {
 					customClasses: [
