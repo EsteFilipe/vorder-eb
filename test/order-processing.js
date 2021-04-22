@@ -51,21 +51,6 @@ function processFileName(fileName) {
 	}
 }
 
-async function calculateAccuracy(sttConfig, results) {
-	console.log('Running python script `performance_metrics.py`')
-
-	//console.log(JSON.stringify({config: sttConfig, results: results}))
-	
-	// This script prints a log file to logs/ with configuration and full metrics
-	var accuracy = await utils.runPython38Script(
-		'performance_metrics.py', JSON.stringify({config: sttConfig, results: results}));
-	
-	console.log('---> here');
-	console.log(accuracy);
-
-	return JSON.parse(accuracy)
-}
-
 module.exports = function(config) {
 
     const speechService = require('../services/speech')([
@@ -116,10 +101,14 @@ module.exports = function(config) {
 
 	    }
 
-        const accuracy = calculateAccuracy(config.speech.stt, results);
-
-        console.log('---> Accuracy results:')
-        console.log(JSON.stringify(accuracy, null, 4))
+    	// This script prints a log file to logs/ with configuration and full metrics
+		const accuracy = await utils.runPython38Script(
+		'performance_metrics.py', JSON.stringify({config: config.speech.stt, results: results}));
+		
+    	console.log('Detailed accuracy metrics printed to `logs/` folder')
+    	console.log()
+    	console.log('---> Global Accuracy results:')
+    	console.log(accuracy)
 
 	    return 0;
 
