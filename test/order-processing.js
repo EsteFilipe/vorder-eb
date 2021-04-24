@@ -1,3 +1,13 @@
+/*
+
+This test case will download all the audio files from the target S3 bucket,
+transcribe everything, process the file names to infer what the expected order details are, and then
+compare the obtained order processing with the expected order processing.
+
+In the end, it will compute the accuracy metrics of the system and output them to a log file in logs/
+
+*/
+
 const _ = require('lodash'),
 	  storageService = require('../services/storage'),
 	  utils = require('../helpers/utils');

@@ -13,9 +13,6 @@ POLARITY_WORDS = ["buy", "sell"]
 
 TYPE_WORDS = ["limit", "market", "range"]
 
-# Matches any number with more than one decimal place - real floats, integers are not matched
-float_re = re.compile(r'^[0-9]*(\.[0-9]+)$')
-
 
 def represents_int(s):
     try:
@@ -33,69 +30,7 @@ def represents_float(s):
         return False
 
 
-# Split every single number after `x.x` pattern has been found, where x is a single digit
-# Doing this to avoid any confusion in the decimal part of the number when converting to words
-def split_all_numbers_after_first_decimal(number_words):
-
-    # We're doing changes in place and want to do a comparison afterwards with the original, so let's copy
-    number_words = number_words.copy()
-
-    split_idx = -1
-    for i, nw in enumerate(number_words):
-        if float_re.match(nw):
-            split_idx = i
-            break
-
-    # If decimal was found
-    if split_idx != -1:
-        # Note -> "x"  can represent any number of digits
-
-        # Index in the word where the point is located
-        point_idx = number_words[split_idx].find('.')
-        # Number of decimal places (in the number word that contains the point)
-        number_decimal_places = len(number_words[split_idx][point_idx + 1:])
-
-        # First number word is ".x"
-        if split_idx == 0:
-            if point_idx == 0:
-                # -> Add 0 at the beginning
-                number_words[split_idx] = '0' + number_words[split_idx]
-                # Move floating point one place to the right
-                point_idx += 1
-
-        # If more than one decimal place, split and join the rest of the numbers the following word number
-        if number_decimal_places > 1:
-            # If the decimal number is the last number in the sequence, append another
-            # number word to put the rest of the decimal places
-            if split_idx == len(number_words) - 1:
-                number_words.append('')
-            # Add the remaining numbers of the decimal number to the beginning of the following number word
-            number_words[split_idx + 1] = number_words[split_idx][point_idx + 2:] + number_words[split_idx + 1]
-            # Truncate the decimal number to only one decimal place
-            number_words[split_idx] = number_words[split_idx][:point_idx + 2]
-
-        # If decimal number is in the form ".d" where d is a single digit (and in this case will have
-        # to be either in the middle or end of the sequence), join it to the previous number word
-        if point_idx == 0:
-            assert split_idx != 0
-            number_words[split_idx - 1] = number_words[split_idx - 1] + number_words[split_idx]
-            # Delete point something and move split index 1 element to the left
-            del number_words[split_idx]
-            split_idx -= 1
-
-        # After these transformations we wont have anymore:
-        # 1. Decimals in the form ".x"
-        # 2. Decimals with more than one decimal place
-
-        # Merge all the number words at the right of first decimal, then split them all
-        right_of_first_decimal = [x for x in ''.join(number_words[split_idx + 1:])]
-        del number_words[split_idx+1:]
-        number_words += right_of_first_decimal
-
-    return number_words
-
-
-def number_word_indexes_in_sequence(seq, group, consider_and_word):
+def number_word_indexes_in_sequence(seq, consider_and_word):
     number_indexes = []
     for i, s in enumerate(seq):
 
@@ -120,9 +55,6 @@ def number_word_indexes_in_sequence(seq, group, consider_and_word):
         else:
             continue
 
-    if group:
-        number_indexes = [list(g) for g in mit.consecutive_groups(number_indexes)]
-
     return True, number_indexes
 
 
@@ -143,7 +75,7 @@ def bypass_sanitize_numbers(words):
 
     # Get all the number words in the sequence.
     # Not considering the words "+", "and", and "million" yet. Those will be addressed further below
-    nw_indexes_status, nw_indexes_output = number_word_indexes_in_sequence(words, group=False, consider_and_word=False)
+    nw_indexes_status, nw_indexes_output = number_word_indexes_in_sequence(words, consider_and_word=False)
 
     # If there was an error getting the number word indexes, the order will fail down the line. But pass it
     # to the sanitation function anyways
@@ -194,9 +126,40 @@ def sanitize_numbers_from_google_speech(words):
     I didn't find any way to force google speech to always return single numbers without splitting them,
     so this method is to fix that flaw.
 
-    # Conclusion: If we read the results out loud that are given by the speech api they always make sense
-    # so the most elegant solution is to convert the numbers into words, and then convert all those 'number words'
-    # back into digits.
+    Examples (first number said out loud, second result returned by the speech API):
+    31,301 -> '30', '1301' (case 1)
+    31,361 -> '30', '1361' (case 1)
+    31,364 -> '30', '1364' (case 1)
+    31,360 -> '30', '1360' (case 1)
+    41,523 -> '40', '1523' : (case 1)
+    31,010 -> '31000', '+', '10' (case 2)
+    32,010 -> '32000', '+', '10' (case 2)
+    32,012 -> '32000', '+', '12' (case 2)
+    41,010 -> '41000', '+', '10' (case 2)
+    41,023 -> '41000', '+', '23' (case 2)
+    30,012 -> '30000', '+', '12' (case 2)
+    60,010 -> '60000', '+', '10' (case 2)
+    11,241 -> '11241' (correct) -> my guess is that from 10,000 to 19,999 it will always work except for cases like case 2.
+    11,041 ->  '11000', '+', '41' (case 2)
+    15,041 -> '15000', '+', '41' (case 2)
+    112,051 -> '112000', '+', '51' (case 2)
+    21,051 -> '20', '1051' (case 1)
+    101,051 -> '100', '+', '1051' (case 3)
+    103,081 -> '100', '+', '3081' (case 3)
+    102,071 -> '100', 'and', '2071' (case 3 with 'and' instead of '+')
+    102,081 -> '100', 'and', '2081' (case 3 with 'and' instead of '+')
+    112,000 -> '112000' (correct)
+    112,651 -> '112651' (correct)
+    1,001,341 -> '1', 'million', '1341' (case 5)
+    1,031,341 -> '1031341' (correct)
+    1,931,341 -> '1931341' (correct)
+    1,112,051 -> '1112000', '+', '51' (case 2)
+
+    # Conclusions:
+    # 1. Every time there is either '+' or 'and' it means that she said 'and'
+    # 2. If we read the results out loud that are given by the speech api they always make sense
+    # so the most elegant solution is to convert the numbers into words, and then convert all the words
+    # that are 'number words' into digits.
     """
 
     # First, address the exception for the word "million".
@@ -216,36 +179,19 @@ def sanitize_numbers_from_google_speech(words):
                 # Delete the word 'million' from the list
                 del words[index]
 
-    # If the word "and" appears, remove it. It makes no difference for the numbers
-    for index in sorted(range(len(words)), reverse=True):
-        if words[index] == 'and':
-            del words[index]
+    # Replace '+' signs and convert them to 'and'
+    words = ["and" if w == "+" else w for w in words]
 
-    # Get the indexes of the number words (already chunked together in groups).
-    # The word "and" also used to count as a number word, but now I'm removing it beforehand, so no need to consider it
-    nw_indexes_status, number_word_indexes = number_word_indexes_in_sequence(words, group=True, consider_and_word=False)
+    # TODO the call to `number_word_indexes_in_sequence` is unnecessarily repeated. It's both here and in
+    #   bypass_sanitize_numbers
+    # Get the indexes of the number words. The word "and" also counts as a number word.
+    nw_indexes_status, nw_indexes_output = number_word_indexes_in_sequence(words, consider_and_word=True)
+
     if not nw_indexes_status:
-        return False, "Something went wrong processing the the number indexes (1): {}".format(number_word_indexes)
+        return False, "Something went wrong processing the the number indexes: {}".format(nw_indexes_output)
 
-    # Reformat the number words in a way that the method num2words -> word2number will always work
-    for index_group in sorted(number_word_indexes, reverse=True):
-        number_words = [words[i] for i in index_group]
-        split_number_words = split_all_numbers_after_first_decimal(number_words)
-
-        if split_number_words != number_words:
-            idx_first_number_word = index_group[0]
-            idx_last_number_word = index_group[-1]
-            # Words at the left of the number group in the original sequence
-            left_words = words[:idx_first_number_word]
-            # Words at the right of the number group in the original sequence
-            right_words = words[idx_last_number_word+1:]
-            # Replace the new number words
-            words = left_words + split_number_words + right_words
-
-    # Get the new number word indexes
-    nw_indexes_status, number_word_indexes = number_word_indexes_in_sequence(words, group=True, consider_and_word=False)
-    if not nw_indexes_status:
-        return False, "Something went wrong processing the the number indexes (2): {}".format(number_word_indexes)
+    # Group the consecutive number word indexes.
+    number_word_indexes = [list(group) for group in mit.consecutive_groups(nw_indexes_output)]
 
     # Check whether we have a 'market', 'limit', or 'range' order
     # Already made sure in `order_sanity_check` that one, and only one, of those types is present in the order.
@@ -267,40 +213,90 @@ def sanitize_numbers_from_google_speech(words):
             return False, "Found more than 1 group of number words for 'market' order, which means order is wrong. Aborting."
     elif order_type == "limit":
         if len(number_word_indexes) != 2:
-            return False, "Didn't find 2 groups of number words for 'limit' order, which means order is wrong. Aborting."
+            return False, "Didn't find 2 group of number words for 'limit' order, which means order is wrong. Aborting."
     elif order_type == "range":
         if len(number_word_indexes) != 4:
-            return False, "Didn't find 4 groups of number words for 'range' order, which means order is wrong. Aborting."
+            return False, "Didn't find 4 group of number words for 'range' order, which means order is wrong. Aborting."
 
     # If all the tests above passed, let's proceed to sanitize the numbers
     # Again reverse the order of the indexes, because we'll have to delete elements in the original list
     for index_group in sorted(number_word_indexes, reverse=True):
         # Sanitation is only needed if there's more than one number word in the group
         if len(index_group) > 1:
-            number_words = []
-            for i in index_group:
-                number_word = words[i]
-                # Convert the number to words and remove the comma that sometimes n2w inserts
-                try:
-                    number_word = n2w(number_word).replace(",", "")
-                except Exception as e:
-                    return False, "There was a problem converting numbers to words: {}".format(e)
-                # Note that we will do nothing with the word "and". Will just append it as is
-                number_words.append(number_word)
 
-            # Convert all the number words from the current group into a single number
-            number_words = " ".join(number_words)
-            try:
-                number = str(w2n.word_to_num(number_words))
-            except ValueError as e:
-                return False, "There was a problem converting words to numbers: {}".format(e)
+            # For number groups we have the following possible cases
 
-            # Replace that number in the word sequence
-            words[index_group[0]] = number
-            # Delete the other words in front. Won't delete the first element, cause that's the final
-            # number we've just inserted. Also reversing order in the iteration for the deletion.
-            for i in sorted(index_group[1:], reverse=True):
-                del words[i]
+            # 1. First number is a decimal (string is something point something), and the following numbers are all ints
+            # (I haven't seen any case where there was more than an int after the decimal, but just to be safe)
+            if all(["." in words[index_group[0]]] + [represents_int(words[n]) for n in index_group[1:]]):
+                number_words = "".join([words[i] for i in index_group])
+                # Replace
+                words[index_group[0]] = number_words
+                # Delete the rest of the number words from the group
+                for i in sorted(index_group[1:], reverse=True):
+                    del words[i]
+
+            # 2.1
+            # - Exactly 2 word numbers in the group
+            # - First number is int
+            # - Second number is either int or decimal
+            #
+            # 2.2.
+            # - More than 2 word numbers in the group
+            # - First number is an int
+            # - Last number is an int or a decimal
+            # - All the numbers in between are either ints or the word "and".
+            else:
+                # Check if we have a valid example:
+                valid = False
+
+                # Case 2.1
+                # Note: if we get something strange like "3 5" from Google Speech it will pass through
+                # For the specific example with "3 5", it will give 8. I won't go through those cases for now.
+                if all([len(index_group) == 2,
+                        represents_int(words[index_group[0]]),
+                        represents_float(words[index_group[1]])]):  # represents_float returns True for int and float
+                    valid = True
+
+                # Case 2.2
+                elif all([len(index_group) > 2,
+                          represents_int(words[index_group[0]]),
+                          represents_float(words[index_group[-1]]),  # RepresentsFloat returns True both for int and float
+                          all([represents_int(n) or n == "and" for n in index_group[1:-1]])]):
+                    valid = True
+
+                # Only proceed if valid
+                if valid:
+                    number_words = []
+                    for i in index_group:
+                        number_word = words[i]
+                        # If the number word is not an "and", convert it to words
+                        if number_word != "and":
+                            # Convert the number to words and remove the comma that sometimes n2w inserts
+                            try:
+                                number_word = n2w(number_word).replace(",", "")
+                            except Exception as e:
+                                return False, "There was a problem converting numbers to words: {}".format(e)
+                        # Note that we will do nothing with the word "and". Will just append it as is
+                        number_words.append(number_word)
+
+                    # Convert all the number words from the current group into a single number
+                    number_words = " ".join(number_words)
+                    try:
+                        number = str(w2n.word_to_num(number_words))
+                    except ValueError as e:
+                        return False, "There was a problem converting words to numbers: {}".format(e)
+
+                    # Replace that number in the word sequence
+                    words[index_group[0]] = number
+                    # Delete the other words in front. Won't delete the first element, cause that's the final
+                    # number we've just inserted. Also reversing order in the iteration for the deletion.
+                    for i in sorted(index_group[1:], reverse=True):
+                        del words[i]
+
+                # All other cases, are unexpected. Don't process order.
+                else:
+                    return False, "Unexpected number group structure."
 
     # If all succeeded, return the sanitized order
     return True, words
@@ -308,8 +304,8 @@ def sanitize_numbers_from_google_speech(words):
 
 def remove_unwanted_chars(text):
 
-    # Remove everything except alphanumeric chars, spaces, and '.'
-    txt = re.sub(r'[^A-Za-z0-9. ]+', ' ', text)
+    # Remove everything except alphanumeric chars, spaces, '+', and '.'
+    txt = re.sub(r'[^A-Za-z0-9+. ]+', '', text)
 
     # Remove any potential multiple consecutive spaces generated by the previous replacement
     txt = re.sub(' +', ' ', txt)
@@ -320,11 +316,17 @@ def remove_unwanted_chars(text):
     return txt
 
 
+def process_range_order(order):
+    pass
+
+
 def parse_order(order):
 
     order = remove_unwanted_chars(order)
 
     words = order.lower().split()
+
+    #print("Tokenized words: {}".format(words))
 
     basic_criteria_status, basic_criteria_output = order_basic_criteria_check(words)
 
@@ -427,76 +429,63 @@ def parse_order(order):
     return True, parsed_order
 
 
-def test_split_all_numbers_after_first_decimal():
-    numbers = [{"in": ".7", "out_expected": "0.7"},
-               {"in": ".75", "out_expected": "0.7 5"},
-               {"in": ".756", "out_expected": "0.7 5 6"},
-               {"in": ".756 1", "out_expected": "0.7 5 6 1"},
-               {"in": ".756 125", "out_expected": "0.7 5 6 1 2 5"},
-               {"in": "0.7", "out_expected": "0.7"},
-               {"in": "0.75", "out_expected": "0.7 5"},
-               {"in": "0.756", "out_expected": "0.7 5 6"},
-               {"in": "0.756 1", "out_expected": "0.7 5 6 1"},
-               {"in": "0.756 125", "out_expected": "0.7 5 6 1 2 5"},
-               {"in": "1230 .4", "out_expected": "1230.4"},
-               {"in": "1235 .4", "out_expected": "1235.4"},
-               {"in": "1235 .0", "out_expected": "1235.0"},
-               {"in": "1230 .43", "out_expected": "1230.4 3"},
-               {"in": "1235 .4467 14 2", "out_expected": "1235.4 4 6 7 1 4 2"},
-               {"in": "1230 3.4", "out_expected": "1230 3.4"},
-               {"in": "1230 3.46", "out_expected": "1230 3.4 6"},
-               {"in": "1230 3.46 32", "out_expected": "1230 3.4 6 3 2"},
-               {"in": "1230 32 21 3.46", "out_expected": "1230 32 21 3.4 6"},
-               {"in": "1230 32 21 .46", "out_expected": "1230 32 21.4 6"},
-               {"in": "1230 32 21 .0", "out_expected": "1230 32 21.0"},
-               {"in": "1230 32 21 .0 34 64 134", "out_expected": "1230 32 21.0 3 4 6 4 1 3 4"},
-               {"in": "60850 3.0 6 6 6", "out_expected": "60850 3.0 6 6 6"},
-               {"in": "80 1600 30 6.7 0", "out_expected": "80 1600 30 6.7 0"},
-               {"in": "70 6870 2.0 9", "out_expected": "70 6870 2.0 9"},
-               {"in": "70 6870 .36 9", "out_expected": "70 6870.3 6 9"},
-               {"in": "70 6870 0.0 9", "out_expected": "70 6870 0.0 9"},
-               {"in": "70 6870 0.3 01", "out_expected": "70 6870 0.3 0 1"}]
+def test_sanitize_numbers_from_google_speech():
+    orders = [{"in": "buy 1.1 bitcoin limit 30 1301", "out_expected": "buy 1.1 bitcoin limit 31301"},
+              {"in": "buy 1.1 bitcoin limit 40 1523", "out_expected": "buy 1.1 bitcoin limit 41523"},
+              {"in": "buy 1.1 bitcoin limit 11241", "out_expected": "buy 1.1 bitcoin limit 11241"},
+              {"in": "buy 1.1 bitcoin limit 20 1051", "out_expected": "buy 1.1 bitcoin limit 21051"},
+              {"in": "buy 1.1 bitcoin limit 100 + 1051", "out_expected": "buy 1.1 bitcoin limit 101051"},
+              {"in": "buy 1.1 bitcoin limit 112000", "out_expected": "buy 1.1 bitcoin limit 112000"},
+              {"in": "buy 1.1 bitcoin limit 1 million 1341", "out_expected": "buy 1.1 bitcoin limit 1001341"},
+              {"in": "buy 1.1 bitcoin limit 1031341", "out_expected": "buy 1.1 bitcoin limit 1031341"},
+              {"in": "buy 1.1 bitcoin limit 1112000 + 51", "out_expected": "buy 1.1 bitcoin limit 1112051"},
+              {"in": "buy 3 million 415 bitcoin limit 2 million 1341", "out_expected": "buy 3000415 bitcoin limit 2001341"},
+              {"in": "buy 0.23 314 bitcoin limit 1", "out_expected": "buy 0.23314 bitcoin limit 1"},
+              {"in": "buy 0.23 314 bitcoin limit 30 1301", "out_expected": "buy 0.23314 bitcoin limit 31301"},
+              {"in": "buy 0.23 314 bitcoin limit 30 million 1301", "out_expected": "buy 0.23314 bitcoin limit 30001301"},
+              {"in": "buy 0.23 314 987 bitcoin limit 30 1301", "out_expected": "buy 0.23314987 bitcoin limit 31301"},
+              {"in": "buy 0.23 314 987 bitcoin limit 100 + 1301", "out_expected": "buy 0.23314987 bitcoin limit 101301"},
+              {"in": "sell 0.21 654 bitcoin market", "out_expected": "sell 0.21654 bitcoin market"},
+              {"in": "buy 0.1 ether limit 1000", "out_expected": "buy 0.1 ether limit 1000"},
+              {"in": "buy 7 ether limit 1500", "out_expected": "buy 7 ether limit 1500"},
+              {"in": "sell 3 ether limit 1904", "out_expected": "sell 3 ether limit 1904"},
+              {"in": "sell 3 ether limit 1000 41.4", "out_expected": "sell 3 ether limit 1041.4"},
+              # unexpected cases
+              {"in": "sell 3.0 31.1 ether limit 1904", "out_expected": ""},
+              # TODO these two will pass through. didn't remove examples like these. will do so when I have a clearer
+              #  idea of all the possible cases returned by Google Speech
+              {"in": "sell 3 31.1 ether limit 1904", "out_expected": ""},
+              {"in": "sell 3 5 ether limit 1904", "out_expected": ""}]
 
-    for n in numbers:
-        print("Testing: {}".format(n))
+    for o in orders:
+        print("Testing: {}".format(o))
+        status_, output_ = sanitize_numbers_from_google_speech(o['in'].split(" "))
 
-        numbers_split = split_all_numbers_after_first_decimal(n['in'].split())
+        if status_:
+            expected_words = o["out_expected"].split(" ")
 
-        expected_numbers = n["out_expected"].split()
-
-        print('Out: {}'.format(numbers_split))
-        print('Expected: {}'.format(expected_numbers))
-
-        if numbers_split == expected_numbers:
-            print("Passed")
+            if output_ == expected_words:
+                print("Passed")
+            else:
+                print("Failed. Obtained words: {}".format(output_))
         else:
-            print("Failed. Obtained numbers: {}".format(numbers_split))
-
-        print()
-
-
-def process(order_text):
-
-    #order_text = "sell 10.79 ether range 35 low 60850 3.05 6 6 6 high 80 1600 30 6.712 0"
-
-    status, output = parse_order(order_text)
-
-    if __name__ == "__main__":
-        out = json.dumps({"status": status,
-                          "output": output})
-
-        print(out)
-        sys.stdout.flush()
-    else:
-        return status, output
+            print("Obtained False. Error: {}".format(output_))
 
 
 if __name__ == "__main__":
+    # Note: sanitize_numbers_from_google_speech doesn't use the removal of unwanted characters
+    # which is dealth with by remove_unwanted_chars(), so to test the real output, we will need
+    # to make test cases for the output from parse_order() instead.
+    #test_sanitize_numbers_from_google_speech()
+    #print(parse_order("buy 0.23 314 bitcoin limit 30 1301"))
 
-    inpt = sys.argv[1]
+    #order_text = "buy 0.1 1 bitcoin range 10 low 30 1301 high 50 1000"
 
-    process(inpt)
+    order_text = sys.argv[1]
+    status, output = parse_order(order_text)
 
+    out = json.dumps({"status": status,
+                      "output": output})
 
-
-
+    print(out)
+    sys.stdout.flush()
