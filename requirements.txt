@@ -6,5 +6,5 @@ python-dateutil==2.8.1
 pytz==2021.1
 six==1.15.0
 tabulate==0.8.9
-word2number==1.1
+word2number-i18n==1.1.0
 git+git://github.com/returnKitten/num2words@master#egg=num2words

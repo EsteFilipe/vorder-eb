@@ -1,10 +1,13 @@
-from word2number import w2n
+from word2numberi18n import w2n  # Using this fork because of this bug https://github.com/akshaynagpal/w2n/issues/54
 from num2words import num2words as n2w
 import more_itertools as mit
 import numpy as np
 import sys
 import json
 import re
+import os
+
+os.environ['w2n.lang'] = 'en'
 
 COINS = {"bitcoin": "BTC",
          "ether": "ETH"}

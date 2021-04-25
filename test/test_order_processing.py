@@ -14,6 +14,7 @@ from unittest import TestCase
 from os import getcwd, path
 import sys
 import json
+from operator import itemgetter
 
 # Add scripts directory to path
 cwd = getcwd()
@@ -27,9 +28,8 @@ TESTDATA_FILENAME = './data/test_cases_order_processing_py.json'
 class OrderProcessingTest(TestCase):
 
     def setUp(self):
-        with open(TESTDATA_FILENAME) as f:
+        with open(TESTDATA_FILENAME, 'r') as f:
             self.testdata = json.load(f)
-            print(self.testdata)
 
     def test_order_processing(self):
 
@@ -37,9 +37,14 @@ class OrderProcessingTest(TestCase):
             order_expected = o['orderFileDetails']['orderResult']
             order_result_previous = o['orderProcessingResult']
             order_transcription = o['orderTranscription']
-            order_result = process(order_transcription)
+
+            _, order_result = process(order_transcription)
 
             if order_result['type'] == 'range':
                 del[order_result['range_values']]
 
-            self.assertEqual(order_expected, order_result)
+            self.assertEqual(order_expected, order_result,
+                             msg='-> Expected: {}\n\n'
+                                 'Transcription: {}\n'
+                                 'Current Result: {}\n'
+                                 'Previous Result: {}'.format(order_expected, order_transcription, order_result, order_result_previous))
