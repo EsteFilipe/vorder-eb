@@ -75,11 +75,13 @@ if (cluster.isMaster) {
                 console.log(output);
             }
             else {
-                console.log("Adaptations have not been set anew - we'll be using the ones previously defined:");
-                const customClasses = await speechService.listCustomClasses();
-                const phraseSets = await speechService.listPhraseSet();
-                const classesAndSets = speechService.prettifyListAdaptations(customClasses, phraseSets);
-                console.log(classesAndSets);
+                console.log("Adaptations have not been set anew - we'll be using the ones previously defined.");
+                if (config.speech.stt.adaptations.list) {
+                    const customClasses = await speechService.listCustomClasses();
+                    const phraseSets = await speechService.listPhraseSet();
+                    const classesAndSets = speechService.prettifyListAdaptations(customClasses, phraseSets);
+                    console.log(classesAndSets);
+                }
             }
         }
 

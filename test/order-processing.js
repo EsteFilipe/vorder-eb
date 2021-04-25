@@ -98,6 +98,14 @@ module.exports = function(config) {
 			const orderTranscription = await speechService.speechToText(fileData.output.Body, "PROCESS");
 	    	var orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
             orderProcessingResult = JSON.parse(orderProcessingResult).output;
+
+            // TODO DEBUG
+            console.log('--> FILE DETAILS: ' + orderFileDetails)
+            console.log('--> TRANSCRIPTION: ' + orderTranscription)
+            console.log('--> PROCESSING RESULT: ' + orderProcessingResult)
+            // TODO DEBUG
+
+
             // If order is 'range', remove the `range_values` field, because we don't need it for the comparison
             if (orderProcessingResult.type == 'range') {
             	delete orderProcessingResult.range_values;

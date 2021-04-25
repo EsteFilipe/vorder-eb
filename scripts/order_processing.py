@@ -480,8 +480,6 @@ def test_split_all_numbers_after_first_decimal():
 
 def process(order_text):
 
-    #order_text = "sell 10.79 ether range 35 low 60850 3.05 6 6 6 high 80 1600 30 6.712 0"
-
     status, output = parse_order(order_text)
 
     if __name__ == "__main__":
