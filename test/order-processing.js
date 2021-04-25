@@ -99,13 +99,6 @@ module.exports = function(config) {
 	    	var orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
             orderProcessingResult = JSON.parse(orderProcessingResult).output;
 
-            // TODO DEBUG
-            console.log('--> FILE DETAILS: ' + JSON.stringify(orderFileDetails))
-            console.log('--> TRANSCRIPTION: ' + orderTranscription)
-            console.log('--> PROCESSING RESULT: ' + JSON.stringify(orderProcessingResult))
-            // TODO DEBUG
-
-
             // If order is 'range', remove the `range_values` field, because we don't need it for the comparison
             if (orderProcessingResult.type == 'range') {
             	delete orderProcessingResult.range_values;
