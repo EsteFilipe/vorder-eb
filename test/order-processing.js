@@ -100,9 +100,9 @@ module.exports = function(config) {
             orderProcessingResult = JSON.parse(orderProcessingResult).output;
 
             // TODO DEBUG
-            console.log('--> FILE DETAILS: ' + orderFileDetails)
+            console.log('--> FILE DETAILS: ' + JSON.stringify(orderFileDetails))
             console.log('--> TRANSCRIPTION: ' + orderTranscription)
-            console.log('--> PROCESSING RESULT: ' + orderProcessingResult)
+            console.log('--> PROCESSING RESULT: ' + JSON.stringify(orderProcessingResult))
             // TODO DEBUG
 
 
