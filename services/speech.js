@@ -34,9 +34,13 @@ module.exports = function (credentials, config) {
             config: {
                 languageCode: config.languageCode,
                 encoding: config.stt.encoding,
-                sampleRateHertz: config.stt.sampleRate
+                
             }
         };
+        // If sample rate is not defined
+        if (config.stt.sampleRate != -1) {
+            this.sttRequest.config.sampleRateHertz = config.stt.sampleRate;
+        }
 
         this.ttsRequest = {
             // TODO It's possible to decrease the sampling rate to make the audio file as small as possible

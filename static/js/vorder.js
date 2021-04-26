@@ -1099,7 +1099,10 @@ Vorder.prototype = {
         mimeType: 'audio/webm',
         recorderType: StereoAudioRecorder,
         numberOfAudioChannels: 1,
-        desiredSampRate: self.options.samplingRate
+        // Not defining sampling rate because that results in downsampling, and it's best not to do it
+        // according to https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig
+        // and https://github.com/muaz-khan/RecordRTC/issues/226
+        //desiredSampRate: self.options.samplingRate
     });
 
     self.showRecording();
@@ -1384,7 +1387,7 @@ var vorder = new Vorder({audioSourceDeviceId: 'default',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
                          orderProcessing: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 15, maxSilenceSecondsAfterSpeech: 1.0},
                          orderConfirmation: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
-                         samplingRate: 32000
+                         //samplingRate: 32000
                         });
 
 // Set the socketio methods
