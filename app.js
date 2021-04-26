@@ -50,9 +50,9 @@ if (cluster.isMaster) {
         config.server.credentials = Object.assign(...serverCredentials)
 
         // Get Speech to Text contexts
-        if (!config.speech.stt.contextFilePaths && !config.speech.stt.adaptations) {
+        if (!config.speech.stt.contextsConf && !config.speech.stt.adaptations) {
             return {status: false, 
-                    output: "At least one of `contextFilePaths` and `adaptation` has to be non-null."}
+                    output: "At least one of `contextsConf` and `adaptation` has to be non-null."}
         }
 
         const speechService = require('./services/speech')([
