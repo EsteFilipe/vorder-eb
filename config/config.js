@@ -9,10 +9,11 @@ var config = {
 			testAccuracy: true,
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
-			//contextsConf: null,
-			contextsConf: {
-				useBigrams: 'false'
-			},
+			// Speech context is a no-go for range orders. Maximum number of characters per phrase is 100.
+			contextsConf: null,
+			//contextsConf: {
+			//	useBigrams: 'false'
+			//},
 			// Adaptations to create and use in the speech recognition model
 			// Adaptations are made up of Phrase Sets and Classes. 
 			// See https://cloud.google.com/speech-to-text/docs/adaptation-model#improve_transcription_results_using_a_customclass
@@ -25,11 +26,10 @@ var config = {
 			// nothing is done, and the last set adaptations will be used.
 			// -> If `adaptations.override` is true then even if an adaptation with the same name already exists
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
-			adaptations: null,
-			/*
+			//adaptations: null,
 			adaptations: {
-				create: false,
-				list: false,
+				create: true,
+				list: true,
 				override: true,
 				configuration: {
 					customClasses: [
@@ -47,7 +47,7 @@ var config = {
 						},
 						{
 							customClassId: 'range-bounds-words',
-							items: [{value: 'low'}, {value: 'high'}]
+							items: [{value: 'lower'}, {value: 'higher'}]
 						},
 						{
 							customClassId: 'confirmation',
@@ -93,7 +93,6 @@ var config = {
 					]
 				}
 			}
-			*/
 		},
 		tts: {
 			encoding: 'MP3',
