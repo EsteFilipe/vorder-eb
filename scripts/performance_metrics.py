@@ -19,7 +19,7 @@ index_names = order_types + ['overall']
 def calculate_accuracy(results):
 
     # Get the field names of all the the parameters that vary
-    parameters = {k: [] for k in results[0]['orderFileDetails'] if k != 'orderResult'}
+    parameters = {k: [] for k in results[0]['orderFileDetails'] if k not in ('fileName', 'orderResult')}
     # Get the values of all the parameters that vary
     for r in results:
         for p in parameters:
