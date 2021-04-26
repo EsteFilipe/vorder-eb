@@ -54,7 +54,7 @@ function processFileName(fileName) {
 	}
 
 	return {
-		fileName: fileName
+		fileName: fileName,
 		voiceName: voiceName,
 		speakingRate: speakingRate,
 		pitch: pitch,
