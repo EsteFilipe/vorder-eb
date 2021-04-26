@@ -8,7 +8,7 @@ var config = {
 		stt: {
 			testAccuracy: true,
 			encoding: 'LINEAR16',
-			sampleRate: 16000,
+			sampleRate: 32000,
 			// Speech context is a no-go for range orders. Maximum number of characters per phrase is 100.
 			contextsConf: null,
 			//contextsConf: {
