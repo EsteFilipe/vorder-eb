@@ -1401,7 +1401,8 @@ recordingBtn.addEventListener('click', function() {
   vorder.stop();
 });
 settingsBtn.addEventListener('click', function() {
-  vorder.togglePlaylist();
+  //vorder.togglePlaylist();
+  window.location = 'https://app.vorder.io/options'
 });
 volumeBtn.addEventListener('click', function() {
   vorder.toggleVolume();
