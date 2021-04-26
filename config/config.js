@@ -6,7 +6,7 @@ var config = {
 	speech: {
 		languageCode: 'en-US',
 		stt: {
-			testAccuracy: false,
+			testAccuracy: true,
 			encoding: 'LINEAR16',
 			sampleRate: 16000,
 			contextsConf: null,

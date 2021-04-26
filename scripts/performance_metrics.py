@@ -46,6 +46,7 @@ def calculate_accuracy(results):
     # Iterate through the results and get the counts
     # Also save the wrong cases for debugging
     for r in results:
+        file_name = r['orderFileDetails']['fileName']
         order_expected = r['orderFileDetails']['orderResult']
         order_transcription = r['orderTranscription']
         order_processing_result = r['orderProcessingResult']
@@ -69,7 +70,8 @@ def calculate_accuracy(results):
             correct_counts.loc[order_type, ('overall', 'overall')] += 1
             correct_counts.loc['overall', ('overall', 'overall')] += 1
         else:
-            wrong_case = {'order_expected': order_expected,
+            wrong_case = {'file_name': file_name,
+                          'order_expected': order_expected,
                           'order_processing_result': order_processing_result,
                           'order_transcription': order_transcription}
             wrong_cases.append(wrong_case)
