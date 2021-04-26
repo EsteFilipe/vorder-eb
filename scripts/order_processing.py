@@ -369,10 +369,10 @@ def parse_order(order):
     elif parsed_order["type"] == "range":
         if len(words) != 9:
             return False, "Order type 'range' must have exactly 9 command words. {} words were received instead.".format(len(words))
-        if words[5] != 'low':
-            return False, "Range order: word is index 6 was not 'lower'."
-        if words[7] != 'high':
-            return False, "Range order: word is index 8 was not 'higher'."
+        if words[5] != 'lower':
+            return False, "Range order: word is index 5 was not 'lower'."
+        if words[7] != 'higher':
+            return False, "Range order: word is index 7 was not 'higher'."
 
     # -- Parse buy/sell
     if any(words[0] == x for x in POLARITY_WORDS):

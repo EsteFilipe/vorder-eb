@@ -370,8 +370,8 @@ module.exports = function (credentials, config) {
             }
         }
 
-        console.log("--> FULL STT REQUEST")
-        console.log(JSON.stringify(request, null, 2))
+        //console.log("--> FULL STT REQUEST")
+        //console.log(JSON.stringify(request, null, 2))
 
         request.audio = {
             content: audio
