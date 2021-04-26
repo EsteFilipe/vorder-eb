@@ -28,8 +28,8 @@ var config = {
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			//adaptations: null,
 			adaptations: {
-				create: true,
-				list: true,
+				create: false,
+				list: false,
 				override: true,
 				configuration: {
 					customClasses: [

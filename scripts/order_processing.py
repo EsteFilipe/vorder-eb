@@ -177,7 +177,7 @@ def bypass_sanitize_numbers(words):
         # - There are 4 'number words'
         # - Those 4 'number words' are in indexes 1, 4, 6, and 8
         elif len(words) == 9:
-            if all((words[3] == "range", words[5] == "low", words[7] == "high",
+            if all((words[3] == "range", words[5] == "lower", words[7] == "higher",
                     len(nw_indexes_output) == 4, nw_indexes_output == [1, 4, 6, 8])):
                 return True
         else:
@@ -370,9 +370,9 @@ def parse_order(order):
         if len(words) != 9:
             return False, "Order type 'range' must have exactly 9 command words. {} words were received instead.".format(len(words))
         if words[5] != 'low':
-            return False, "Range order: word is index 6 was not 'low'."
+            return False, "Range order: word is index 6 was not 'lower'."
         if words[7] != 'high':
-            return False, "Range order: word is index 8 was not 'high'."
+            return False, "Range order: word is index 8 was not 'higher'."
 
     # -- Parse buy/sell
     if any(words[0] == x for x in POLARITY_WORDS):
