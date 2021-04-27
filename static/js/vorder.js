@@ -1102,7 +1102,7 @@ Vorder.prototype = {
         // Not defining sampling rate because that results in downsampling, and it's best not to do it
         // according to https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig
         // and https://github.com/muaz-khan/RecordRTC/issues/226
-        //desiredSampRate: self.options.samplingRate
+         //desiredSampRate: self.options.samplingRate
     });
 
     self.showRecording();
