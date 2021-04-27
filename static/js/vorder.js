@@ -1387,7 +1387,7 @@ var vorder = new Vorder({audioSourceDeviceId: 'default',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
                          orderProcessing: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 15, maxSilenceSecondsAfterSpeech: 1.0},
                          orderConfirmation: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
-                         //samplingRate: 32000
+                          //samplingRate: 32000
                         });
 
 // Set the socketio methods
