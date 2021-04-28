@@ -50,7 +50,9 @@ if (cluster.isMaster) {
 
         // Production
         if (ebEnvName === 'Vorder-env') {
-            const x = 0;
+            if (config.server.obfuscateJS.production) {
+                const x = 0;
+            }
         }
         // Development
         else if (ebEnvName === 'Vorder-env-dev') {
@@ -58,14 +60,10 @@ if (cluster.isMaster) {
             process.env.SESSIONS_TABLE += '-dev';
             process.env.CREDENTIALS_TABLE += '-dev';
             process.env.EVENTS_BUCKET += '-dev';
+            if (config.server.obfuscateJS.development) {
+                const x = 0;
+            }
         }
-
-        console.log('----> HERE')
-        console.log(process.env.EVENTS_TABLE)
-        console.log(process.env.SESSIONS_TABLE)
-        console.log(process.env.CREDENTIALS_TABLE)
-        console.log(process.env.EVENTS_BUCKET)
-
 
         // Get server credentials
         const serverCredentials = await storageService.getServerCredentials()
