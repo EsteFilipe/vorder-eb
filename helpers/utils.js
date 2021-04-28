@@ -30,7 +30,7 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
 
     //console.log(fileContent)
 
-    var obfuscationResult = JavaScriptObfuscator.obfuscate(
+    var obfuscationResult = jsObfuscator.obfuscate(
 	    fileContent,
 	    {compact: true, selfDefending: true}
 	);
