@@ -22,7 +22,7 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
 	const targetFilePath = viewsDir + targetFileName;
 	const tmpFilePath = '/tmp/' + targetFileName;
 
-	console.log(`Obfuscating file '${fileName}'...`)
+	console.log(`Obfuscating file '${targetFileName}'...`)
 	const args = [targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']
 	const obfResult = await spawn('javascript-obfuscator', args);
 	console.log(obfResult);
