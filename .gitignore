@@ -126,3 +126,8 @@ vdont_deploy/
 google-service-account-key.json
 google-service-account-key-2.json
 
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

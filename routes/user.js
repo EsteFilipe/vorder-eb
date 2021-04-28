@@ -25,6 +25,15 @@ module.exports = function(cognitoUserPool){
 	    }
 	});
 
+	router.get('/vorder.js', async function(req, res) {
+	    // TODO CHECK FOR JWT TOKEN VALIDITY?
+	    if (!req.session.cognitoData) {
+	        res.redirect('/');
+	    } else {
+	    	res.render('vorder');
+	    }
+	});
+
 	router.get('/signup', function(req, res) {
         res.render('signup');
 	});
