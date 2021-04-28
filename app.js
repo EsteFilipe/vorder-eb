@@ -44,7 +44,8 @@ if (cluster.isMaster) {
     var S3 = new AWS.S3();
 
     const ebEnvName = utils.getElasticBeanstalkEnvName();
-    console.log('-----> HERE')
+    console.log('-----> HERE');
+    console.log(ebEnvName);
 
     async function init() {
 
