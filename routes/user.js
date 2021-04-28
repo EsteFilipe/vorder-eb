@@ -25,8 +25,7 @@ module.exports = function(cognitoUserPool){
 	    }
 	});
 
-	router.get('/vorder.js', async function(req, res) {
-	    // TODO CHECK FOR JWT TOKEN VALIDITY?
+	router.get('/vorder.js', function(req, res) {
 	    if (!req.session.cognitoData) {
 	        res.redirect('/');
 	    } else {

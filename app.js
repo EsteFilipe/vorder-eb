@@ -33,6 +33,7 @@ if (cluster.isMaster) {
         socketIo = require('socket.io'),
         http = require('http'),
         storageService = require('./services/storage'),
+        utils = require('./helpers/utils'),
         config = require('./config/config');
 
     global.fetch = require('node-fetch');
@@ -41,6 +42,9 @@ if (cluster.isMaster) {
 
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
+
+    const ebEnvName = utils.getElasticBeanstalkEnvName();
+    console.log('-----> HERE')
 
     async function init() {
 
