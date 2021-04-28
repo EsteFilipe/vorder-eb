@@ -24,12 +24,8 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
 
 	console.log(`Obfuscating file '${targetFileName}'...`)
 
-
-	const args = [targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']
-
-	console.log(args);
-
-	const obfResult = await spawn('javascript-obfuscator', args);
+	const obfResult = await spawn('sudo', 
+		['javascript-obfuscator', targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']);
 	console.log(obfResult);
 	const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
 	console.log(mvResult);
