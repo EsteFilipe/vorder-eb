@@ -43,11 +43,14 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-    const ebEnvName = utils.getElasticBeanstalkEnvName();
-    console.log('-----> HERE');
-    console.log(ebEnvName);
 
     async function init() {
+
+        // TEST 
+        const ebEnvName = await utils.getElasticBeanstalkEnvName();
+        console.log('-----> HERE');
+        console.log(ebEnvName);
+        // TEST 
 
         // Get server credentials
         const serverCredentials = await storageService.getServerCredentials()

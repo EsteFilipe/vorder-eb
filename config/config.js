@@ -28,8 +28,8 @@ var config = {
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			//adaptations: null,
 			adaptations: {
-				create: false,
-				list: false,
+				create: true,
+				list: true,
 				override: true,
 				configuration: {
 					customClasses: [
@@ -47,7 +47,7 @@ var config = {
 						},
 						{
 							customClassId: 'range-bounds-words',
-							items: [{value: 'low'}, {value: 'high'}, {value: 'lower'}, {value: 'higher'}]
+							items: [{value: 'low'}, {value: 'high'}, {value: 'lower'}, {value: 'higher'}, {value: 'lowest'}, {value: 'highest'}]
 						},
 						{
 							customClassId: 'confirmation',
