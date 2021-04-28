@@ -51,7 +51,7 @@ if (cluster.isMaster) {
         // Production
         if (ebEnvName === 'Vorder-env') {
             if (config.server.obfuscateJS.production) {
-                const x = 0;
+                const r = await utils.obfuscateAndReplaceJSFile('vorder.ejs');
             }
         }
         // Development
@@ -61,7 +61,7 @@ if (cluster.isMaster) {
             process.env.CREDENTIALS_TABLE += '-dev';
             process.env.EVENTS_BUCKET += '-dev';
             if (config.server.obfuscateJS.development) {
-                const x = 0;
+                const r = await utils.obfuscateAndReplaceJSFile('vorder.ejs');
             }
         }
 

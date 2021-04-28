@@ -17,11 +17,13 @@ Utils.prototype.getElasticBeanstalkEnvName = async function () {
     return envName.toString();
 }
 
-Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFilePath) {
-	const fileName = path.basename(targetFilePath)
-	const tmpFilePath = '/tmp' + fileName;
-	const args = [targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']
+Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
+	const viewsDir = path.resolve(process.cwd()) + '/views/';
+	const targetFilePath = viewsDir + targetFileName;
+	const tmpFilePath = '/tmp/' + targetFileName;
+
 	console.log(`Obfuscating file '${fileName}'...`)
+	const args = [targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']
 	const obfResult = await spawn('javascript-obfuscator', args);
 	console.log(obfResult);
 	const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
