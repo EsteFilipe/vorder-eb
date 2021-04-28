@@ -1,5 +1,7 @@
 const spawn = require('await-spawn'),
-	  path = require('path');
+	  path = require('path'),
+      fs = require('fs').promises,
+      jsObfuscator = require('javascript-obfuscator');
 
 var Utils = function() {
 	this.name = ''
@@ -22,13 +24,21 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
 	const targetFilePath = viewsDir + targetFileName;
 	const tmpFilePath = '/tmp/' + targetFileName;
 
-	console.log(`Obfuscating file '${targetFileName}'...`)
+    const fileContent = await fs.readFile(targetFilePath, "utf8");
 
-	const obfResult = await spawn('sudo', 
-		['javascript-obfuscator', targetFilePath, '--output', tmpFilePath, '--compact', 'true', '--self-defending', 'true']);
-	console.log(obfResult);
-	const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
-	console.log(mvResult);
+    console.log(`Obfuscating file '${targetFileName}'...`)
+
+    console.log(fileContent)
+
+    var obfuscationResult = JavaScriptObfuscator.obfuscate(
+	    fileContent,
+	    {compact: true, selfDefending: true}
+	);
+
+	console.log(obfuscationResult)
+
+	//const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
+	//console.log(mvResult);
 
     return 0;
 }
