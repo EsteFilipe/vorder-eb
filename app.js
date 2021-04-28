@@ -46,11 +46,26 @@ if (cluster.isMaster) {
 
     async function init() {
 
-        // TEST 
         const ebEnvName = await utils.getElasticBeanstalkEnvName();
-        console.log('-----> HERE');
-        console.log(ebEnvName);
-        // TEST 
+
+        // Production
+        if (ebEnvName === 'Vorder-env') {
+            const x = 0;
+        }
+        // Development
+        else if (ebEnvName === 'Vorder-env-dev') {
+            process.env.EVENTS_TABLE += '-dev';
+            process.env.SESSIONS_TABLE += '-dev';
+            process.env.CREDENTIALS_TABLE += '-dev';
+            process.env.EVENTS_BUCKET += '-dev';
+        }
+
+        console.log('----> HERE')
+        console.log(process.env.EVENTS_TABLE)
+        console.log(process.env.SESSIONS_TABLE)
+        console.log(process.env.CREDENTIALS_TABLE)
+        console.log(process.env.EVENTS_BUCKET)
+
 
         // Get server credentials
         const serverCredentials = await storageService.getServerCredentials()
