@@ -34,17 +34,20 @@ module.exports = function(cognitoUserPool){
 	});
 
 	router.get('/signup', function(req, res) {
+		/*
 	    if (!req.session.cognitoData) {
             res.send('Not authorized.');
 	    } else {
 	    	const email = req.session.cognitoData.idToken.payload.email;
-	    	if (email in ['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com']) {
+	    	if (['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'].includes(email)) {
         		res.render('signup');
         	}
         	else {
 	            res.send(email);
         	}
 	    }
+	    */
+		res.render('signup');
 	});
 
 	router.post('/signup', function(req, res) {
@@ -54,7 +57,7 @@ module.exports = function(cognitoUserPool){
             res.send('Not authorized.');
 	    } else {
 	    	const email = req.session.cognitoData.idToken.payload.email;
-	    	if (!(email in ['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'])) {
+	    	if (!['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'].includes(email)) {
         		res.send('Not authorized.');
         		return;
         	}
