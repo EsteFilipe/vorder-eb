@@ -10,7 +10,7 @@ var config = {
 	speech: {
 		languageCode: 'en-US',
 		stt: {
-			testAccuracy: false,
+			testAccuracy: true,
 			encoding: 'LINEAR16',
 			model: 'default',
 			sampleRate: -1, // if -1, the used sampling rate will be the one specified in the audio file
