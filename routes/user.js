@@ -34,7 +34,6 @@ module.exports = function(cognitoUserPool){
 	});
 
 	router.get('/signup', function(req, res) {
-		/*
 	    if (!req.session.cognitoData) {
             res.send('Not authorized.');
 	    } else {
@@ -46,8 +45,6 @@ module.exports = function(cognitoUserPool){
 	            res.send(email);
         	}
 	    }
-	    */
-		res.render('signup');
 	});
 
 	router.post('/signup', function(req, res) {
