@@ -32,7 +32,12 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
 
     var obfuscationResult = jsObfuscator.obfuscate(
 	    fileContent,
-	    {compact: true, selfDefending: true, domainLock: ['vorder.io']}
+	    {
+	    	compact: true, 
+	    	selfDefending: true,
+	    	disableConsoleOutput: true,
+	    	transformObjectKeys: true, 
+	    	domainLock: ['vorder.io']}
 	);
 
     // Write obfuscated file
