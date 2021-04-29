@@ -38,8 +38,9 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
 	    	selfDefending: true,
 	    	disableConsoleOutput: true,
 	    	transformObjectKeys: true, 
-	    	domainLock: ['vorder.io']}
+	    	domainLock: ['vorder.io']
 	    	*/
+	    }
 	);
 
     // Write obfuscated file
