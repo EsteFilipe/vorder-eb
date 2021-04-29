@@ -42,7 +42,7 @@ module.exports = function(cognitoUserPool){
         		res.render('signup');
         	}
         	else {
-	            res.send(email);
+            	res.send('Not authorized.');
         	}
 	    }
 	});
