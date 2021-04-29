@@ -16,6 +16,9 @@ POLARITY_WORDS = ["buy", "sell"]
 
 TYPE_WORDS = ["limit", "market", "range"]
 
+# Known transcription errors
+REPLACE_TRANSCRIPTION = {'mm': '2000'} # MM is the roman number for 2000. If the user doesn't say 2000.0, then MM is obtained from the transcription
+
 # Matches any number with more than one decimal place - real floats, integers are not matched
 float_re = re.compile(r'^[0-9]*(\.[0-9]+)$')
 
@@ -323,11 +326,22 @@ def remove_unwanted_chars(text):
     return txt
 
 
+def replace_transcription_words(words):
+
+    for i, w in enumerate(words):
+        if w in REPLACE_TRANSCRIPTION:
+            words[i] = REPLACE_TRANSCRIPTION[w]
+
+    return words
+
+
 def parse_order(order):
 
     order = remove_unwanted_chars(order)
 
     words = order.lower().split()
+
+    words = replace_transcription_words(words)
 
     basic_criteria_status, basic_criteria_output = order_basic_criteria_check(words)
 
@@ -493,6 +507,8 @@ def process(order_text):
 
 
 if __name__ == "__main__":
+
+    # inpt = 'buy 0.0 1 Bitcoin limit 50 mm'
 
     inpt = sys.argv[1]
 
