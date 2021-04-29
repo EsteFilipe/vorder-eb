@@ -4,7 +4,7 @@ var config = {
 		cookieMaxAge: 86400000,
 		obfuscateJS: {
 			production: true,
-			development: false
+			development: true
 		}
 	},
 	speech: {
