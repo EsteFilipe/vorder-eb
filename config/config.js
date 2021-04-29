@@ -1,12 +1,16 @@
 var config = {
 	server: {
 		port: process.env.PORT || 3000,
-		cookieMaxAge: 86400000
+		cookieMaxAge: 86400000,
+		obfuscateJS: {
+			production: true,
+			development: false
+		}
 	},
 	speech: {
 		languageCode: 'en-US',
 		stt: {
-			testAccuracy: true,
+			testAccuracy: false,
 			encoding: 'LINEAR16',
 			sampleRate: -1, // if -1, the used sampling rate will be the one specified in the audio file
 			// Speech context is a no-go for range orders. Maximum number of characters per phrase is 100.
@@ -28,8 +32,8 @@ var config = {
 			// it will be redifined, else only the adaptations whose name doesn't already exist will be defined.
 			//adaptations: null,
 			adaptations: {
-				create: true,
-				list: true,
+				create: false,
+				list: false,
 				override: true,
 				configuration: {
 					customClasses: [
@@ -47,7 +51,7 @@ var config = {
 						},
 						{
 							customClassId: 'range-bounds-words',
-							items: [{value: 'low'}, {value: 'high'}, {value: 'lower'}, {value: 'higher'}]
+							items: [{value: 'low'}, {value: 'high'}, {value: 'lower'}, {value: 'higher'}, {value: 'lowest'}, {value: 'highest'}]
 						},
 						{
 							customClassId: 'confirmation',

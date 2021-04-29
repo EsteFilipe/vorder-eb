@@ -25,6 +25,14 @@ module.exports = function(cognitoUserPool){
 	    }
 	});
 
+	router.get('/vorder.js', function(req, res) {
+	    if (!req.session.cognitoData) {
+	        res.redirect('/');
+	    } else {
+	    	res.render('vorder');
+	    }
+	});
+
 	router.get('/signup', function(req, res) {
         res.render('signup');
 	});

@@ -1102,7 +1102,7 @@ Vorder.prototype = {
         // Not defining sampling rate because that results in downsampling, and it's best not to do it
         // according to https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig
         // and https://github.com/muaz-khan/RecordRTC/issues/226
-         //desiredSampRate: self.options.samplingRate
+        //desiredSampRate: self.options.samplingRate
     });
 
     self.showRecording();
@@ -1115,9 +1115,9 @@ Vorder.prototype = {
     
     // Global timeout (maximum number of recording seconds)
     (function globalLooper() {
-        console.log("-----> RUNNING globalLooper()");
+        //console.log("-----> RUNNING globalLooper()");
         if (!self.state.running || !recordingRunning) {
-          console.log("-----> RETURNED globalLooper()");
+          //console.log("-----> RETURNED globalLooper()");
           return;
         }
         
@@ -1149,10 +1149,10 @@ Vorder.prototype = {
         milisecondsToStopSilence = maxSilenceSecondsAfterSpeech * 1000;
 
         (function silenceLooper() {
-            console.log("-----> RUNNING silenceLooper()");
+            //console.log("-----> RUNNING silenceLooper()");
 
             if (!self.state.running || !recordingRunning) {
-              console.log("-----> RETURNED silenceLooper()");
+              //console.log("-----> RETURNED silenceLooper()");
               return;
             }
 
@@ -1783,7 +1783,7 @@ function hark(stream, options) {
 
             if (loopsCounter <= cutoffFirstNLoops) {
               // Go back to the beginning
-              console.log('HARK IGNORING. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
+              //console.log('HARK IGNORING. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
               setTimeout(looper,interval)
               return;
             }
@@ -1791,7 +1791,7 @@ function hark(stream, options) {
 
             harker.emit('volume_change', currentVolume, threshold);
 
-            console.log('HARK CONSIDERING LOOP. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
+            //console.log('HARK CONSIDERING LOOP. VOLUME: ' + currentVolume + '/' + threshold + '<-------');
 
             var history = 0;
             if (currentVolume > threshold && !harker.speaking) {
@@ -1800,7 +1800,7 @@ function hark(stream, options) {
                     history += harker.speakingHistory[i];
                 }
                 if (history >= 2) {
-                    console.log('HARK SPEAKING <-------');
+                    //console.log('HARK SPEAKING <-------');
                     harker.speaking = true;
                     harker.emit('speaking');
                 }

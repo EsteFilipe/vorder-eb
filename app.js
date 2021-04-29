@@ -33,6 +33,7 @@ if (cluster.isMaster) {
         socketIo = require('socket.io'),
         http = require('http'),
         storageService = require('./services/storage'),
+        utils = require('./helpers/utils'),
         config = require('./config/config');
 
     global.fetch = require('node-fetch');
@@ -42,7 +43,27 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
+
     async function init() {
+
+        const ebEnvName = await utils.getElasticBeanstalkEnvName();
+
+        // Production
+        if (ebEnvName === 'Vorder-env') {
+            if (config.server.obfuscateJS.production) {
+                const r = await utils.obfuscateAndReplaceJSFile('vorder.ejs');
+            }
+        }
+        // Development
+        else if (ebEnvName === 'Vorder-env-dev') {
+            process.env.EVENTS_TABLE += '-dev';
+            process.env.SESSIONS_TABLE += '-dev';
+            process.env.CREDENTIALS_TABLE += '-dev';
+            process.env.EVENTS_BUCKET += '-dev';
+            if (config.server.obfuscateJS.development) {
+                const r = await utils.obfuscateAndReplaceJSFile('vorder.ejs');
+            }
+        }
 
         // Get server credentials
         const serverCredentials = await storageService.getServerCredentials()
