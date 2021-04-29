@@ -34,10 +34,32 @@ module.exports = function(cognitoUserPool){
 	});
 
 	router.get('/signup', function(req, res) {
-        res.render('signup');
+	    if (!req.session.cognitoData) {
+            res.send('Not authorized.');
+	    } else {
+	    	const email = req.session.cognitoData.idToken.payload.email;
+	    	if (email in ['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com']) {
+        		res.render('signup');
+        	}
+        	else {
+	            res.send('Not authorized.');
+        	}
+	    }
 	});
 
 	router.post('/signup', function(req, res) {
+
+		// TODO make reusable patterns for admins to use routes instead of repeating this snippet
+	    if (!req.session.cognitoData) {
+            res.send('Not authorized.');
+	    } else {
+	    	const email = req.session.cognitoData.idToken.payload.email;
+	    	if (!(email in ['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'])) {
+        		res.send('Not authorized.');
+        		return;
+        	}
+	    }
+
 	    var email = req.body.email;
 	    var password = req.body.password;
 	    var repeatPassword = req.body.repeatPassword;
