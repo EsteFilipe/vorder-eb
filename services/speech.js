@@ -34,7 +34,7 @@ module.exports = function (credentials, config) {
             config: {
                 languageCode: config.languageCode,
                 encoding: config.stt.encoding,
-                
+                model: config.stt.model
             }
         };
         // If sample rate is not defined
