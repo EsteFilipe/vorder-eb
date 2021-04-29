@@ -19,7 +19,7 @@ Utils.prototype.getElasticBeanstalkEnvName = async function () {
     return envName.toString();
 }
 
-Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
+Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url) {
 	const viewsDir = path.resolve(process.cwd()) + '/views/';
 	const targetFilePath = viewsDir + targetFileName;
 	const tmpFilePath = '/tmp/' + targetFileName;
@@ -32,10 +32,10 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName) {
 
     var obfuscationResult = jsObfuscator.obfuscate(
 	    fileContent,
-	    {compact: true, selfDefending: true}
+	    {compact: true, selfDefending: true, domainLock: 'vorder.io'}
 	);
 
-	console.log(obfuscationResult)
+	const res = await fs.writeFile(tmpFilePath, obfuscationResult);
 
 	//const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
 	//console.log(mvResult);
