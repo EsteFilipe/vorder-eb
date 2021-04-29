@@ -35,10 +35,10 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
 	    {compact: true, selfDefending: true, domainLock: ['vorder.io']}
 	);
 
-	const res = await fs.writeFile(tmpFilePath, obfuscationResult);
-
-	//const mvResult = await spawn('sudo', ['mv', tmpFilePath, targetFilePath]);
-	//console.log(mvResult);
+    // Write obfuscated file
+	const writeResult = await fs.writeFile(tmpFilePath, obfuscationResult);
+	// Replace original file by the obfuscated one
+	const mvResult = await spawn('mv', [tmpFilePath, targetFilePath]);
 
     return 0;
 }
