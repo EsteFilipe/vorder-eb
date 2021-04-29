@@ -12,6 +12,7 @@ var config = {
 		stt: {
 			testAccuracy: false,
 			encoding: 'LINEAR16',
+			model: 'command_and_search',
 			sampleRate: -1, // if -1, the used sampling rate will be the one specified in the audio file
 			// Speech context is a no-go for range orders. Maximum number of characters per phrase is 100.
 			contextsConf: null,
