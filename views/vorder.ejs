@@ -964,8 +964,7 @@ Vorder.prototype = {
       self.porcupineAudioManagerErrorCallback,
       self.porcupineReadyCallback.bind(self),
       self.options.porcupineWorkerPath,
-      self.options.downSamplingWorkerPath,
-      self.options.audioSourceDeviceId
+      self.options.downSamplingWorkerPath
     );
 
     self.showLoading();
@@ -1066,7 +1065,7 @@ Vorder.prototype = {
     var self = this;
     // When the microphone is ready to capture, the callback is called.
     // Use the chosen deviceId to record
-    navigator.mediaDevices.getUserMedia({ audio: { deviceId: self.options.audioSourceDeviceId } }).then(function(microphone) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(microphone) {
         self.microphoneRecordCallback(microphone, waitStartRecordingSeconds, maxRecordingSeconds, maxSilenceSecondsAfterSpeech);
         }).catch(function(error) {
         alert('Unable to access your microphone.');
@@ -1382,8 +1381,7 @@ Vorder.prototype = {
 };
 
 // Setup our new vorder class and pass it the initial options
-var vorder = new Vorder({audioSourceDeviceId: 'default',
-                         porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
+var vorder = new Vorder({porcupineWorkerPath: 'static/porcupine/porcupine_worker.js',
                          downSamplingWorkerPath: 'static/porcupine/downsampling_worker.js',
                          orderProcessing: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 15, maxSilenceSecondsAfterSpeech: 1.0},
                          orderConfirmation: {waitStartRecordingSeconds: 0.25, maxRecordingSeconds: 5, maxSilenceSecondsAfterSpeech: 0.5},
