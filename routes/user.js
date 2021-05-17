@@ -69,7 +69,7 @@ module.exports = function(cognitoUserPool){
 	        userService.registerUser(email, password).then(function(result) {
 	            res.send('Success. Check your e-mail and click the confirmation link.');
 	        }, function(err) {
-	            res.send(`Invalid data: ${err}`);
+	            res.send(`Invalid data: ${err.message}`);
 	        })
 	        }
 	        else {

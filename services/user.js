@@ -66,7 +66,7 @@ module.exports = function (cognitoUserPool) {
         return new Promise((resolve, reject) => {
             this.userPool.signUp(email, password, attributeList, null, (err, result) => {
                 if (err) {
-                    console.log(`Error registering user with e-mail '${email}': ${err}`);
+                    console.log(`Error registering user with e-mail '${email}': ${err.message}`);
                     reject(err);
                     return;
                 }
