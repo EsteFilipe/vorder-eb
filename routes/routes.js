@@ -6,7 +6,7 @@ router.get('/', (req, res) => {
         res.render('login');
 
         // EXPERIMENTING FOR COGNITO TOKENS
-        const amazonCognitoIdentity = require('amazon-cognito-identity-js');
+        const AmazonCognitoIdentity = require('amazon-cognito-identity-js');
         var poolData = {
             UserPoolId: 'us-east-1_wKO7h3kGU', // Your user pool id here
             ClientId: '32tdipotlt2o43i8m7oq3mjncq', // Your client id here
