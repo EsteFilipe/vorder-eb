@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
         };
         var userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         var cognitoUser = userPool.getCurrentUser();
-        console.log(cognitoUser);
+        //console.log(cognitoUser);
         // END EXPERIMENT
 
     } else {
