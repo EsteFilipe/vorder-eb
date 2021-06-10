@@ -25,61 +25,6 @@ module.exports = function(cognitoUserPool){
 	    }
 	});
 
-	router.get('/vorder.js', function(req, res) {
-	    if (!req.session.cognitoData) {
-	        res.redirect('/');
-	    } else {
-	    	res.render('vorder');
-	    }
-	});
-
-	router.get('/signup', function(req, res) {
-	    if (!req.session.cognitoData) {
-            res.send('Not authorized.');
-	    } else {
-	    	const email = req.session.cognitoData.idToken.payload.email;
-	    	if (['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'].includes(email)) {
-        		res.render('signup');
-        	}
-        	else {
-            	res.send('Not authorized.');
-        	}
-	    }
-	});
-
-	router.post('/signup', function(req, res) {
-
-		// TODO make reusable patterns for admins to use routes instead of repeating this snippet
-	    if (!req.session.cognitoData) {
-            res.send('Not authorized.');
-	    } else {
-	    	const email = req.session.cognitoData.idToken.payload.email;
-	    	if (!['filipe.b.aleixo@gmail.com', 'rodrigues.gon@gmail.com'].includes(email)) {
-        		res.send('Not authorized.');
-        		return;
-        	}
-	    }
-
-	    var email = req.body.email;
-	    var password = req.body.password;
-	    var repeatPassword = req.body.repeatPassword;
-
-	    if (email && password && repeatPassword) {
-	        if (password == repeatPassword) {
-	        userService.registerUser(email, password).then(function(result) {
-	            res.send('Success. Check your e-mail and click the confirmation link.');
-	        }, function(err) {
-	            res.send(`Invalid data: ${err.message}`);
-	        })
-	        }
-	        else {
-	            res.send("Passwords don't match.");
-	        }
-	    } else {
-	        res.send('Please fill-in all fields.');
-	    }
-	});
-
 
 	router.get('/options', async function(req, res) {
 	    // TODO CHECK FOR JWT TOKEN VALIDITY?
