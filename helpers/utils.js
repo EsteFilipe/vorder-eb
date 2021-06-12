@@ -58,8 +58,7 @@ Utils.prototype.downloadJSONFile = async function (url, targetFilePath) {
 	fetch(url, settings)
 	    .then(res => res.json())
 	    .then((json) => {
-	        console.log("JSON FILE:");
-	        console.log(JSON.stringify(json));
+	        fs.writeFile(targetFilePath, JSON.stringify(json));
 	    });
 }
 
