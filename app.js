@@ -115,8 +115,7 @@ if (cluster.isMaster) {
         // Get JSON file with public key for validating the client Cognito JWTs
         const cognitoRegion = config.server.credentials['cognito-user-pool']['region']
         const cognitoUserPoolId = config.server.credentials['cognito-user-pool']['user_pool_id']
-        const publicKeysURL = `https://cognito-idp.${cognitoRegion}.amazonaws.com/${cognitoUserPoolId}/.well-known/jwks.json`
-        utils.downloadJSONFile(publicKeysURL, '../jwks.json')
+        getCognitoPublicKeys(cognitoRegion, cognitoUserPoolId, process.env.JWT_PUBLIC_KEY_FILE_PATH);
 
         return {status: true, 
         output: ""}

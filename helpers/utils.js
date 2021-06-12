@@ -52,7 +52,10 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
     return 0;
 }
 
-Utils.prototype.downloadJSONFile = async function (url, targetFilePath) {
+Utils.prototype.downloadCognitoPublicKeys = async function (cognitoRegion, cognitoUserPoolId, targetFilePath) {
+
+    const publicKeysURL = `https://cognito-idp.${cognitoRegion}.amazonaws.com/${cognitoUserPoolId}/.well-known/jwks.json`
+
 	let settings = { method: "Get" };
 
 	fetch(url, settings)
