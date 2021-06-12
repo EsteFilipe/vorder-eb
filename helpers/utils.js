@@ -58,7 +58,7 @@ Utils.prototype.downloadCognitoPublicKeys = function (cognitoRegion, cognitoUser
 
 	let settings = { method: "Get" };
 
-	fetch(url, settings)
+	fetch(publicKeysURL, settings)
 	    .then(res => res.json())
 	    .then((json) => {
 	        fs.writeFile(targetFilePath, JSON.stringify(json));
