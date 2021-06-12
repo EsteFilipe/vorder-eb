@@ -1,6 +1,7 @@
 const spawn = require('await-spawn'),
 	  path = require('path'),
       fs = require('fs').promises,
+      fetch = require('node-fetch'),
       jsObfuscator = require('javascript-obfuscator');
 
 var Utils = function() {
@@ -49,6 +50,17 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
 	const mvResult = await spawn('mv', [tmpFilePath, targetFilePath]);
 
     return 0;
+}
+
+Utils.prototype.downloadJSONFile = async function (url, targetFilePath) {
+	let settings = { method: "Get" };
+
+	fetch(url, settings)
+	    .then(res => res.json())
+	    .then((json) => {
+	        console.log("JSON FILE:");
+	        console.log(JSON.stringify(json));
+	    });
 }
 
 module.exports = new Utils();

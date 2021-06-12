@@ -112,6 +112,12 @@ if (cluster.isMaster) {
             const o = await orderProcessingTest.test();
         }
 
+        // Get JSON file with public key for validating the client Cognito JWTs
+        const cognitoRegion = config.server.credentials['cognito-user-pool']['region']
+        const cognitoUserPoolId = config.server.credentials['cognito-user-pool']['user_pool_id']
+        const publicKeysURL = `https://cognito-idp.${cognitoRegion}.amazonaws.com/${cognitoUserPoolId}/.well-known/jwks.json`
+        utils.downloadJSONFile(publicKeysURL, '../jwks.json')
+
         return {status: true, 
         output: ""}
 
