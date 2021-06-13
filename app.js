@@ -206,7 +206,7 @@ if (cluster.isMaster) {
 
             //DEBUG
             console.log("HERE")
-            console.log(socket.handshake.query.username)
+            console.log(client.handshake.query.username)
             //DEBUG
 
             console.log(`[socket.io] Client connected [id=${client.id}]`);
