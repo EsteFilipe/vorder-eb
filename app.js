@@ -25,7 +25,7 @@ if (cluster.isMaster) {
 
     var AWS = require('aws-sdk'),
         express = require('express'),
-        session = require('express-session'),
+        //session = require('express-session'),
         dbStore = require('connect-dynamodb')({session: session}),
         attr = require('dynamodb-data-types').AttributeValue,
         bodyParser = require('body-parser'),
@@ -137,6 +137,7 @@ if (cluster.isMaster) {
         //https://www.npmjs.com/package/express-session
         app.set('trust proxy', 1); 
 
+        /*
         var sess = session({
             store: new dbStore ({
                 table: process.env.SESSIONS_TABLE,
@@ -152,13 +153,10 @@ if (cluster.isMaster) {
                 secure: true
             }
         });
+        */
 
         app.use(sess);
-        app.use("*", function(req, res, next) {
-          console.log("Express `req.session` data is %j.", req.session);
-          next();
-        });
-        //app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']));
+        app.use('*', require('./routes/user')(config.server.credentials['cognito-user-pool']));
 
         var server = http.createServer(app);
 

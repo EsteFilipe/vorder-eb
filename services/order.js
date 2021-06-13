@@ -47,7 +47,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 
 	    // Putting this in almost every call to avoid the case where a stale
 	    // order stays in memory and then is executed by accident 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.stopMonitoring = function(data) {
@@ -57,7 +57,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	            client_timestamp: {S: data.timestamp.toString()}},
 	            process.env.EVENTS_TABLE);
 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.wakeWordDetected = function(data) {
@@ -67,7 +67,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	            client_timestamp: {S: data.timestamp.toString()}},
 	            process.env.EVENTS_TABLE);
 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.microphoneError = function(data) {
@@ -77,7 +77,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
                 client_timestamp: {S: data.timestamp.toString()}},
                 process.env.EVENTS_TABLE);
 
-        this.client.request.session.order = -1;
+        this.client.order = -1;
 	}
 
 	OrderService.prototype.processOrder = async function(data) {
@@ -96,7 +96,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 
         var status, output;
 
-        this.client.request.session.order = -1;
+        this.client.order = -1;
 
         if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
@@ -116,7 +116,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
             if (status == "VALID") {
 
                 // Save order in session variable
-                this.client.request.session.order = orderInfo.output;
+                this.client.order = orderInfo.output;
                 
                 const order = orderInfo.output;
                 const coinName = this.coins[order.ticker];
@@ -164,7 +164,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	}
 
 	OrderService.prototype.confirmOrder = async function(data) {
-        const orderDetails = this.client.request.session.order;
+        const orderDetails = this.client.order;
         const sub = this.client.handshake.query.username;
         const eventType = 'CONFIRM_ORDER';
         const clientTimestamp = data.timestamp.toString();
@@ -211,7 +211,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
                     output = "-";
                 }
                 // Order resolved. Clean it up
-                this.client.request.session.order = -1;
+                this.client.order = -1;
             }
             else {
                 status = "PROCESSING_ERROR";
