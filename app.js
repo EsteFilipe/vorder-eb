@@ -26,7 +26,7 @@ if (cluster.isMaster) {
     var AWS = require('aws-sdk'),
         express = require('express'),
         //session = require('express-session'),
-        dbStore = require('connect-dynamodb')({session: session}),
+        //dbStore = require('connect-dynamodb')({session: session}),
         attr = require('dynamodb-data-types').AttributeValue,
         bodyParser = require('body-parser'),
         cors = require('cors'),
