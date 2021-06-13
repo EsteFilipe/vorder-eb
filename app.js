@@ -166,11 +166,15 @@ if (cluster.isMaster) {
         io = socketIo(server);
 
         // Authentication
-        io.use(function(socket, next){
-          if (socket.handshake.query && socket.handshake.query.username && socket.handshake.query.idToken){
-            // Verify on corresponding cognito pool the validity of the idToken and the correspondence with the username
-            console.log(`username: ${socket.handshake.query.username}`)
-            console.log(`idToken: ${socket.handshake.query.idToken}`)
+        io.use(async function(socket, next){
+          if (socket.handshake.query && socket.handshake.query.idToken && socket.handshake.query.username){
+
+            utils.validateClientJWT(
+                process.env.JWT_PUBLIC_KEY_FILE_PATH, 
+                config.server.credentials['cognito-user-pool']['client_id'], 
+                socket.handshake.query.idToken, 
+                socket.handshake.query.username
+            );
           }
           else {
             next(new Error('Authentication error'));

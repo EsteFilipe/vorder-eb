@@ -65,4 +65,16 @@ Utils.prototype.downloadCognitoPublicKeys = function (cognitoRegion, cognitoUser
 	    });
 }
 
+Utils.prototype.validateClientJWT = function (publicKeyFilePath, appClientId, userIdToken, username) {
+	var out = runPython38Script(decode_verify_jwt, `${publicKeyFilePath} ${appClientId} ${userIdToken}`)
+
+	console.log(out)
+
+	// TODO check this works.
+	// TODO validate username in the decoded payload against the username retrieved from the user
+
+	out = JSON.parse(out);
+
+}
+
 module.exports = new Utils();
