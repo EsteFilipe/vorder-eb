@@ -146,7 +146,7 @@ if (cluster.isMaster) {
             }),
             secret: config.server.credentials['cookie-session-secret'],
             resave: false,
-            saveUninitialized: false,
+            saveUninitialized: true,
             cookie: {
                 maxAge: config.server.cookieMaxAge,
                 secure: true
@@ -154,7 +154,10 @@ if (cluster.isMaster) {
         });
 
         app.use(sess);
-        app.use('/', require('./routes/routes'));
+        app.use("*", function(req, res, next) {
+          debug("Express `req.session` data is %j.", req.session);
+          next();
+        });
         //app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']));
 
         var server = http.createServer(app);
