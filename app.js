@@ -154,7 +154,7 @@ if (cluster.isMaster) {
         });
 
         app.use(sess);
-        //app.use('/', require('./routes/routes'));
+        app.use('/', require('./routes/routes'));
         //app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']));
 
         var server = http.createServer(app);
@@ -203,8 +203,8 @@ if (cluster.isMaster) {
 
         // Listener, once the client connects to the server socket
         io.on('connect', (client) => {
-            console.log(`[socket.io] Client connected [id=${client.id}]`);
-            client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
+            console.log(`[socket.io] Client connected [id=${client.id}; sub=${client.handshake.query.username}]`);
+            client.emit('server_setup', `[socket.io] Server connected [id=${client.id}; sub=${client.handshake.query.username}]`);
 
             var orderService = require('./services/order')(
                 client, 
