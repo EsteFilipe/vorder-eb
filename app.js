@@ -203,6 +203,12 @@ if (cluster.isMaster) {
 
         // Listener, once the client connects to the server socket
         io.on('connect', (client) => {
+
+            //DEBUG
+            console.log("HERE")
+            console.log(socket.handshake.query.username)
+            //DEBUG
+
             console.log(`[socket.io] Client connected [id=${client.id}]`);
             client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
 
