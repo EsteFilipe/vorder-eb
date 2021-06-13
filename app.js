@@ -165,16 +165,31 @@ if (cluster.isMaster) {
 
         io = socketIo(server);
 
-        // Authentication
+        // Socket.io authentication using the Cognito JWT sent by the client
         io.use(async function(socket, next){
           if (socket.handshake.query && socket.handshake.query.idToken && socket.handshake.query.username){
 
-            utils.validateClientJWT(
+            const validationResult = await utils.validateClientJWT(
                 process.env.JWT_PUBLIC_KEY_FILE_PATH, 
                 config.server.credentials['cognito-user-pool']['client_id'], 
                 socket.handshake.query.idToken, 
-                socket.handshake.query.username
             );
+
+            // If validation script returned false status, fail
+            if (!validationResult.status) {
+                next(new Error('Authentication error'));
+            }
+            else {
+                // If username doesn't match, fail
+                if (socket.handshake.query.username != validationResult.output.sub) {
+                    next(new Error("Authentication error: username doesn't match (something very wrong happened)"));
+                }
+                // Else succeed
+                else {
+                    console.log(`${validationResult.output.sub}: socket.io authentication succeeded`)
+                    next();
+                }
+            }
           }
           else {
             next(new Error('Authentication error'));
