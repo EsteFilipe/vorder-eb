@@ -146,7 +146,7 @@ if (cluster.isMaster) {
             }),
             secret: config.server.credentials['cookie-session-secret'],
             resave: false,
-            saveUninitialized: true,
+            saveUninitialized: false,
             cookie: {
                 maxAge: config.server.cookieMaxAge,
                 secure: true
