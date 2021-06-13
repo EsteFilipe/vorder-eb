@@ -65,7 +65,7 @@ module.exports = function (credentials, config) {
 
     SpeechService.prototype.getSTTContexts = async function () {
         const processExpectedSentences = JSON.parse(
-            await utils.runPython38Script('generate_speech_context_sentences.py', config.stt.contextsConf.useBigrams)
+            await utils.runPython38Script(['generate_speech_context_sentences.py', config.stt.contextsConf.useBigrams])
         );
 
         const processSpeechContexts = [{
