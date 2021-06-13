@@ -13,7 +13,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	}
 
 	OrderService.prototype.startMonitoring = async function(data) {
-		const sub = this.client.request.session.cognitoData.idToken.payload.sub;
+		const sub = this.client.handshake.query.username;
 	    var status;
 	    // Only allow if user has valid API key stored
 	    const keys = await storageService.getAPIKeys(sub, 'binance');
@@ -38,7 +38,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	    }
 
 	    // TODO register errors
-	    storageService.ddbPut({sub: {S: this.client.request.session.cognitoData.idToken.payload.sub},
+	    storageService.ddbPut({sub: {S: sub},
 	            server_timestamp: {S: Date.now().toString()},
 	            status: {S: status},
 	            event_type: {S: 'START_MONITORING'},
