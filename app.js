@@ -155,7 +155,7 @@ if (cluster.isMaster) {
 
         app.use(sess);
         app.use("*", function(req, res, next) {
-          debug("Express `req.session` data is %j.", req.session);
+          console.log("Express `req.session` data is %j.", req.session);
           next();
         });
         //app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']));
