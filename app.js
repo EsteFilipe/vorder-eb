@@ -155,7 +155,8 @@ if (cluster.isMaster) {
         });
         */
 
-        app.use(sess);
+        //app.use(sess);
+        
         app.use('*', require('./routes/user')(config.server.credentials['cognito-user-pool']));
 
         var server = http.createServer(app);
@@ -198,9 +199,11 @@ if (cluster.isMaster) {
         });
 
         // Share session variables with socket.io
+        /*
         io.use(function(socket, next) {
             sess(socket.request, socket.request.res || {}, next);
         });
+        */
 
         // Listener, once the client connects to the server socket
         io.on('connect', (client) => {
