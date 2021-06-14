@@ -157,7 +157,7 @@ if (cluster.isMaster) {
         //app.use(sess);
 
         // Do JWT validation for all routes
-        app.use('/', function(req, res, next) {
+        app.use('/', async function(req, res, next) {
           if (req.headers.idToken && req.headers.username){
             const validationResult = await utils.validateClientJWT(
                 process.env.JWT_PUBLIC_KEY_FILE_PATH, 
