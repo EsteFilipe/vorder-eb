@@ -2,65 +2,39 @@ const express = require('express');
 const storageService = require('../services/storage');
 const exchangeService = require('../services/exchange');
 
-module.exports = function(cognitoUserPool){
+module.exports = function(){
 
 	const router = express.Router();
-	const userService = require('../services/user')(cognitoUserPool);
 
-	router.post('/auth', function(req, res) {
-	    var email = req.body.email;
-	    var password = req.body.password;
-
-	    if (email && password) {
-	        userService.login(email, password).then(function(result) {
-	            req.session.order = -1;
-	            req.session.cognitoData = result;
-	            res.redirect('/');
-	        }, function(err) {
-	            res.send('Incorrect e-mail and/or password.');
-	            console.log(err);
-	        })
-	    } else {
-	        res.send('Please enter e-mail and password.');
-	    }
-	});
-
-
+	// Get API key status for user
 	router.get('/options', async function(req, res) {
-	    // TODO CHECK FOR JWT TOKEN VALIDITY?
-	    if (!req.session.cognitoData) {
-	        res.redirect('/');
-	    } else {
-	        const sub = req.session.cognitoData.idToken.payload.sub;
-	        const keys = await storageService.getAPIKeys(sub, 'binance');
 
-	        if (keys.status == "API_KEY_DEFINED") {
-	            const hasValidAPIKeys = await exchangeService.validateAPIKeys({
-	            	apiKey: keys.output.api_key,
-	            	apiSecret: keys.output.api_secret
-	            }, 'binance');
+		// Verification has already been handled in the first middleware - we can trust the username
+        const sub = req.headers.username;
+        const keys = await storageService.getAPIKeys(sub, 'binance');
 
-	            if (hasValidAPIKeys) {
-	                res.render('options', {
-	                    verified: true,
-	                });
-	            }
-	            else {
-	                res.render('options', {
-	                    verified: false,
-	                });
-	            }
-	        }
-	        else {
-	             res.render('options', {
-	                verified: false,
-	            });   
-	        }
-	    }
+        if (keys.status == "API_KEY_DEFINED") {
+            const hasValidAPIKeys = await exchangeService.validateAPIKeys({
+            	apiKey: keys.output.api_key,
+            	apiSecret: keys.output.api_secret
+            }, 'binance');
+
+            if (hasValidAPIKeys) {
+                res.send({status: "API_KEY_VALID"});
+            }
+            else {
+                res.send({status: "API_KEY_INVALID"});
+            }
+        }
+        else {
+            res.send({status: "API_KEY_UNDEFINED"});
+        }
+
 	});
 
+	// Set new API key
 
-	router.post('/set-api-key', async function(req, res) {
+	router.post('/options', async function(req, res) {
 	    var apiKey = req.body.apiKey;
 	    var apiSecret = req.body.apiSecret;
 
@@ -90,6 +64,28 @@ module.exports = function(cognitoUserPool){
 	        }
 	    }
 	});
+
+
+	router.post('/options', function(req, res) {
+	    var email = req.body.email;
+	    var password = req.body.password;
+
+	    if (email && password) {
+	        userService.login(email, password).then(function(result) {
+	            req.session.order = -1;
+	            req.session.cognitoData = result;
+	            res.redirect('/');
+	        }, function(err) {
+	            res.send('Incorrect e-mail and/or password.');
+	            console.log(err);
+	        })
+	    } else {
+	        res.send('Please enter e-mail and password.');
+	    }
+	});
+
+
+
 
     return router;
 }
