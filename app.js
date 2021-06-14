@@ -159,7 +159,7 @@ if (cluster.isMaster) {
         // Do JWT validation for all routes
         app.use('/', async function(req, res, next) {
 
-          if (req.headers.Authorization && req.headers.username){
+          if (req.headers.authorization && req.headers.username){
 
             var idToken;
 
@@ -174,7 +174,7 @@ if (cluster.isMaster) {
             const validationResult = await utils.validateClientJWT(
                 process.env.JWT_PUBLIC_KEY_FILE_PATH, 
                 config.server.credentials['cognito-user-pool']['client_id'], 
-                idToken, 
+                idToken
             );
 
             // If validation script returned false status, fail
