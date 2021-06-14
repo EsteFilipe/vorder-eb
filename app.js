@@ -157,7 +157,7 @@ if (cluster.isMaster) {
         //app.use(sess);
 
         // Do JWT validation for all routes
-        app.use('/', async function(req, res, next) {
+        app.use(async function(req, res, next) {
 
           if (req.headers.authorization && req.headers.username){
 
@@ -205,7 +205,7 @@ if (cluster.isMaster) {
 
         });
         
-        app.use('/', require('./routes/options'));
+        app.use(require('./routes/options'));
 
         var server = http.createServer(app);
 
