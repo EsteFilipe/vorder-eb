@@ -167,14 +167,12 @@ if (cluster.isMaster) {
 
             // If validation script returned false status, fail
             if (!validationResult.status) {
-              res.send({status: "UNAUTHORIZED"});
-              return;
+              res.send({status: "UNAUTHORIZED_SCRIPT"});
             }
             else {
                 // If username doesn't match, fail
                 if (req.headers.username != validationResult.output.sub) {
-                  res.send({status: "UNAUTHORIZED"});
-                  return;
+                  res.send({status: "UNAUTHORIZED_USERNAME"});
                 }
                 // Else succeed
                 else {
@@ -184,8 +182,7 @@ if (cluster.isMaster) {
             }
           }
           else {
-            res.send({status: "UNAUTHORIZED"});
-            return;
+            res.send({status: "UNAUTHORIZED_HEADERS"});
           }    
 
         });
