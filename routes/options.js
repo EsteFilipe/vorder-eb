@@ -9,6 +9,8 @@ module.exports = function(){
 	// Get API key status for user
 	router.get('/options', async function(req, res) {
 
+		console.log("here")
+
 		// Verification has already been handled in the first middleware - we can trust the username
         const sub = req.headers.username;
         const keys = await storageService.getAPIKeys(sub, 'binance');
