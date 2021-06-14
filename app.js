@@ -43,7 +43,6 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-
     async function init() {
 
         const ebEnvName = await utils.getElasticBeanstalkEnvName();
@@ -156,8 +155,39 @@ if (cluster.isMaster) {
         */
 
         //app.use(sess);
+
+        // Do JWT validation for all routes
+        app.use('/', function(req, res, next) {
+          if (req.headers.idToken && req.headers.username){
+            const validationResult = await utils.validateClientJWT(
+                process.env.JWT_PUBLIC_KEY_FILE_PATH, 
+                config.server.credentials['cognito-user-pool']['client_id'], 
+                req.headers.idToken, 
+            );
+
+            // If validation script returned false status, fail
+            if (!validationResult.status) {
+                next(new Error('Authentication error'));
+            }
+            else {
+                // If username doesn't match, fail
+                if (req.headers.username != validationResult.output.sub) {
+                    next(new Error("Authentication error: username doesn't match (something very wrong happened)"));
+                }
+                // Else succeed
+                else {
+                    console.log(`${validationResult.output.sub}: HTTP request authentication succeeded`)
+                    next();
+                }
+            }
+          }
+          else {
+            next(new Error('Authentication error'));
+          }    
+
+        });
         
-        app.use('*', require('./routes/user')(config.server.credentials['cognito-user-pool']));
+        app.use('/options', require('./routes/options'));
 
         var server = http.createServer(app);
 
