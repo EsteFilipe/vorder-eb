@@ -158,6 +158,9 @@ if (cluster.isMaster) {
 
         // Do JWT validation for all routes
         app.use('/', async function(req, res, next) {
+
+          console.log(JSON.stringify(req, null, 2))
+          
           if (req.headers.idToken && req.headers.username){
             const validationResult = await utils.validateClientJWT(
                 process.env.JWT_PUBLIC_KEY_FILE_PATH, 
@@ -167,12 +170,12 @@ if (cluster.isMaster) {
 
             // If validation script returned false status, fail
             if (!validationResult.status) {
-              res.send({status: "UNAUTHORIZED_SCRIPT"});
+              res.send({status: "UNAUTHORIZED"});
             }
             else {
                 // If username doesn't match, fail
                 if (req.headers.username != validationResult.output.sub) {
-                  res.send({status: "UNAUTHORIZED_USERNAME"});
+                  res.send({status: "UNAUTHORIZED"});
                 }
                 // Else succeed
                 else {
@@ -182,7 +185,7 @@ if (cluster.isMaster) {
             }
           }
           else {
-            res.send({status: "UNAUTHORIZED_HEADERS"});
+            res.send({status: "UNAUTHORIZED"});
           }    
 
         });
