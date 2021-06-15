@@ -39,31 +39,26 @@ router.post('/options', async function(req, res) {
     var apiKey = req.body.apiKey;
     var apiSecret = req.body.apiSecret;
 
-    if (!req.session.cognitoData) {
-        return;
-    }
-    else {
+	const keys = {apiKey: apiKey, apiSecret: apiSecret};
+    const hasValidAPIKeys = await exchangeService.validateAPIKeys(
+    	keys, 'binance');
 
-    	const keys = {apiKey: apiKey, apiSecret: apiSecret};
-        const hasValidAPIKeys = await exchangeService.validateAPIKeys(
-        	keys, 'binance');
+    if (hasValidAPIKeys) {
+		const sub = req.headers.username;
 
-        if (hasValidAPIKeys) {
-    		const sub = req.headers.username;
+        const setAPIKeys = await storageService.setAPIKeys(sub, 'binance', keys);
 
-            const setAPIKeys = await storageService.setAPIKeys(sub, 'binance', keys);
-
-            if (setAPIKeys.status) {
-				res.send({status: "API_KEY_UPDATED"});
-            }
-            else {
-            	res.send({status: "API_KEY_UPDATE_ERROR"});
-            }
+        if (setAPIKeys.status) {
+			res.send({status: "API_KEY_UPDATED"});
         }
         else {
-            res.send({status: "API_KEY_INVALID"});
+        	res.send({status: "API_KEY_UPDATE_ERROR"});
         }
     }
+    else {
+        res.send({status: "API_KEY_INVALID"});
+    }
+
 });
 
 module.exports = router;
