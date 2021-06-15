@@ -205,7 +205,7 @@ if (cluster.isMaster) {
 
         });
         
-        app.use('/options', require('./routes/options'));
+        app.use('/', require('./routes/options'));
 
         var server = http.createServer(app);
 
