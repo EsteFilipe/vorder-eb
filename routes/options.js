@@ -1,13 +1,10 @@
 const express = require('express');
 const storageService = require('../services/storage');
 const exchangeService = require('../services/exchange');
-
 const router = express.Router();
 
 // Get API key status for user
 router.get('/options', async function(req, res) {
-
-	console.log("here")
 
 	// Verification has already been handled in the first middleware - we can trust the username
     const sub = req.headers.username;
@@ -35,6 +32,10 @@ router.get('/options', async function(req, res) {
 // Set new API key
 
 router.post('/options', async function(req, res) {
+
+	console.log('got into post /options');
+
+
     var apiKey = req.body.apiKey;
     var apiSecret = req.body.apiSecret;
 
@@ -53,14 +54,14 @@ router.post('/options', async function(req, res) {
             const setAPIKeys = await storageService.setAPIKeys(sub, 'binance', keys);
 
             if (setAPIKeys.status) {
-				res.send('API Key updated.');
+				res.send({status: "API_KEY_UPDATED"});
             }
             else {
-            	res.send("There's been an error updating the API Key");
+            	res.send({status: "API_KEY_UPDATE_ERROR"});
             }
         }
         else {
-            res.send("Invalid API key.");
+            res.send({status: "API_KEY_INVALID"});
         }
     }
 });
