@@ -204,10 +204,6 @@ if (cluster.isMaster) {
           }    
 
         });
-
-        app.get('/options', async function(req, res) {
-          console.log('works');
-        });
         
         app.use('/options', require('./routes/options'));
 
