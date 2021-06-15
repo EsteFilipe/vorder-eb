@@ -21,20 +21,6 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 
 
-# TODO on nodejs server startup delete the previous public key file (if it exists) and download the new one
-def store_keys(region, userpool_id):
-    # TODO check if key file already exists and has the right region and userpool_id
-
-    # TODO only download
-    keys_url = 'https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json'.format(region, userpool_id)
-    # instead of re-downloading the public keys every time
-    # we download them only on cold start
-    # https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/
-    with urllib.request.urlopen(keys_url) as f:
-        response = f.read()
-    keys = json.loads(response.decode('utf-8'))['keys']
-
-
 def read_keys(public_keys_file_path):
     with open(public_keys_file_path, encoding='utf-8') as f:
         return json.load(f)['keys']
