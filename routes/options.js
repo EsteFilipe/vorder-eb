@@ -33,9 +33,6 @@ router.get('/options', async function(req, res) {
 
 router.post('/options', async function(req, res) {
 
-	console.log('got into post /options');
-
-
     var apiKey = req.body.apiKey;
     var apiSecret = req.body.apiSecret;
 

@@ -159,9 +159,9 @@ if (cluster.isMaster) {
         // Do JWT validation for all routes
         app.use('/', async function(req, res, next) {
 
-          console.log(`METHOD: ${req.method}`)
-          console.log(req.headers.authorization)
-          console.log(req.headers.username)
+          //console.log(`METHOD: ${req.method}`)
+          //console.log(req.headers.authorization)
+          //console.log(req.headers.username)
 
           if (req.headers.authorization && req.headers.username){
 
