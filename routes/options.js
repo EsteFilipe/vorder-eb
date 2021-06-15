@@ -49,7 +49,7 @@ router.post('/options', async function(req, res) {
         	keys, 'binance');
 
         if (hasValidAPIKeys) {
-            const sub = req.session.cognitoData.idToken.payload.sub;
+    		const sub = req.headers.username;
 
             const setAPIKeys = await storageService.setAPIKeys(sub, 'binance', keys);
 
