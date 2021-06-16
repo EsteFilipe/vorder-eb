@@ -3,7 +3,7 @@ var config = {
 		port: process.env.PORT || 3000,
 		cookieMaxAge: 86400000,
 		obfuscateJS: {
-			production: true,
+			production: false,
 			development: false
 		}
 	},
