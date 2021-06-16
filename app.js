@@ -56,7 +56,6 @@ if (cluster.isMaster) {
         // Development
         else if (ebEnvName === 'Vorder-env-dev') {
             process.env.EVENTS_TABLE += '-dev';
-            process.env.SESSIONS_TABLE += '-dev';
             process.env.CREDENTIALS_TABLE += '-dev';
             process.env.EVENTS_BUCKET += '-dev';
             if (config.server.obfuscateJS.development) {
