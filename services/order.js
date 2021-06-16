@@ -13,7 +13,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	}
 
 	OrderService.prototype.startMonitoring = async function(data) {
-		const sub = this.client.request.session.cognitoData.idToken.payload.sub;
+		const sub = this.client.handshake.query.username;
 	    var status;
 	    // Only allow if user has valid API key stored
 	    const keys = await storageService.getAPIKeys(sub, 'binance');
@@ -38,7 +38,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	    }
 
 	    // TODO register errors
-	    storageService.ddbPut({sub: {S: this.client.request.session.cognitoData.idToken.payload.sub},
+	    storageService.ddbPut({sub: {S: sub},
 	            server_timestamp: {S: Date.now().toString()},
 	            status: {S: status},
 	            event_type: {S: 'START_MONITORING'},
@@ -47,43 +47,43 @@ module.exports = function (client, speechCredentials, speechOptions) {
 
 	    // Putting this in almost every call to avoid the case where a stale
 	    // order stays in memory and then is executed by accident 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.stopMonitoring = function(data) {
-	    storageService.ddbPut({sub: {S: this.client.request.session.cognitoData.idToken.payload.sub},
+	    storageService.ddbPut({sub: {S: this.client.handshake.query.username},
 	            server_timestamp: {S: Date.now().toString()},
 	            event_type: {S: 'STOP_MONITORING'},
 	            client_timestamp: {S: data.timestamp.toString()}},
 	            process.env.EVENTS_TABLE);
 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.wakeWordDetected = function(data) {
-	    storageService.ddbPut({sub: {S: this.client.request.session.cognitoData.idToken.payload.sub},
+	    storageService.ddbPut({sub: {S: this.client.handshake.query.username},
 	            server_timestamp: {S: Date.now().toString()},
 	            event_type: {S: 'WAKE_WORD_DETECTED'},
 	            client_timestamp: {S: data.timestamp.toString()}},
 	            process.env.EVENTS_TABLE);
 
-	    this.client.request.session.order = -1;
+	    this.client.order = -1;
 	}
 
 	OrderService.prototype.microphoneError = function(data) {
-        storageService.ddbPut({sub: {S: this.client.request.session.cognitoData.idToken.payload.sub},
+        storageService.ddbPut({sub: {S: this.client.handshake.query.username},
                 server_timestamp: {S: Date.now().toString()},
                 event_type: {S: 'MICROPHONE_ERROR_' + data.stage.toUpperCase()},
                 client_timestamp: {S: data.timestamp.toString()}},
                 process.env.EVENTS_TABLE);
 
-        this.client.request.session.order = -1;
+        this.client.order = -1;
 	}
 
 	OrderService.prototype.processOrder = async function(data) {
 		const eventType = 'PROCESS_ORDER';
         const clientTimestamp = data.timestamp.toString();
-        const fileName = this.client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
+        const fileName = this.client.handshake.query.username + "-" + clientTimestamp + ".wav";
         // Get the dataURL which was sent from the client
         const dataURL = data.audio.dataURL.split(',').pop();
         // Convert it to a Buffer
@@ -96,12 +96,12 @@ module.exports = function (client, speechCredentials, speechOptions) {
 
         var status, output;
 
-        this.client.request.session.order = -1;
+        this.client.order = -1;
 
         if (orderTranscription != "TRANSCRIPTION_ERROR") {
 
             // Process the order using python script
-            const orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
+            const orderProcessingResult = await utils.runPython38Script(['order_processing.py', orderTranscription]);
             const orderInfo = JSON.parse(orderProcessingResult);
 
             status = orderInfo.status ? "VALID" : "PROCESSING_ERROR";
@@ -116,7 +116,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
             if (status == "VALID") {
 
                 // Save order in session variable
-                this.client.request.session.order = orderInfo.output;
+                this.client.order = orderInfo.output;
                 
                 const order = orderInfo.output;
                 const coinName = this.coins[order.ticker];
@@ -150,13 +150,13 @@ module.exports = function (client, speechCredentials, speechOptions) {
         }
 
         storageService.storeProcessingData({
-                sub: this.client.request.session.cognitoData.idToken.payload.sub,
+                sub: this.client.handshake.query.username,
                 eventType: eventType,
                 status: status,
                 output: output});
 
         storageService.storeAudioData({
-            sub: this.client.request.session.cognitoData.idToken.payload.sub,
+            sub: this.client.handshake.query.username,
             eventType: eventType,
             fileName: fileName,
             fileBuffer: fileBuffer,
@@ -164,11 +164,11 @@ module.exports = function (client, speechCredentials, speechOptions) {
 	}
 
 	OrderService.prototype.confirmOrder = async function(data) {
-        const orderDetails = this.client.request.session.order;
-        const sub = this.client.request.session.cognitoData.idToken.payload.sub;
+        const orderDetails = this.client.order;
+        const sub = this.client.handshake.query.username;
         const eventType = 'CONFIRM_ORDER';
         const clientTimestamp = data.timestamp.toString();
-        const fileName = this.client.request.session.cognitoData.idToken.payload.sub + "-" + clientTimestamp + ".wav";
+        const fileName = sub + "-" + clientTimestamp + ".wav";
         // Get the dataURL which was sent from the client
         const dataURL = data.audio.dataURL.split(',').pop();
         // Convert it to a Buffer
@@ -211,7 +211,7 @@ module.exports = function (client, speechCredentials, speechOptions) {
                     output = "-";
                 }
                 // Order resolved. Clean it up
-                this.client.request.session.order = -1;
+                this.client.order = -1;
             }
             else {
                 status = "PROCESSING_ERROR";
@@ -229,13 +229,13 @@ module.exports = function (client, speechCredentials, speechOptions) {
         this.client.emit('order-confirmation', JSON.stringify({status: status, output: output}));
 
         storageService.storeProcessingData({
-            sub: this.client.request.session.cognitoData.idToken.payload.sub,
+            sub: sub,
             eventType: eventType,
             status: status,
             output: output});
 
         storageService.storeAudioData({
-            sub: this.client.request.session.cognitoData.idToken.payload.sub,
+            sub: sub,
             eventType: eventType,
             fileName: fileName,
             fileBuffer: fileBuffer,

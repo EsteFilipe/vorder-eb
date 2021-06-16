@@ -25,8 +25,8 @@ if (cluster.isMaster) {
 
     var AWS = require('aws-sdk'),
         express = require('express'),
-        session = require('express-session'),
-        dbStore = require('connect-dynamodb')({session: session}),
+        //session = require('express-session'),
+        //dbStore = require('connect-dynamodb')({session: session}),
         attr = require('dynamodb-data-types').AttributeValue,
         bodyParser = require('body-parser'),
         cors = require('cors'),
@@ -43,7 +43,6 @@ if (cluster.isMaster) {
     var ddb = new AWS.DynamoDB();
     var S3 = new AWS.S3();
 
-
     async function init() {
 
         const ebEnvName = await utils.getElasticBeanstalkEnvName();
@@ -57,7 +56,6 @@ if (cluster.isMaster) {
         // Development
         else if (ebEnvName === 'Vorder-env-dev') {
             process.env.EVENTS_TABLE += '-dev';
-            process.env.SESSIONS_TABLE += '-dev';
             process.env.CREDENTIALS_TABLE += '-dev';
             process.env.EVENTS_BUCKET += '-dev';
             if (config.server.obfuscateJS.development) {
@@ -112,6 +110,11 @@ if (cluster.isMaster) {
             const o = await orderProcessingTest.test();
         }
 
+        // Get JSON file with public key for validating the client Cognito JWTs
+        const cognitoRegion = config.server.credentials['cognito-user-pool']['region']
+        const cognitoUserPoolId = config.server.credentials['cognito-user-pool']['user_pool_id']
+        utils.downloadCognitoPublicKeys(cognitoRegion, cognitoUserPoolId, process.env.JWT_PUBLIC_KEY_FILE_PATH);
+
         return {status: true, 
         output: ""}
 
@@ -132,6 +135,7 @@ if (cluster.isMaster) {
         //https://www.npmjs.com/package/express-session
         app.set('trust proxy', 1); 
 
+        /*
         var sess = session({
             store: new dbStore ({
                 table: process.env.SESSIONS_TABLE,
@@ -147,10 +151,64 @@ if (cluster.isMaster) {
                 secure: true
             }
         });
+        */
 
-        app.use(sess);
-        app.use('/', require('./routes/routes'))
-        app.use('/', require('./routes/user')(config.server.credentials['cognito-user-pool']))
+        //app.use(sess);
+
+        // Do JWT validation for all routes
+        app.use('/', async function(req, res, next) {
+
+          //console.log(`METHOD: ${req.method}`)
+          //console.log(req.headers.authorization)
+          //console.log(req.headers.username)
+
+          if (req.headers.authorization && req.headers.username){
+
+            var idToken;
+
+            if (req.headers.authorization.startsWith("Bearer ")){
+              idToken = req.headers.authorization.substring(7, req.headers.authorization.length);
+            } else {
+              res.status(401).send({
+                  message: 'MALFORMED AUTHORIZATION HEADER'
+              });
+            }
+
+            const validationResult = await utils.validateClientJWT(
+                process.env.JWT_PUBLIC_KEY_FILE_PATH, 
+                config.server.credentials['cognito-user-pool']['client_id'], 
+                idToken
+            );
+
+            // If validation script returned false status, fail
+            if (!validationResult.status) {
+              res.status(401).send({
+                  message: 'UNAUTHORIZED'
+              });
+            }
+            else {
+                // If username doesn't match, fail
+                if (req.headers.username != validationResult.output.sub) {
+                  res.status(401).send({
+                      message: 'UNAUTHORIZED'
+                  });
+                }
+                // Else succeed
+                else {
+                    console.log(`${validationResult.output.sub}: HTTP request authentication succeeded`)
+                    next();
+                }
+            }
+          }
+          else {
+              res.status(401).send({
+                  message: 'UNAUTHORIZED'
+              });
+          }    
+
+        });
+        
+        app.use('/', require('./routes/options'));
 
         var server = http.createServer(app);
 
@@ -159,14 +217,49 @@ if (cluster.isMaster) {
         });
 
         io = socketIo(server);
+
+        // Socket.io authentication using the Cognito JWT sent by the client
+        io.use(async function(socket, next){
+          if (socket.handshake.query && socket.handshake.query.idToken && socket.handshake.query.username){
+
+            const validationResult = await utils.validateClientJWT(
+                process.env.JWT_PUBLIC_KEY_FILE_PATH, 
+                config.server.credentials['cognito-user-pool']['client_id'], 
+                socket.handshake.query.idToken, 
+            );
+
+            // If validation script returned false status, fail
+            if (!validationResult.status) {
+                next(new Error('Authentication error'));
+            }
+            else {
+                // If username doesn't match, fail
+                if (socket.handshake.query.username != validationResult.output.sub) {
+                    next(new Error("Authentication error: username doesn't match (something very wrong happened)"));
+                }
+                // Else succeed
+                else {
+                    console.log(`${validationResult.output.sub}: socket.io authentication succeeded`)
+                    next();
+                }
+            }
+          }
+          else {
+            next(new Error('Authentication error'));
+          }    
+        });
+
         // Share session variables with socket.io
+        /*
         io.use(function(socket, next) {
             sess(socket.request, socket.request.res || {}, next);
         });
+        */
+
         // Listener, once the client connects to the server socket
         io.on('connect', (client) => {
-            console.log(`[socket.io] Client connected [id=${client.id}]`);
-            client.emit('server_setup', `[socket.io] Server connected [id=${client.id}]`);
+            console.log(`[socket.io] Client connected [id=${client.id}; sub=${client.handshake.query.username}]`);
+            client.emit('server_setup', `[socket.io] Server connected [id=${client.id}; sub=${client.handshake.query.username}]`);
 
             var orderService = require('./services/order')(
                 client, 

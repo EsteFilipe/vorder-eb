@@ -97,7 +97,7 @@ module.exports = function(config) {
 	    	const orderFileDetails = processFileName(fileName);
 	    	// Transcribe and process transcription
 			const orderTranscription = await speechService.speechToText(fileData.output.Body, "PROCESS");
-	    	var orderProcessingResult = await utils.runPython38Script('order_processing.py', orderTranscription);
+	    	var orderProcessingResult = await utils.runPython38Script(['order_processing.py', orderTranscription]);
             orderProcessingResult = JSON.parse(orderProcessingResult).output;
 
             // If order is 'range', remove the `range_values` field, because we don't need it for the comparison
@@ -115,7 +115,7 @@ module.exports = function(config) {
 
     	// This script prints a log file to logs/ with configuration and full metrics
 		const accuracy = await utils.runPython38Script(
-		'performance_metrics.py', JSON.stringify({config: config.speech.stt, results: results}));
+		['performance_metrics.py', JSON.stringify({config: config.speech.stt, results: results})]);
 		
     	console.log('Detailed accuracy metrics printed to `logs/` folder')
     	console.log()

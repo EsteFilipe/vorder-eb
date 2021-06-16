@@ -1,15 +1,16 @@
 const spawn = require('await-spawn'),
 	  path = require('path'),
       fs = require('fs').promises,
+      fetch = require('node-fetch'),
       jsObfuscator = require('javascript-obfuscator');
 
 var Utils = function() {
 	this.name = ''
 }
 
-Utils.prototype.runPython38Script = async function (scriptName, arg) {
+Utils.prototype.runPython38Script = async function (args) {
 	const scriptsDir = path.resolve(process.cwd()) + '/scripts/';
-	const pythonProcess = await spawn('python3.8', [scriptName, arg], {cwd: scriptsDir});
+	const pythonProcess = await spawn('python3.8', args, {cwd: scriptsDir});
     return pythonProcess.toString();
 }
 
@@ -49,6 +50,27 @@ Utils.prototype.obfuscateAndReplaceJSFile = async function (targetFileName, url)
 	const mvResult = await spawn('mv', [tmpFilePath, targetFilePath]);
 
     return 0;
+}
+
+Utils.prototype.downloadCognitoPublicKeys = function (cognitoRegion, cognitoUserPoolId, targetFilePath) {
+
+    const publicKeysURL = `https://cognito-idp.${cognitoRegion}.amazonaws.com/${cognitoUserPoolId}/.well-known/jwks.json`
+
+	let settings = { method: "Get" };
+
+	fetch(publicKeysURL, settings)
+	    .then(res => res.json())
+	    .then((json) => {
+	        fs.writeFile(targetFilePath, JSON.stringify(json));
+	    });
+}
+
+Utils.prototype.validateClientJWT = async function (publicKeyFilePath, appClientId, userIdToken) {
+
+	var out = await this.runPython38Script(['decode_verify_jwt.py', publicKeyFilePath, appClientId, userIdToken]);
+
+	return JSON.parse(out);
+
 }
 
 module.exports = new Utils();
